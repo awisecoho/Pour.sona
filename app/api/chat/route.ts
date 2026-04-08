@@ -29,4 +29,8 @@ export async function POST(req: NextRequest) {
       await supabase.from("sessions").update({ messages: [...messages, { role: "assistant", content: text }], ...(recData && { blend_name: recData.title, blend_data: recData, order_status: "recommended" }) }).eq("id", sessionId);
       await supabase.from("events").insert({ retailer_id: retailer.id, session_id: sessionId, event_type: recData ? "recommendation" : "message", payload: {} });
     }
-    return
+    return NextResponse.json({ text, recData });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
