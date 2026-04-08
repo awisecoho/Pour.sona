@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     if (!retailer) return NextResponse.json({ error: "Retailer not found" }, { status: 404 });
     const { data: products } = await supabase.from("products").select("*").eq("retailer_id", retailer.id).eq("in_stock", true).order("sort_order");
     const { data: flights } = await supabaseAdmin.from("flights").select("*").eq("retailer_id", retailer.id).eq("active", true).order("sort_order");
-    const system = buildSystemPrompt(retailer, products || [], flights || []);
+    const system = buildSystemPrompt(retailer, products || []);
     const response = await anthropic.messages.create({ model: "claude-sonnet-4-20250514", max_tokens: 1024, system, messages: messages.map((m: any) => ({ role: m.role, content: m.content })) });
     const text = response.content?.[0]?.type === "text" ? response.content[0].text : "";
     const recMatch = text.match(/===REC===([\s\S]*?)===END===/);
