@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/api/order/route.ts
 // ─── Order creation ───────────────────────────────────────────────────────────
 // POST /api/order
