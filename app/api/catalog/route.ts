@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/api/catalog/route.ts
 // ─── Product catalog CRUD ─────────────────────────────────────────────────────
 // GET    /api/catalog?retailerId=xxx        → list products
