@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/api/chat/route.ts
 // ─── Poursona streaming chat endpoint ────────────────────────────────────────
 // POST /api/chat
