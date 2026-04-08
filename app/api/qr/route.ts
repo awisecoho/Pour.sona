@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/api/qr/route.ts
 // ─── QR Code Generator ────────────────────────────────────────────────────────
 // GET /api/qr?slug=ember-oak&format=png
