@@ -1,145 +1,32 @@
 export const dynamic = "force-dynamic";
-// app/api/chat/route.ts
-// ─── Poursona streaming chat endpoint ────────────────────────────────────────
-// POST /api/chat
-// Body: { sessionId, retailerSlug, messages }
-// Returns: Server-Sent Events stream
+import Anthropic from "@anthropic-ai/sdk";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { buildSystemPrompt } from "@/lib/prompts";
 
-import Anthropic from '@anthropic-ai/sdk'
-import { NextRequest } from 'next/server'
-import {
-  supabase,
-  supabaseAdmin,
-  getRetailerBySlug,
-  getProductsByRetailer,
-  updateSession,
-  logEvent,
-} from '@/lib/supabase'
-import { buildSystemPrompt } from '@/lib/prompts'
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+function getClients() {
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } });
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return { supabase, supabaseAdmin, anthropic };
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, retailerSlug, messages } = await req.json()
-
-    if (!retailerSlug || !messages) {
-      return new Response('Missing retailerSlug or messages', { status: 400 })
+    const { supabase, supabaseAdmin, anthropic } = getClients();
+    const { sessionId, retailerSlug, messages } = await req.json();
+    const { data: retailer } = await supabase.from("retailers").select("*").eq("slug", retailerSlug).eq("active", true).single();
+    if (!retailer) return NextResponse.json({ error: "Retailer not found" }, { status: 404 });
+    const { data: products } = await supabase.from("products").select("*").eq("retailer_id", retailer.id).eq("in_stock", true).order("sort_order");
+    const { data: flights } = await supabaseAdmin.from("flights").select("*").eq("retailer_id", retailer.id).eq("active", true).order("sort_order");
+    const system = buildSystemPrompt(retailer, products || [], flights || []);
+    const response = await anthropic.messages.create({ model: "claude-sonnet-4-20250514", max_tokens: 1024, system, messages: messages.map((m: any) => ({ role: m.role, content: m.content })) });
+    const text = response.content?.[0]?.type === "text" ? response.content[0].text : "";
+    const recMatch = text.match(/===REC===([\s\S]*?)===END===/);
+    let recData = null;
+    if (recMatch) { try { recData = JSON.parse(recMatch[1].trim()); } catch {} }
+    if (sessionId) {
+      await supabase.from("sessions").update({ messages: [...messages, { role: "assistant", content: text }], ...(recData && { blend_name: recData.title, blend_data: recData, order_status: "recommended" }) }).eq("id", sessionId);
+      await supabase.from("events").insert({ retailer_id: retailer.id, session_id: sessionId, event_type: recData ? "recommendation" : "message", payload: {} });
     }
-
-    // 1. Load retailer + catalog
-    const retailer = await getRetailerBySlug(retailerSlug)
-    if (!retailer) return new Response('Retailer not found', { status: 404 })
-
-    const products = await getProductsByRetailer(retailer.id)
-    if (products.length === 0) {
-      return new Response('No products in catalog', { status: 404 })
-    }
-
-    // 2. Build dynamic system prompt from their catalog
-    const systemPrompt = buildSystemPrompt(retailer, products)
-
-    // 3. Stream response from Anthropic
-    const encoder = new TextEncoder()
-
-    const stream = new ReadableStream({
-      async start(controller) {
-        let fullText = ''
-
-        try {
-          const anthropicStream = anthropic.messages.stream({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1024,
-            system: systemPrompt,
-            messages: messages.map((m: { role: string; content: string }) => ({
-              role: m.role,
-              content: m.content,
-            })),
-          })
-
-          // Stream tokens to client
-          for await (const chunk of anthropicStream) {
-            if (
-              chunk.type === 'content_block_delta' &&
-              chunk.delta.type === 'text_delta'
-            ) {
-              const text = chunk.delta.text
-              fullText += text
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ text })}\n\n`)
-              )
-            }
-          }
-
-          // 4. Extract recommendation if present
-          const recMatch = fullText.match(
-            /---RECOMMENDATION_START---([\s\S]*?)---RECOMMENDATION_END---/
-          )
-          let blendData = null
-          if (recMatch) {
-            try {
-              blendData = JSON.parse(recMatch[1].trim())
-            } catch {}
-          }
-
-          // 5. Save session state
-          if (sessionId) {
-            const updatedMessages = [
-              ...messages,
-              { role: 'assistant', content: fullText },
-            ]
-            await updateSession(sessionId, {
-              messages: updatedMessages,
-              ...(blendData && {
-                blend_name: blendData.recommendationName,
-                blend_data: blendData,
-                recommended_at: new Date().toISOString(),
-                order_status: 'recommended',
-              }),
-            })
-
-            // Log analytics event
-            if (blendData) {
-              await logEvent(retailer.id, sessionId, 'recommendation', {
-                blend_name: blendData.recommendationName,
-                products: blendData.selectedProducts?.map(
-                  (p: { name: string }) => p.name
-                ),
-              })
-            } else {
-              await logEvent(retailer.id, sessionId, 'message', {
-                message_count: messages.length + 1,
-              })
-            }
-          }
-
-          // Signal done with recommendation data
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ done: true, blendData })}\n\n`
-            )
-          )
-          controller.close()
-        } catch (err) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: 'Stream error' })}\n\n`
-            )
-          )
-          controller.close()
-        }
-      },
-    })
-
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
-    })
-  } catch (err) {
-    console.error('Chat API error:', err)
-    return new Response('Internal server error', { status: 500 })
-  }
-}
+    return
