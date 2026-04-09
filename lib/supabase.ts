@@ -1,14 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder'
-const supabaseRole = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+const supabaseRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
 
-export const supabase = createClient(supabaseUrl, supabaseAnon)
-
-export const supabaseAdmin = createClient(supabaseUrl, supabaseRole, {
-  auth: { autoRefreshToken: false, persistSession: false }
-})
+export const supabase = supabaseUrl ? createClient(supabaseUrl, supabaseAnon) : null as any
+export const supabaseAdmin = supabaseUrl ? createClient(supabaseUrl, supabaseRole, { auth: { autoRefreshToken: false, persistSession: false } }) : null as any
 
 export async function getRetailerBySlug(slug: string) {
   const { data } = await supabase.from('retailers').select('*').eq('slug', slug).eq('active', true).single()
