@@ -157,6 +157,19 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
       setLoading(false)
     }
     init()
+  }, [params.slug])useEffect(() => {
+    async function init() {
+      try {
+        const res = await fetch(`/api/retailer?slug=${params.slug}`)
+        if (!res.ok) { setNotFound(true); setLoading(false); return }
+        const data = await res.json()
+        if (!data.retailer) { setNotFound(true); setLoading(false); return }
+        setRetailer(data.retailer)
+        setSessionId(data.sessionId)
+        setLoading(false)
+      } catch { setNotFound(true); setLoading(false) }
+    }
+    init()
   }, [params.slug])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, rec])
