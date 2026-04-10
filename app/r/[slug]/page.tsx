@@ -6,7 +6,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { getRetailerBySlug, createSession, logEvent, Retailer, BlendRecommendation } from '@/lib/supabase'
+import { Retailer, BlendRecommendation } from '@/lib/supabase'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 interface Message { role: 'user' | 'assistant'; content: string; streaming?: boolean }
