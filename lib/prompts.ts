@@ -1,200 +1,86 @@
-// lib/prompts.ts
-// Builds the Poursona system prompt dynamically from retailer + their products
+export function buildSystemPrompt(retailer: any, products: any[], flights: any[] = []) {
+  const vertical = retailer.vertical || 'brewery'
+  const byCategory: Record<string, any[]> = {}
+  for (const p of products) {
+    const cat = p.category || 'Other'
+    if (!byCategory[cat]) byCategory[cat] = []
+    byCategory[cat].push(p)
+  }
+  const categories = Object.keys(byCategory)
+  const hasCocktails = categories.some(c => c.toLowerCase().includes('cocktail'))
+  const hasSpirits = categories.some(c => ['spirit','whiskey','bourbon','gin','vodka','rum','tequila','scotch','whisky'].some(s => c.toLowerCase().includes(s)))
+  const hasFlights = flights.length > 0
 
-import { Retailer, Product, Vertical } from './supabase'
-
-// ─── VERTICAL CONFIG ──────────────────────────────────────────────────────────
-const VERTICAL_LABELS: Record<Vertical, string> = {
-  coffee:  'coffee roaster',
-  brewery: 'brewery and taproom',
-  winery:  'winery and tasting room',
-}
-
-const VERTICAL_GUIDE_ROLE: Record<Vertical, string> = {
-  coffee:  'specialty coffee guide',
-  brewery: 'craft beer guide',
-  winery:  'wine sommelier',
-}
-
-const VERTICAL_DISCOVERY: Record<Vertical, string> = {
-  coffee: `
-## Discovery Flow — ONE question at a time
-1. How they drink their coffee (black / milk / sugar — shapes everything)
-2. Brew method (espresso, pour-over, drip/perk, percolator, french press, cold brew)
-3. Flavor direction (chocolatey/dark vs fruity/floral vs caramel/sweet)
-4. Body preference (light and clean vs silky vs full and chewy)
-5. Acidity (bright and lively vs smooth and low)
-
-CRITICAL: After 4 customer responses, DELIVER THE RECOMMENDATION. No more questions.
-If customer opens with clear flavor language, count as 2 answers — only need brew method + how they drink, then deliver.
-"Give me my blend" / "just pick" / "surprise me" = deliver immediately.
-
-## Education Notes
-- Weave brief education into questions. When asking about roast, explain what it does to flavor.
-- Use food comparisons: "like the difference between a ripe peach and a dried apricot"
-- Percolators: recommend medium-dark or dark roasts — light roasts go thin under repeated hot water passes
-- "Muddy/heavy" = syrupy, coating mouthfeel — natural process beans deliver this
-- "Dark but not burnt" = precise roasting preserves sweetness; over-roasted = thin, ashy, hollow`,
-
-  brewery: `
-## Discovery Flow — ONE question at a time
-1. What they usually drink (light beers / IPAs / dark beers / they're exploring)
-2. Flavor direction (hoppy/bitter vs malty/sweet vs sour/tart vs roasty/dark)
-3. How they're drinking today (session drinking / something special / food pairing)
-4. Body preference (light and crisp vs medium vs full and rich)
-5. Food or occasion context if relevant
-
-CRITICAL: After 4 customer responses, DELIVER THE RECOMMENDATION. No more questions.
-"Surprise me" / "just pick one" = deliver immediately.
-
-## Education Notes
-- IBU = bitterness scale. Under 20 = barely bitter. 40-60 = noticeable hop. 70+ = intensely hoppy.
-- ABV shapes the experience: session (under 5%) vs full-strength (5-7%) vs strong (8%+)
-- Hazy IPAs have low bitterness despite hop character — fruit-forward, soft
-- Barrel-aged = wood, vanilla, spirit warmth. Takes time to appreciate.`,
-
-  winery: `
-## Discovery Flow — ONE question at a time
-1. Red, white, rosé, or open to anything
-2. Flavor direction (fruit-forward vs earthy/savory vs sweet vs crisp/mineral)
-3. Tannin tolerance (soft and easy vs structured and grippy)
-4. Occasion (dinner pairing / gift / tasting room flight / cellar investment)
-5. Price comfort if they signal budget awareness
-
-CRITICAL: After 4 customer responses, DELIVER THE RECOMMENDATION. No more questions.
-"Surprise me" / "just pick" / "what do you suggest" = deliver immediately.
-
-## Education Notes
-- Tannins = the drying sensation on your gums. High tannin = Cabernet. Low tannin = Pinot Noir.
-- Acidity in wine = freshness and food-pairing ability. Low acid = rounder, softer.
-- Oak aging adds vanilla, spice, toasted wood. No oak = pure fruit expression.
-- Vintage matters for quality years — but don't overcomplicate it for casual customers.`,
-}
-
-// ─── PRODUCT CATALOG FORMATTER ────────────────────────────────────────────────
-function formatProductForPrompt(p: Product, vertical: Vertical): string {
-  const price = p.price ? `$${p.price}` : ''
-  const sizes = p.sizes ? `Available in: ${p.sizes.replace(/\|/g, ', ')}` : ''
-
-  let extras = ''
-  if (vertical === 'coffee') {
-    extras = [p.origin, p.process, p.altitude, p.roast_date].filter(Boolean).join(' · ')
-  } else if (vertical === 'brewery') {
-    extras = [p.abv && `${p.abv}% ABV`, p.ibu && `${p.ibu} IBU`, p.style].filter(Boolean).join(' · ')
-  } else if (vertical === 'winery') {
-    extras = [p.vintage, p.appellation, p.varietal, p.cellar_note].filter(Boolean).join(' · ')
+  const catalogLines: string[] = []
+  for (const [cat, items] of Object.entries(byCategory)) {
+    catalogLines.push(`\n[${cat.toUpperCase()}]`)
+    for (const p of items) {
+      const details = [p.style, p.abv ? `${p.abv} ABV` : null, p.ibu ? `${p.ibu} IBU` : null, p.flavor_notes, p.description].filter(Boolean).join(' | ')
+      catalogLines.push(`• ${p.name}${p.price ? ' — $'+p.price : ''}${details ? ': '+details : ''}`)
+    }
   }
 
-  return `- **${p.name}** (${p.category || 'Uncategorized'}) ${price}
-  Flavors: ${p.flavor_notes || 'See description'}
-  ${p.description ? p.description : ''}
-  ${extras ? `Details: ${extras}` : ''}
-  ${p.pairing ? `Best with: ${p.pairing}` : ''}
-  ${sizes}
-  SKU: ${p.sku || 'N/A'}`
-}
+  const flightLines: string[] = []
+  if (hasFlights) {
+    flightLines.push('\n[TASTING FLIGHTS AVAILABLE]')
+    for (const f of flights) {
+      flightLines.push(`• ${f.name} — $${f.price} — ${f.count} x ${f.pour_size}: ${f.description || ''}`)
+    }
+  }
 
-// ─── OUTPUT FORMAT BY VERTICAL ────────────────────────────────────────────────
-const OUTPUT_FORMAT: Record<Vertical, string> = {
-  coffee: `
----RECOMMENDATION_START---
-{
-  "recommendationName": "Creative 2-3 word name for the blend or selection",
-  "tagline": "One poetic sentence",
-  "selectedProducts": [
-    { "name": "Exact product name from catalog", "ratio": 60 },
-    { "name": "Exact product name from catalog", "ratio": 40 }
-  ],
-  "flavorProfile": ["flavor1", "flavor2", "flavor3", "flavor4"],
-  "roastLevel": "Light / Medium / Medium-Dark / Dark",
-  "acidity": "Bright / Balanced / Smooth",
-  "body": "Light / Silky / Medium / Full",
-  "bestBrew": ["method1", "method2"],
-  "storyTitle": "Short evocative title",
-  "story": "2-3 poetic sentences. Why this selection for this person.",
-  "whyItFitsYou": "1-2 sentences personalizing to their answers.",
-  "grindNote": "One sentence on grind for their brew method.",
-  "priceRange": "$XX–$XX"
-}
----RECOMMENDATION_END---`,
+  const distilleryIntro = hasCocktails && hasSpirits
+    ? `You bridge two worlds — the cocktail side for guests new to craft spirits, and the deep-dive neat tasting for the enthusiast. Read which world someone is in within the first exchange.`
+    : hasCocktails
+    ? `Your cocktail menu is the centerpiece. You know every drink, what spirit makes it, and how to match a guest to their perfect cocktail.`
+    : `You know every expression intimately — mash bills, barrel aging, tasting notes, how to serve each one at its best.`
 
-  brewery: `
----RECOMMENDATION_START---
+  const voiceGuide: Record<string, string> = {
+    brewery: `You are the taproom guide at ${retailer.name}. You know every beer on tap — the story, how it was brewed, who it's made for. You talk like the best bartender in the place: warm, confident, opinionated when it helps, never stuffy.
+
+STRATEGY: Open with genuine warmth. Ask ONE question to understand their mood. "Light" = lager/wheat/session. "Hoppy" = IPA. "Dark" = stout/porter. "Not bitter" = amber/blonde. Indecisive or "I don't know" = flight candidate. Steer curious guests toward a flight naturally. Guests with direction get a single pour recommendation fast. Max 2-3 exchanges. Be decisive.`,
+
+    winery: `You are the tasting room guide at ${retailer.name}. Deep knowledge of every wine — vintage, terroir, story. You make guests feel like insiders without making them feel ignorant. Patient, refined, genuinely passionate.
+
+STRATEGY: Open warmly, acknowledge they're here to discover. Ask about occasion or what they've loved (red/white/rosé, dry/sweet, bold/delicate). A tasting flight is almost always right for first-timers — suggest it naturally. Guests who know what they want get direct guidance. Weave in brief stories. Max 3 exchanges.`,
+
+    distillery: `You are the spirits guide at ${retailer.name}. ${distilleryIntro}
+
+STRATEGY: Get a quick read first — spirits person or cocktail person? One natural question reveals this. Spirits enthusiast → go technical, neat or rocks, possibly a flight. Cocktail person → lead with your best cocktail for their taste, then bridge to the spirit behind it. Newcomer → always start with a cocktail or approachable expression, never straight spirits. ${hasCocktails && hasSpirits ? 'The cocktail+spirit pairing move: recommend a cocktail AND name the spirit that makes it.' : ''} Max 2-3 exchanges.`,
+
+    coffee: `You are the coffee guide at ${retailer.name}. You know every bean, roast, and brew method. You can go deep with the enthusiast or just help someone find a great cup without jargon.
+
+STRATEGY: Read context fast. Morning rush = they want familiar and fast. Explorer = open to something new. First-timer = guide them. Surface naturally: hot vs iced, espresso vs filter, bold vs delicate — pick the most relevant 1-2 questions. Help regulars find their thing quickly. Take explorers somewhere interesting with a story. Max 2-3 exchanges.`
+  }
+
+  const voice = voiceGuide[vertical] || voiceGuide['brewery']
+
+  const recFormat = `
+WHEN YOU HAVE ENOUGH SIGNAL TO RECOMMEND:
+Write a warm, natural handoff — 1-3 sentences max — then immediately output:
+
+===REC===
 {
-  "recommendationName": "Creative name for their selection or flight",
-  "tagline": "One sentence that captures the vibe",
-  "selectedProducts": [
-    { "name": "Exact beer name from catalog", "why": "One sentence on why this fits them" },
-    { "name": "Optional second beer", "why": "Why this pairs or contrasts well" }
-  ],
+  "format": "single",
+  "recommendationName": "Name of the selection",
+  "tagline": "One evocative line",
+  "selectedProducts": [{ "name": "Product name", "why": "Why this for this person", "price": 0 }],
+  "flightDetails": null,
   "flavorProfile": ["flavor1", "flavor2", "flavor3"],
-  "style": "Primary style description",
-  "body": "Light / Medium / Full",
-  "story": "2-3 sentences. Why these beers for this person and occasion.",
-  "whyItFitsYou": "1-2 sentences personalizing to their answers.",
-  "foodPairing": "Best food to order or bring",
-  "priceRange": "$XX–$XX"
+  "story": "2-3 sentences — what makes it special",
+  "whyItFitsYou": "Personal reason based on what they shared",
+  "serveNote": "How to enjoy it"
 }
----RECOMMENDATION_END---`,
+===END===
 
-  winery: `
----RECOMMENDATION_START---
-{
-  "recommendationName": "Wine name or curated flight title",
-  "tagline": "One evocative sentence",
-  "selectedProducts": [
-    { "name": "Exact wine name from catalog", "why": "Why this fits their palate and occasion" },
-    { "name": "Optional second wine", "why": "How this complements or contrasts" }
-  ],
-  "flavorProfile": ["flavor1", "flavor2", "flavor3"],
-  "style": "Red / White / Rosé / Sparkling / Dessert",
-  "tanninLevel": "Soft / Medium / Structured",
-  "acidity": "Low / Medium / Bright",
-  "story": "2-3 sentences. Poetic, sensory. Why this wine for this person.",
-  "whyItFitsYou": "1-2 sentences personalizing to their palate.",
-  "foodPairing": "Ideal food pairings",
-  "cellarNote": "Drink now / Can age X years / Best within X years",
-  "priceRange": "$XX–$XX"
-}
----RECOMMENDATION_END---`,
-}
+For a flight: use "format": "flight" and set flightDetails to { "flightName": "...", "price": 0, "pourSize": "4oz", "count": 3 }
+For a cocktail: use "format": "single", put the cocktail in selectedProducts
+selectedProducts: single = one item, flight = all items in the flight
+ALWAYS complete the full JSON. The handoff message should feel warm, not clinical.`
 
-// ─── MAIN PROMPT BUILDER ──────────────────────────────────────────────────────
-export function buildSystemPrompt(
-  retailer: Retailer,
-  products: Product[]
-): string {
-  const vertical = retailer.vertical as Vertical
-  const role     = VERTICAL_GUIDE_ROLE[vertical]
-  const bizType  = VERTICAL_LABELS[vertical]
-  const catalog  = products.map(p => formatProductForPrompt(p, vertical)).join('\n\n')
+  return `${voice}
 
-  return `You are Poursona, the AI ${role} for ${retailer.name} — a ${bizType} located in ${retailer.location || 'your area'}.
+CATALOG AT ${retailer.name.toUpperCase()}:${catalogLines.join('\n')}${flightLines.join('\n')}
+Location: ${retailer.location || ''}${retailer.tagline ? '\nTagline: ' + retailer.tagline : ''}
 
-${retailer.tagline ? `Their tagline: "${retailer.tagline}"` : ''}
-
-Your personality is warm, knowledgeable, and quietly confident — like a world-class guide who never makes customers feel out of their depth. You speak in clear, sensory language using real taste comparisons, not jargon.
-
-## Your Mission
-Guide each customer through a short discovery conversation to understand their taste preferences, then recommend the best product(s) from ${retailer.name}'s current catalog. Your recommendation will be displayed as a beautiful card and can be ordered directly.
-
-## ${retailer.name}'s Current Catalog
-Only recommend products from this list. Never invent products not listed here.
-
-${catalog}
-
-${VERTICAL_DISCOVERY[vertical]}
-
-## Recommendation Output
-When ready, output one warm sentence acknowledging their profile, then immediately:
-
-${OUTPUT_FORMAT[vertical]}
-
-## Guardrails
-- One question at a time — never two
-- Always recommend from the catalog above — never invent products
-- No pricing guarantees — show ranges only
-- If asked if human: "I'm Poursona, ${retailer.name}'s AI guide — here to help you find your perfect selection."
-- Conversational replies: 2-3 sentences max
-- If customer is indecisive after 6 exchanges, make a bold recommendation and explain your confidence`
+${recFormat}`
 }
