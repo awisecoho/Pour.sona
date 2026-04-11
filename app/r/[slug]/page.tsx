@@ -1,120 +1,49 @@
-// app/r/[slug]/page.tsx
 'use client'
-
 import { useEffect, useState, useRef } from 'react'
-import { Retailer, BlendRecommendation } from '@/lib/supabase'
+import { deriveTheme, getVerticalVoice, BrandTheme } from '@/lib/theme'
 
 interface Message { role: 'user' | 'assistant'; content: string; streaming?: boolean }
-
-const VERTICAL_ICONS: Record<string, string> = { coffee: '☕', brewery: '🍺', winery: '🍷' }
-const stripRec = (t: string) => t.replace(/===REC===([\s\S]*?)===END===/g, '').trim()
-
-function LoadingScreen({ retailer }: { retailer: Retailer | null }) {
-  return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#0a0603,#0d1a0f)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontSize: 40 }}>{retailer ? VERTICAL_ICONS[retailer.vertical] : '✦'}</div>
-      <div style={{ fontFamily: 'Georgia, serif', color: '#C9A84C', fontSize: 18 }}>
-        {retailer ? `Welcome to ${retailer.name}` : 'Loading…'}
-      </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {[0,1,2].map(i => (
-          <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: '#C9A84C', animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
-        ))}
-      </div>
-      <style>{`@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}`}</style>
-    </div>
-  )
+interface RecData {
+  format: 'single' | 'flight'
+  recommendationName: string; tagline: string
+  selectedProducts: Array<{ name: string; why: string; price: number }>
+  flightDetails: { flightName: string; price: number; pourSize: string; count: number } | null
+  flavorProfile: string[]; story: string; whyItFitsYou: string; serveNote: string
 }
 
-function NotFound() {
-  return (
-    <div style={{ minHeight: '100vh', background: '#0a0603', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontSize: 40 }}>✦</div>
-      <div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif', fontSize: 20 }}>Retailer not found</div>
-      <div style={{ color: '#6a5a3a', fontFamily: 'Georgia, serif', fontSize: 15 }}>This QR code may be inactive or expired.</div>
-    </div>
-  )
-}
-
-function RecommendationCard({ rec, retailer, sessionId, onOrder }: {
-  rec: BlendRecommendation; retailer: Retailer; sessionId: string; onOrder: () => void
-}) {
-  const [ordering, setOrdering] = useState(false)
-  const [ordered, setOrdered] = useState(false)
-  const products = rec.selectedProducts || []
-
-  const handleOrder = async () => {
-    setOrdering(true)
-    const items = products.map((p: { name: string }) => ({ name: p.name, size: 'Standard', price: 0, qty: 1 }))
-    await fetch('/api/order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, retailerId: retailer.id, items, blendName: rec.recommendationName }),
-    })
-    setOrdering(false)
-    setOrdered(true)
-    onOrder()
-  }
-
-  return (
-    <div style={{ background: 'linear-gradient(145deg,#0e0803,#0a1408)', border: '1px solid rgba(201,168,76,.3)', borderRadius: 18, padding: '24px 20px', marginTop: 20 }}>
-      <div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>{retailer.name} · Your Selection</div>
-      <div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 28, fontWeight: 700, marginBottom: 4 }}>{rec.recommendationName}</div>
-      <div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif', fontSize: 15, fontStyle: 'italic', marginBottom: 20 }}>{rec.tagline}</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-        {(rec.flavorProfile || []).map(f => (
-          <span key={f} style={{ background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.25)', borderRadius: 20, padding: '4px 12px', color: '#C9A84C', fontSize: 13 }}>{f}</span>
-        ))}
-      </div>
-      <div style={{ marginBottom: 16 }}>
-        {products.map((p: { name: string; why?: string; ratio?: number }, i: number) => (
-          <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid rgba(201,168,76,.07)' }}>
-            <div style={{ color: '#F5ECD7', fontSize: 15 }}>{p.name}{p.ratio ? ` — ${p.ratio}%` : ''}</div>
-            {p.why && <div style={{ color: '#8a7a5a', fontSize: 13, marginTop: 2 }}>{p.why}</div>}
-          </div>
-        ))}
-      </div>
-      <div style={{ color: '#c8bfa8', fontSize: 15, lineHeight: 1.75, marginBottom: 16 }}>{rec.story}</div>
-      <div style={{ background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 10, padding: '12px 14px', marginBottom: 20 }}>
-        <div style={{ color: '#6a5a2a', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 4 }}>Why This Fits You</div>
-        <div style={{ color: '#F5ECD7', fontSize: 14, lineHeight: 1.7 }}>{rec.whyItFitsYou}</div>
-      </div>
-      {ordered ? (
-        <div style={{ background: 'rgba(94,207,138,.1)', border: '1px solid rgba(94,207,138,.3)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-          <div style={{ fontSize: 24, marginBottom: 6 }}>✓</div>
-          <div style={{ color: '#5ecf8a', fontSize: 15 }}>Order placed! {retailer.name} will have it ready for you.</div>
-        </div>
-      ) : (
-        <button onClick={handleOrder} disabled={ordering} style={{ width: '100%', padding: 17, borderRadius: 12, background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', cursor: ordering ? 'wait' : 'pointer', color: '#0a0603', fontSize: 13, fontWeight: 700, letterSpacing: '.15em' }}>
-          {ordering ? 'Placing Order…' : `ORDER FROM ${retailer.name.toUpperCase()}`}
-        </button>
-      )}
-    </div>
-  )
+function stripRec(t: string) {
+  return t.replace(/===REC===[sS]*?===END===/g, '').trim()
 }
 
 export default function CustomerPage({ params }: { params: { slug: string } }) {
-  const [retailer, setRetailer] = useState<Retailer | null>(null)
+  const [retailer, setRetailer] = useState<any>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
   const [streaming, setStreaming] = useState(false)
   const [notFound, setNotFound] = useState(false)
-  const [rec, setRec] = useState<BlendRecommendation | null>(null)
+  const [rec, setRec] = useState<RecData | null>(null)
   const [ordered, setOrdered] = useState(false)
   const [started, setStarted] = useState(false)
+  const [ordering, setOrdering] = useState(false)
+  const [theme, setTheme] = useState<BrandTheme | null>(null)
+  const [voice, setVoice] = useState<ReturnType<typeof getVerticalVoice> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     async function init() {
       try {
-        const res = await fetch(`/api/retailer?slug=${params.slug}`)
+        const res = await fetch('/api/retailer?slug=' + params.slug)
         if (!res.ok) { setNotFound(true); setLoading(false); return }
         const data = await res.json()
         if (!data.retailer) { setNotFound(true); setLoading(false); return }
-        setRetailer(data.retailer)
-        setSessionId(data.sessionId)
+        const r = data.retailer
+        setRetailer(r); setSessionId(data.sessionId)
+        setTheme(deriveTheme(r.brand_color))
+        const cats = (data.products || []).map((p: any) => p.category).filter(Boolean)
+        setVoice(getVerticalVoice(r.vertical, cats))
         setLoading(false)
       } catch { setNotFound(true); setLoading(false) }
     }
@@ -123,7 +52,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, rec])
 
-  const streamChat = async (msgs: Message[]) => {
+  const chat = async (msgs: Message[]) => {
     if (!retailer || !sessionId) return
     setStreaming(true)
     setMessages(prev => [...prev, { role: 'assistant', content: '', streaming: true }])
@@ -131,107 +60,200 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, retailerSlug: params.slug, messages: msgs }),
+        body: JSON.stringify({ sessionId, retailerSlug: params.slug, messages: msgs })
       })
       const data = await res.json()
-      const text = stripRec(data.text || '')
+      const text = data.text || ''
       if (data.recData) setRec(data.recData)
-      setMessages(prev => {
-        const u = [...prev]
-        u[u.length - 1] = { role: 'assistant', content: text, streaming: false }
-        return u
-      })
+      setMessages(prev => { const u = [...prev]; u[u.length-1] = { role: 'assistant', content: text, streaming: false }; return u })
     } catch {
-      setMessages(prev => {
-        const u = [...prev]
-        u[u.length - 1] = { role: 'assistant', content: 'Something went wrong. Please try again.', streaming: false }
-        return u
-      })
+      setMessages(prev => { const u = [...prev]; u[u.length-1] = { role: 'assistant', content: 'Something went wrong. Try again.', streaming: false }; return u })
     }
     setStreaming(false)
   }
 
   const start = async () => {
     setStarted(true)
-    const initMsg: Message = { role: 'user', content: 'Begin. Greet me warmly with a welcome to the retailer, introduce yourself briefly, and ask your first discovery question.' }
-    await streamChat([initMsg])
+    await chat([{ role: 'user', content: 'START_SESSION' }])
+    setTimeout(() => inputRef.current?.focus(), 400)
   }
 
   const send = async () => {
     if (!input.trim() || streaming) return
     const userMsg: Message = { role: 'user', content: input.trim() }
     const newMsgs = [...messages, userMsg]
-    setMessages(newMsgs)
-    setInput('')
-    await streamChat(newMsgs.map(m => ({ role: m.role, content: m.content })))
+    setMessages(newMsgs); setInput('')
+    await chat(newMsgs.map(m => ({ role: m.role, content: m.content })))
   }
 
-  if (loading) return <LoadingScreen retailer={retailer} />
-  if (notFound) return <NotFound />
+  const placeOrder = async () => {
+    if (!rec || !retailer || !sessionId) return
+    setOrdering(true)
+    await fetch('/api/order', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, retailerId: retailer.id, items: rec.selectedProducts.map(p => ({ name: p.name, size: rec.flightDetails?.pourSize || 'Standard', price: p.price || 0, qty: 1 })), blendName: rec.recommendationName })
+    })
+    setOrdering(false); setOrdered(true)
+  }
 
-  const icon = VERTICAL_ICONS[retailer!.vertical]
-
-  if (!started) return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#0a0603,#0d1a0f)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, textAlign: 'center' }}>
-      <div style={{ fontSize: 52, marginBottom: 16 }}>{icon}</div>
-      <div style={{ color: '#C9A84C', fontSize: 11, letterSpacing: '.4em', textTransform: 'uppercase', marginBottom: 12, fontFamily: 'Georgia, serif' }}>Welcome to</div>
-      <div style={{ color: '#F5ECD7', fontSize: 36, fontWeight: 700, fontFamily: 'Georgia, serif', marginBottom: 6 }}>{retailer!.name}</div>
-      {retailer!.location && <div style={{ color: '#6a5a3a', fontSize: 15, marginBottom: 6, fontFamily: 'Georgia, serif' }}>{retailer!.location}</div>}
-      {retailer!.tagline && <div style={{ color: '#8a7a5a', fontSize: 16, fontStyle: 'italic', marginBottom: 32, fontFamily: 'Georgia, serif' }}>{retailer!.tagline}</div>}
-      <div style={{ color: '#a09070', fontSize: 17, lineHeight: 1.7, maxWidth: 400, marginBottom: 40, fontFamily: 'Georgia, serif' }}>
-        Let me help you find the perfect selection from our catalog — just answer a few quick questions.
-      </div>
-      <button onClick={start} style={{ background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 40, padding: '16px 44px', color: '#0a0603', fontSize: 13, fontWeight: 700, letterSpacing: '.2em', cursor: 'pointer' }}>
-        Find My Perfect {retailer!.vertical === 'coffee' ? 'Blend' : retailer!.vertical === 'brewery' ? 'Beer' : 'Wine'}
-      </button>
+  if (loading || !theme || !voice) return (
+    <div style={{ minHeight: '100vh', background: '#0a0603', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
+      <div style={{ fontSize: 36 }}>{'✦'}</div>
+      <div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif', fontSize: 16 }}>Loading...</div>
     </div>
   )
 
-  return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(160deg,#0a0603,#0d1a0f)', fontFamily: 'Georgia, serif' }}>
-      <style>{`
-        @keyframes blink{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
-        *{box-sizing:border-box}
-        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(201,168,76,.2)}
-      `}</style>
-      <div style={{ borderBottom: '1px solid rgba(201,168,76,.18)', padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,0,0,.4)', backdropFilter: 'blur(10px)', flexShrink: 0 }}>
-        <span style={{ fontSize: 18 }}>{icon}</span>
-        <div>
-          <div style={{ color: '#F5ECD7', fontSize: 15, fontWeight: 700 }}>{retailer!.name}</div>
-          <div style={{ color: '#3a2a0a', fontSize: 10, letterSpacing: '.15em' }}>POURSONA GUIDE</div>
+  if (notFound) return (
+    <div style={{ minHeight: '100vh', background: '#0a0603', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: 36 }}>{'✦'}</div>
+      <div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif', fontSize: 18 }}>Not found</div>
+    </div>
+  )
+
+  const t = theme, v = voice
+
+  if (!started) {
+    const bgStyle = 'linear-gradient(170deg,' + t.bg + ',' + t.surface + ')'
+    const btnStyle = 'linear-gradient(135deg,' + t.primary + ',' + t.primaryDim + ')'
+    return (
+      <div style={{ minHeight: '100vh', background: bgStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', textAlign: 'center', fontFamily: 'Georgia, serif' }}>
+        <style>{'@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}'}</style>
+        {retailer.logo_url
+          ? <img src={retailer.logo_url} alt={retailer.name} style={{ height: 72, maxWidth: 220, objectFit: 'contain', marginBottom: 24, borderRadius: 8 }} />
+          : <div style={{ fontSize: 60, marginBottom: 20 }}>{v.icon}</div>}
+        <div style={{ color: t.primary, fontSize: 10, letterSpacing: '.4em', textTransform: 'uppercase', marginBottom: 10 }}>Welcome to</div>
+        <div style={{ color: t.text, fontSize: 34, fontWeight: 700, lineHeight: 1.15, marginBottom: 8, maxWidth: 320 }}>{retailer.name}</div>
+        {retailer.location && <div style={{ color: t.textFaint, fontSize: 14, marginBottom: 6 }}>{retailer.location}</div>}
+        {retailer.tagline && <div style={{ color: t.textMuted, fontSize: 16, fontStyle: 'italic', marginBottom: 36 }}>{retailer.tagline}</div>}
+        <div style={{ color: t.textMuted, fontSize: 15, lineHeight: 1.75, maxWidth: 300, marginBottom: 44 }}>
+          Your personal {v.greeting} is here to find you the perfect selection.
+        </div>
+        <button onClick={start} style={{ background: btnStyle, border: 'none', borderRadius: 50, padding: '18px 52px', color: t.bg, fontSize: 14, fontWeight: 700, letterSpacing: '.15em', cursor: 'pointer', fontFamily: 'Georgia, serif', boxShadow: '0 8px 32px ' + t.primary + '40' }}>
+          {v.cta}
+        </button>
+        <div style={{ display: 'flex', gap: 6, marginTop: 32 }}>
+          {[0,1,2].map(i => <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: t.primary, animation: 'pulse 1.4s ease-in-out ' + (i * 0.2) + 's infinite' }} />)}
         </div>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '18px 14px', maxWidth: 640, width: '100%', margin: '0 auto', alignSelf: 'stretch' }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-            {m.role === 'assistant' && <div style={{ color: '#3a2a0a', fontSize: 9, letterSpacing: '.18em', marginBottom: 4 }}>POURSONA</div>}
-            <div style={{ maxWidth: '85%', padding: '12px 16px', fontSize: 16, lineHeight: 1.78, whiteSpace: 'pre-wrap', background: m.role === 'user' ? 'rgba(201,168,76,.12)' : 'rgba(255,255,255,.04)', border: m.role === 'user' ? '1px solid rgba(201,168,76,.25)' : '1px solid rgba(255,255,255,.06)', borderRadius: m.role === 'user' ? '17px 17px 4px 17px' : '4px 17px 17px 17px', color: m.role === 'user' ? '#C9A84C' : '#c8bfa8' }}>
-              {m.content === '' && m.streaming
-                ? <span style={{ display: 'inline-flex', gap: 4 }}>{[0,1,2].map(j => <span key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: '#C9A84C', animation: `blink 1.2s ease-in-out ${j*.2}s infinite`, display: 'inline-block' }}/>)}</span>
-                : m.content
-              }
+    )
+  }
+
+  if (rec) {
+    const recBg = 'linear-gradient(170deg,' + t.bg + ',' + t.surface + ')'
+    const cardBg = 'linear-gradient(145deg,' + t.surface + ',' + t.bg + ')'
+    const orderBtn = 'linear-gradient(135deg,' + t.primary + ',' + t.primaryDim + ')'
+    return (
+      <div style={{ minHeight: '100vh', background: recBg, fontFamily: 'Georgia, serif' }}>
+        <style>{'*{box-sizing:border-box}::-webkit-scrollbar{width:2px}::-webkit-scrollbar-thumb{background:' + t.border + '}'}</style>
+        <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid ' + t.border, background: t.bg + 'ee', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 10 }}>
+          {retailer.logo_url ? <img src={retailer.logo_url} alt="" style={{ height: 28, objectFit: 'contain' }} /> : <span style={{ fontSize: 20 }}>{v.icon}</span>}
+          <div>
+            <div style={{ color: t.text, fontSize: 13, fontWeight: 700 }}>{retailer.name}</div>
+            <div style={{ color: t.textFaint, fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase' }}>
+              {rec.format === 'flight' ? v.flightLabel : v.singleLabel}
             </div>
           </div>
-        ))}
-        {rec && !ordered && <RecommendationCard rec={rec} retailer={retailer!} sessionId={sessionId!} onOrder={() => setOrdered(true)} />}
-        {ordered && <div style={{ textAlign: 'center', marginTop: 24, color: '#5ecf8a', fontSize: 16 }}>Thank you! We hope you enjoy your selection. ✦</div>}
-        <div ref={bottomRef} style={{ height: 8 }} />
+        </div>
+        <div style={{ padding: '28px 20px', maxWidth: 520, margin: '0 auto' }}>
+          <div style={{ background: cardBg, border: '1px solid ' + t.borderStrong, borderRadius: 20, padding: '28px 22px', marginBottom: 20 }}>
+            <div style={{ color: t.primary, fontSize: 9, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 6 }}>
+              {rec.format === 'flight' && rec.flightDetails ? rec.flightDetails.count + ' x ' + rec.flightDetails.pourSize + ' Tasting Flight' : v.singleLabel}
+            </div>
+            <div style={{ color: t.text, fontSize: 28, fontWeight: 700, lineHeight: 1.15, marginBottom: 6 }}>{rec.recommendationName}</div>
+            <div style={{ color: t.primary, fontStyle: 'italic', fontSize: 15, marginBottom: 20 }}>{rec.tagline}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 20 }}>
+              {rec.flavorProfile.map(f => <span key={f} style={{ background: t.primary + '18', border: '1px solid ' + t.border, borderRadius: 20, padding: '5px 13px', color: t.primary, fontSize: 12 }}>{f}</span>)}
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              {rec.selectedProducts.map((p, i) => (
+                <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid ' + t.border }}>
+                  <div style={{ color: t.text, fontSize: 15, fontWeight: 600 }}>{p.name}{p.price ? ' — $' + p.price : ''}</div>
+                  {p.why && <div style={{ color: t.textMuted, fontSize: 13, marginTop: 3, lineHeight: 1.5 }}>{p.why}</div>}
+                </div>
+              ))}
+            </div>
+            {rec.format === 'flight' && rec.flightDetails && (
+              <div style={{ background: t.primary + '10', border: '1px solid ' + t.border, borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+                <div style={{ color: t.primary, fontSize: 13, fontWeight: 700 }}>{rec.flightDetails.flightName} — {rec.flightDetails.price{'}'}</div>
+                <div style={{ color: t.textMuted, fontSize: 12, marginTop: 2 }}>{rec.flightDetails.count} pours x {rec.flightDetails.pourSize}</div>
+              </div>
+            )}
+            <div style={{ color: t.textMuted, fontSize: 14, lineHeight: 1.75, marginBottom: 16 }}>{rec.story}</div>
+            <div style={{ background: t.primary + '0d', border: '1px solid ' + t.border, borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+              <div style={{ color: t.textFaint, fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 4 }}>Why this for you</div>
+              <div style={{ color: t.text, fontSize: 13, lineHeight: 1.65 }}>{rec.whyItFitsYou}</div>
+            </div>
+            {rec.serveNote && <div style={{ color: t.textMuted, fontSize: 13, fontStyle: 'italic' }}>{'✦'} {rec.serveNote}</div>}
+          </div>
+          {ordered ? (
+            <div style={{ background: 'rgba(94,207,138,.08)', border: '1px solid rgba(94,207,138,.25)', borderRadius: 14, padding: '22px', textAlign: 'center' }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>{'✓'}</div>
+              <div style={{ color: '#5ecf8a', fontSize: 16, marginBottom: 4 }}>Order placed!</div>
+              <div style={{ color: t.textMuted, fontSize: 13 }}>{retailer.name} will have it ready for you.</div>
+            </div>
+          ) : (
+            <button onClick={placeOrder} disabled={ordering} style={{ width: '100%', padding: '18px', borderRadius: 14, background: orderBtn, border: 'none', cursor: ordering ? 'wait' : 'pointer', color: t.bg, fontSize: 14, fontWeight: 700, letterSpacing: '.12em', fontFamily: 'Georgia, serif', boxShadow: '0 6px 24px ' + t.primary + '40', opacity: ordering ? 0.7 : 1 }}>
+              {ordering ? 'Placing Order...' : 'Order from ' + retailer.name}
+            </button>
+          )}
+          {!ordered && (
+            <button onClick={() => setRec(null)} style={{ width: '100%', marginTop: 12, padding: '12px', background: 'transparent', border: '1px solid ' + t.border, borderRadius: 12, color: t.textFaint, fontSize: 13, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>
+              Back to conversation
+            </button>
+          )}
+        </div>
       </div>
-      {messages.filter(m => m.role === 'user').length >= 2 && !rec && (
-        <div style={{ maxWidth: 640, width: '100%', margin: '0 auto', padding: '0 14px 5px', alignSelf: 'stretch' }}>
-          <button onClick={() => { setInput('I think you have enough — give me your recommendation.'); setTimeout(send, 50) }} disabled={streaming} style={{ background: 'transparent', border: '1px solid rgba(201,168,76,.22)', borderRadius: 18, padding: '6px 16px', color: '#6a5020', fontSize: 11, letterSpacing: '.12em', cursor: streaming ? 'default' : 'pointer', opacity: streaming ? .4 : 1 }}>
-            ✦ Just give me a recommendation
+    )
+  }
+
+  const convBg = 'linear-gradient(170deg,' + t.bg + ',' + t.surface + ')'
+  const sendBtn = input.trim() && !streaming ? 'linear-gradient(135deg,' + t.primary + ',' + t.primaryDim + ')' : t.surface
+  return (
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: convBg, fontFamily: 'Georgia, serif', overflow: 'hidden' }}>
+      <style>{'*{box-sizing:border-box}@keyframes blink{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}::-webkit-scrollbar{width:2px}::-webkit-scrollbar-thumb{background:' + t.border + '}textarea{-webkit-appearance:none}'}</style>
+      <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid ' + t.border, background: t.bg + 'ee', backdropFilter: 'blur(12px)', flexShrink: 0, zIndex: 10 }}>
+        {retailer.logo_url ? <img src={retailer.logo_url} alt="" style={{ height: 26, objectFit: 'contain' }} /> : <span style={{ fontSize: 18 }}>{v.icon}</span>}
+        <div style={{ flex: 1 }}>
+          <div style={{ color: t.text, fontSize: 14, fontWeight: 700 }}>{retailer.name}</div>
+          <div style={{ color: t.textFaint, fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase' }}>{v.greeting}</div>
+        </div>
+        {streaming && <div style={{ display: 'flex', gap: 4 }}>{[0,1,2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: t.primary, animation: 'blink 1.2s ease-in-out ' + (i * 0.15) + 's infinite' }} />)}</div>}
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {messages.map((m, i) => {
+          const isAI = m.role === 'assistant'
+          const display = isAI ? stripRec(m.content) : m.content
+          if (isAI && !display && !m.streaming) return null
+          return (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: isAI ? 'flex-start' : 'flex-end', marginBottom: 12, animation: 'fadeUp .25s ease' }}>
+              <div style={{ maxWidth: '82%', padding: isAI ? '14px 16px' : '12px 16px', borderRadius: isAI ? '4px 18px 18px 18px' : '18px 4px 18px 18px', background: isAI ? t.surfaceHover : t.primary + '22', border: '1px solid ' + (isAI ? t.border : t.borderStrong), color: isAI ? t.text : t.primary, fontSize: 16, lineHeight: 1.72, whiteSpace: 'pre-wrap' }}>
+                {m.streaming && !display
+                  ? <span style={{ display: 'inline-flex', gap: 5, alignItems: 'center' }}>{[0,1,2].map(j => <span key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: t.primary, animation: 'blink 1.2s ease-in-out ' + (j * 0.2) + 's infinite', display: 'inline-block' }} />)}</span>
+                  : display}
+              </div>
+            </div>
+          )
+        })}
+        <div ref={bottomRef} style={{ height: 4 }} />
+      </div>
+      <div style={{ borderTop: '1px solid ' + t.border, padding: '12px 14px', background: t.bg + 'ee', backdropFilter: 'blur(12px)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', maxWidth: 560, margin: '0 auto' }}>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={e => { setInput(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px' }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+            placeholder={v.placeholder}
+            rows={1}
+            disabled={streaming}
+            style={{ flex: 1, background: t.surfaceHover, border: '1px solid ' + t.border, borderRadius: 14, padding: '13px 16px', color: t.text, fontFamily: 'Georgia, serif', fontSize: 16, resize: 'none', outline: 'none', minHeight: 48, maxHeight: 120, opacity: streaming ? 0.6 : 1, lineHeight: 1.5, caretColor: t.primary }}
+          />
+          <button onClick={send} disabled={streaming || !input.trim()} style={{ background: sendBtn, border: '1px solid ' + t.border, borderRadius: 12, padding: '13px 16px', color: input.trim() && !streaming ? t.bg : t.textFaint, cursor: input.trim() && !streaming ? 'pointer' : 'default', fontSize: 18, height: 48, width: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {'↑'}
           </button>
         </div>
-      )}
-      {!rec && (
-        <div style={{ borderTop: '1px solid rgba(201,168,76,.1)', padding: '11px 14px', background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(10px)', flexShrink: 0, maxWidth: 640, width: '100%', margin: '0 auto', alignSelf: 'stretch' }}>
-          <div style={{ display: 'flex', gap: 9, alignItems: 'flex-end' }}>
-            <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} placeholder="Share your thoughts…" rows={1} disabled={streaming} style={{ flex: 1, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(201,168,76,.18)', borderRadius: 11, padding: '11px 14px', color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 16, resize: 'none', outline: 'none', minHeight: 44, opacity: streaming ? .6 : 1 }} />
-            <button onClick={send} disabled={streaming || !input.trim()} style={{ background: input.trim() && !streaming ? 'linear-gradient(135deg,#C9A84C,#a07830)' : 'rgba(201,168,76,.07)', border: '1px solid rgba(201,168,76,.22)', borderRadius: 9, padding: '11px 16px', color: input.trim() && !streaming ? '#0a0603' : '#3a2a0a', cursor: input.trim() && !streaming ? 'pointer' : 'default', fontSize: 14, height: 44 }}>↑</button>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   )
+}
 }
