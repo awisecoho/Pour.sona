@@ -9,6 +9,7 @@ const NAV = [
   { href: '/admin/catalog', label: 'Catalog', icon: '☰' },
   { href: '/admin/flights', label: 'Flights', icon: '✦' },
   { href: '/admin/orders', label: 'Orders', icon: '◎' },
+  { href: '/admin/billing', label: 'Billing', icon: '◉' },
   { href: '/admin/settings', label: 'Settings', icon: '⚙' },
 ]
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [])
   if (pathname.includes('/admin/login') || pathname.includes('/admin/auth')) return <>{children}</>
   if (loading) return <div style={{ minHeight: '100vh', background: '#0a0603', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif' }}>Loading…</div></div>
+  const isTrial = retailer?.subscription_status === 'trial'
+  const trialEnds = retailer?.trial_ends_at ? new Date(retailer.trial_ends_at) : null
+  const daysLeft = trialEnds ? Math.max(0, Math.ceil((trialEnds.getTime() - Date.now()) / 86400000)) : 0
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#080604', fontFamily: 'Georgia, serif' }}>
       <aside style={{ width: 220, flexShrink: 0, background: 'linear-gradient(180deg,#0d0904,#0a0603)', borderRight: '1px solid rgba(201,168,76,.12)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0 }}>
@@ -41,6 +45,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div style={{ color: '#F5ECD7', fontSize: 15, fontWeight: 700 }}>{retailer?.name || 'Admin'}</div>
           <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2, textTransform: 'capitalize' }}>{retailer?.vertical || ''}</div>
         </div>
+        {isTrial && daysLeft <= 7 && (
+          <Link href="/admin/billing" style={{ margin: '12px', padding: '10px 12px', background: daysLeft <= 3 ? 'rgba(255,100,100,.1)' : 'rgba(201,168,76,.08)', border: `1px solid ${daysLeft <= 3 ? 'rgba(255,100,100,.25)' : 'rgba(201,168,76,.2)'}`, borderRadius: 8, textDecoration: 'none', display: 'block' }}>
+            <div style={{ color: daysLeft <= 3 ? '#e07070' : '#C9A84C', fontSize: 11, fontWeight: 700 }}>{daysLeft === 0 ? 'Trial expired' : `${daysLeft}d left in trial`}</div>
+            <div style={{ color: '#4a3a1a', fontSize: 10, marginTop: 2 }}>Upgrade to keep access →</div>
+          </Link>
+        )}
         <nav style={{ flex: 1, padding: '16px 12px' }}>
           {NAV.map(item => {
             const active = pathname === item.href
@@ -56,7 +66,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <button onClick={() => sb.auth.signOut()} style={{ width: '100%', padding: '9px 12px', background: 'transparent', border: '1px solid rgba(201,168,76,.1)', borderRadius: 8, color: '#4a3a1a', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 12, textAlign: 'left' }}>← Sign Out</button>
         </div>
       </aside>
-      <main style={{ flex: 1, marginLeft: 220, padding: '32px 36px', overflowY: 'auto' }}>{children}</main>
+      <main style={{ flex: 1, marginLeft: 220, padding: '32px 36px', overflowY: 'auto' as const }}>{children}</main>
     </div>
   )
 }
