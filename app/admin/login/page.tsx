@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+const APP_URL = 'https://pour-sona.vercel.app'
 export default function AdminLogin() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
@@ -9,7 +10,7 @@ export default function AdminLogin() {
   const [error, setError] = useState('')
   async function handle(e: React.FormEvent) {
     e.preventDefault(); setLoading(true); setError('')
-    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/admin/auth/callback` } })
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: APP_URL + '/admin/auth/callback' } })
     if (error) setError(error.message); else setSent(true)
     setLoading(false)
   }
