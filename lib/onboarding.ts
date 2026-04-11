@@ -10,7 +10,6 @@ function getAdmin() {
   )
 }
 
-// Fetch a single page
 async function fetchPage(url: string): Promise<string> {
   try {
     const res = await fetch(url, {
@@ -19,114 +18,134 @@ async function fetchPage(url: string): Promise<string> {
     })
     if (!res.ok) return ''
     return await res.text()
-  } catch {
-    return ''
-  }
+  } catch { return '' }
 }
 
-// Extract all internal links from HTML, scored by menu-relevance
+function extractLogoFromHtml(html: string, baseUrl: string): string {
+  const base = new URL(baseUrl).origin
+  // Try og:image first
+  const og = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
+  if (og) return og
+  // Try <img> tags with logo-like attributes
+  const logoImgRegex = /<img[^>]+(?:class|alt|id|src)[^>]*(?:logo|brand|header)[^>]*src=["']([^"']+)["']/gi
+  const logoImgMatch = logoImgRegex.exec(html)
+  if (logoImgMatch) {
+    const src = logoImgMatch[1]
+    return src.startsWith('http') ? src : base + (src.startsWith('/') ? '' : '/') + src
+  }
+  // Try link rel=icon
+  const iconMatch = html.match(/<link[^>]+rel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]+href=["']([^"']+)["']/i)?.[1]
+  if (iconMatch) return iconMatch.startsWith('http') ? iconMatch : base + iconMatch
+  return ''
+}
+
+function extractBrandColorFromHtml(html: string): string {
+  // Look for theme-color meta tag
+  const themeColor = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{3,6})["']/i)?.[1]
+  if (themeColor) return themeColor
+  // Look for CSS custom properties or common color variables
+  const cssColorMatch = html.match(/--(?:primary|brand|main|accent|color-primary)[^:]*:s*(#[0-9a-fA-F]{3,6})/i)?.[1]
+  if (cssColorMatch) return cssColorMatch
+  // Look for body or header background colors in inline styles
+  const bgMatch = html.match(/(?:background-color|background):s*(#[0-9a-fA-F]{6})/i)?.[1]
+  if (bgMatch && bgMatch.toLowerCase() !== '#ffffff' && bgMatch.toLowerCase() !== '#000000') return bgMatch
+  return ''
+}
+
 function extractMenuLinks(html: string, baseUrl: string): string[] {
   const base = new URL(baseUrl)
-  const menuKeywords = ['menu', 'beer', 'tap', 'drink', 'wine', 'coffee', 'food', 'brew', 'cocktail', 'spirits', 'list', 'selection', 'offering', 'product']
-  const skipKeywords = ['cart', 'checkout', 'login', 'account', 'contact', 'privacy', 'terms', 'facebook', 'instagram', 'twitter', 'mailto', 'tel:']
-
+  const menuKeywords = ['menu', 'beer', 'tap', 'drink', 'wine', 'coffee', 'food', 'brew', 'cocktail', 'spirits', 'spirit', 'whiskey', 'bourbon', 'gin', 'vodka', 'rum', 'list', 'selection', 'product', 'our-spirits', 'craft']
+  const skipKeywords = ['cart', 'checkout', 'login', 'account', 'privacy', 'terms', 'facebook', 'instagram', 'twitter', 'mailto:', 'tel:', 'event', 'wedding', 'press', 'contact', 'about', 'club', 'tour', 'class', 'party', 'bottling']
   const hrefRegex = /href=["']([^"'#?]+)["']/gi
   const seen = new Set<string>()
   const links: Array<{ url: string; score: number }> = []
   let match
-
   while ((match = hrefRegex.exec(html)) !== null) {
     const raw = match[1].trim()
     if (!raw || raw.startsWith('javascript')) continue
-
     let full: string
-    try {
-      full = new URL(raw, base.origin).toString()
-    } catch { continue }
-
-    // Must be same domain
+    try { full = new URL(raw, base.origin).toString() } catch { continue }
     if (!full.startsWith(base.origin)) continue
     if (seen.has(full)) continue
     if (skipKeywords.some(k => full.toLowerCase().includes(k))) continue
     seen.add(full)
-
     const path = full.toLowerCase()
     const score = menuKeywords.reduce((s, kw) => path.includes(kw) ? s + 2 : s, 0)
-    links.push({ url: full, score })
+    if (score > 0) links.push({ url: full, score })
   }
-
-  // Return top 6 most relevant links
-  return links
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6)
-    .map(l => l.url)
+  return links.sort((a, b) => b.score - a.score).slice(0, 8).map(l => l.url)
 }
 
-// Strip HTML to plain text
 function stripHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
     .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
-    .replace(/<header[\s\S]*?<\/header>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
-// Multi-page crawl and signal extraction
 export async function extractSignals(rootUrl: string) {
   const rootHtml = await fetchPage(rootUrl)
   if (!rootHtml) throw new Error('Could not fetch website')
 
   const title = rootHtml.match(/<title[^>]*>(.*?)<\/title>/i)?.[1]?.trim() || ''
   const metaDesc = rootHtml.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] || ''
-  const ogImage = rootHtml.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] || ''
-
-  // Find menu-relevant subpages
+  const logoUrl = extractLogoFromHtml(rootHtml, rootUrl)
+  const brandColor = extractBrandColorFromHtml(rootHtml)
   const subpageUrls = extractMenuLinks(rootHtml, rootUrl)
 
-  // Crawl subpages in parallel
   const subpageTexts: string[] = []
   const crawled: string[] = [rootUrl]
-
   const pages = await Promise.allSettled(
     subpageUrls.map(async (url) => {
       const html = await fetchPage(url)
-      if (html) {
-        crawled.push(url)
-        return { url, text: stripHtml(html).slice(0, 4000) }
-      }
+      if (html) { crawled.push(url); return { url, text: stripHtml(html).slice(0, 4000) } }
       return null
     })
   )
-
   for (const p of pages) {
     if (p.status === 'fulfilled' && p.value) {
-      subpageTexts.push(`--- Page: ${p.value.url} ---\n${p.value.text}`)
+      subpageTexts.push('--- Page: ' + p.value.url + ' ---\n' + p.value.text)
     }
   }
-
   const rootText = stripHtml(rootHtml).slice(0, 3000)
-  const allText = [rootText, ...subpageTexts].join('\n\n').slice(0, 14000)
+  const allText = [rootText, ...subpageTexts].join('\n\n').slice(0, 16000)
 
-  return { title, metaDesc, ogImage, text: allText, sourceUrl: rootUrl, crawledPages: crawled }
+  return { title, metaDesc, logoUrl, brandColor, text: allText, sourceUrl: rootUrl, crawledPages: crawled }
 }
 
 export async function normalizeToRetailerDraft(signals: Awaited<ReturnType<typeof extractSignals>>) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  const prompt = `You are converting vendor website content into structured onboarding data for a beverage recommendation app.
 
-The content below was scraped from MULTIPLE PAGES of the vendor website including their menu, tap list, and product pages.
-Extract ALL products/items you can find across all pages.
+  const prompt = `You are converting vendor website content into structured data for a beverage recommendation app.
 
-Return ONLY valid JSON with this exact shape (no markdown, no explanation):
+VERTICAL DETECTION RULES — read carefully:
+- If the site mentions: distillery, distilled, spirits, whiskey, whisky, bourbon, rye, gin, vodka, rum, tequila, moonshine, brandy → vertical = "distillery"
+- If the site mentions: brewery, brewed, craft beer, IPA, stout, lager, ale, tap, taproom → vertical = "brewery"  
+- If the site mentions: winery, vineyard, wine, varietal, vintage, grape → vertical = "winery"
+- If the site mentions: coffee, roaster, espresso, latte, pour over, brew bar → vertical = "coffee"
+- NEVER default to brewery. Choose the most specific vertical based on primary offering.
+
+LOGO: Use this if found on the site: ${signals.logoUrl || 'not detected — leave logo_url empty string'}
+BRAND COLOR: Use this if found: ${signals.brandColor || 'not detected — infer from site description or use #333333'}
+
+PRODUCT EXTRACTION:
+- Extract ALL products including spirits, cocktails, wines, beers, coffees
+- For cocktails: use category = "Cocktail"  
+- For spirits: use category matching the spirit type (Bourbon Whiskey, Gin, Vodka, etc.)
+- For beers: use category matching style (IPA, Stout, Lager, etc.)
+- Include recipe/ingredient details in description for cocktails
+- Include flavor notes for all items
+
+Return ONLY valid JSON, no markdown, no explanation:
 {
   "retailer": {
     "name": "",
     "slug": "",
-    "vertical": "coffee|brewery|winery",
+    "vertical": "distillery|brewery|winery|coffee",
     "location": "",
     "tagline": "",
     "logo_url": "",
@@ -140,25 +159,12 @@ Return ONLY valid JSON with this exact shape (no markdown, no explanation):
   ]
 }
 
-Rules:
-- vertical must be exactly: coffee, brewery, or winery
-- Extract EVERY product, beer, coffee, or wine item you can find — be thorough
-- Include ABV, IBU, style for beers when available
-- Include flavor notes, origin, roast for coffee when available
-- If price is unclear use null
-- If brand color unknown use "#C9A84C"
-- Propose 1-3 sensible starter flights based on the menu
-- slug should be lowercase-hyphenated business name
-- Return valid JSON only, no code fences
-
 Pages crawled: ${signals.crawledPages.join(', ')}
+Site title: ${signals.title}
+Description: ${signals.metaDesc}
+Source: ${signals.sourceUrl}
 
-Website content:
-title: ${signals.title}
-description: ${signals.metaDesc}
-source: ${signals.sourceUrl}
-
---- Full text from all pages ---
+Full content from all pages:
 ${signals.text}`
 
   const msg = await anthropic.messages.create({
@@ -169,22 +175,23 @@ ${signals.text}`
 
   const raw = msg.content.map((c: any) => ('text' in c ? c.text : '')).join('').trim()
   const clean = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
-  return JSON.parse(clean)
+  const parsed = JSON.parse(clean)
+
+  // Override with directly extracted values if AI missed them
+  if (signals.logoUrl && !parsed.retailer.logo_url) parsed.retailer.logo_url = signals.logoUrl
+  if (signals.brandColor && (!parsed.retailer.brand_color || parsed.retailer.brand_color === '#C9A84C')) {
+    parsed.retailer.brand_color = signals.brandColor
+  }
+
+  return parsed
 }
 
 export async function createDraftFromUrl(url: string) {
   const supabase = getAdmin()
   const signals = await extractSignals(url)
-
   const { data: job } = await supabase
     .from('ingestion_jobs')
-    .insert({
-      source_type: 'url',
-      source_value: url,
-      status: 'uploaded',
-      raw_text: signals.text.slice(0, 10000),
-      raw_json: { ...signals, text: signals.text.slice(0, 2000) }
-    })
+    .insert({ source_type: 'url', source_value: url, status: 'uploaded', raw_text: signals.text.slice(0, 10000), raw_json: { ...signals, text: signals.text.slice(0, 2000) } })
     .select('id').single()
 
   const normalized = await normalizeToRetailerDraft(signals)
@@ -196,10 +203,8 @@ export async function createDraftFromUrl(url: string) {
   const { data: draft } = await supabase
     .from('retailer_drafts')
     .insert({
-      ingestion_job_id: job?.id,
-      status: 'draft',
-      name: normalized.retailer.name,
-      slug,
+      ingestion_job_id: job?.id, status: 'draft',
+      name: normalized.retailer.name, slug,
       vertical: normalized.retailer.vertical,
       location: normalized.retailer.location || null,
       tagline: normalized.retailer.tagline || null,
@@ -213,9 +218,7 @@ export async function createDraftFromUrl(url: string) {
     .select('*').single()
 
   if (job?.id) {
-    await supabase.from('ingestion_jobs')
-      .update({ status: 'parsed', normalized_json: normalized })
-      .eq('id', job.id)
+    await supabase.from('ingestion_jobs').update({ status: 'parsed', normalized_json: normalized }).eq('id', job.id)
   }
   return draft
 }
@@ -228,14 +231,10 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
   const { data: retailer } = await supabase
     .from('retailers')
     .insert({
-      name: draft.name,
-      slug: draft.slug,
-      vertical: draft.vertical,
-      location: draft.location,
-      tagline: draft.tagline,
-      logo_url: draft.logo_url,
-      brand_color: draft.brand_color || '#C9A84C',
-      owner_email: ownerEmail || `owner+${draft.slug}@poursona.app`,
+      name: draft.name, slug: draft.slug, vertical: draft.vertical,
+      location: draft.location, tagline: draft.tagline,
+      logo_url: draft.logo_url, brand_color: draft.brand_color || '#C9A84C',
+      owner_email: ownerEmail || 'owner+' + draft.slug + '@poursona.app',
       active: true,
     })
     .select('*').single()
