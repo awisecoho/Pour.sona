@@ -1,29 +1,30 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import { useActiveRetailer } from '@/lib/useActiveRetailer'
+
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 const EMPTY = { name:'',description:'',category:'',flavor_notes:'',price:'',abv:'',ibu:'',style:'',in_stock:true,sort_order:0 }
 const FIELDS = [{k:'name',l:'Name *',t:'text'},{k:'category',l:'Category',t:'text'},{k:'style',l:'Style',t:'text'},{k:'description',l:'Description',t:'textarea'},{k:'flavor_notes',l:'Flavor Notes (for AI)',t:'textarea'},{k:'price',l:'Price ($)',t:'number'},{k:'abv',l:'ABV %',t:'text'},{k:'ibu',l:'IBU',t:'text'},{k:'sort_order',l:'Sort Order',t:'number'}]
+
 export default function CatalogPage() {
+  const { retailerId, retailer, loading: rLoading } = useActiveRetailer()
   const [products,setProducts]=useState<any[]>([])
-  const [rid,setRid]=useState<string|null>(null)
   const [editing,setEditing]=useState<any|null>(null)
   const [isNew,setIsNew]=useState(false)
   const [saving,setSaving]=useState(false)
   const [loading,setLoading]=useState(true)
-  useEffect(()=>{load()},[])
+
+  useEffect(()=>{ if(retailerId) load() },[retailerId])
+
   async function load(){
-    const {data:{session}}=await sb.auth.getSession()
-    if(!session)return
-    const {data:au}=await sb.from('admin_users').select('retailer_id').eq('user_id',session.user.id).single()
-    if(!au)return
-    setRid(au.retailer_id)
-    const {data}=await sb.from('products').select('*').eq('retailer_id',au.retailer_id).order('sort_order')
+    setLoading(true)
+    const {data}=await sb.from('products').select('*').eq('retailer_id',retailerId!).order('sort_order')
     setProducts(data||[]);setLoading(false)
   }
   async function save(){
-    if(!rid||!editing)return;setSaving(true)
-    const payload={...editing,retailer_id:rid,price:editing.price?parseFloat(editing.price):null}
+    if(!retailerId||!editing)return;setSaving(true)
+    const payload={...editing,retailer_id:retailerId,price:editing.price?parseFloat(editing.price):null}
     const id=payload.id;delete payload.id
     if(isNew)await sb.from('products').insert(payload)
     else await sb.from('products').update(payload).eq('id',id)
@@ -31,11 +32,16 @@ export default function CatalogPage() {
   }
   async function toggleStock(id:string,cur:boolean){await sb.from('products').update({in_stock:!cur}).eq('id',id);setProducts(p=>p.map(x=>x.id===id?{...x,in_stock:!cur}:x))}
   async function del(id:string){if(!confirm('Delete?'))return;await sb.from('products').delete().eq('id',id);setProducts(p=>p.filter(x=>x.id!==id))}
-  if(loading)return <div style={{color:'#C9A84C'}}>Loading…</div>
+
+  if(rLoading||loading)return <div style={{color:'#C9A84C'}}>Loading…</div>
   return (
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:32}}>
-        <div><div style={{color:'#C9A84C',fontSize:10,letterSpacing:'.3em',textTransform:'uppercase',marginBottom:4}}>Catalog</div><div style={{color:'#F5ECD7',fontSize:26,fontWeight:700}}>Products</div></div>
+        <div>
+          <div style={{color:'#C9A84C',fontSize:10,letterSpacing:'.3em',textTransform:'uppercase',marginBottom:4}}>Catalog</div>
+          <div style={{color:'#F5ECD7',fontSize:26,fontWeight:700}}>Products</div>
+          {retailer?.name&&<div style={{color:'#4a3a1a',fontSize:12,marginTop:4}}>{retailer.name}</div>}
+        </div>
         <button onClick={()=>{setEditing({...EMPTY});setIsNew(true)}} style={{padding:'10px 20px',background:'linear-gradient(135deg,#C9A84C,#a07830)',border:'none',borderRadius:8,color:'#0a0603',fontFamily:'Georgia, serif',fontSize:12,fontWeight:700,cursor:'pointer'}}>+ Add Product</button>
       </div>
       <div style={{background:'linear-gradient(145deg,#0e0b06,#0a0805)',border:'1px solid rgba(201,168,76,.15)',borderRadius:14,overflow:'hidden'}}>
