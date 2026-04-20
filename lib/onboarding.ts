@@ -21,52 +21,59 @@ async function fetchPage(url: string): Promise<string> {
   } catch { return '' }
 }
 
-// Use AI vision to extract brand colors from a screenshot
 async function extractColorsViaScreenshot(url: string): Promise<{ primary: string; logoUrl: string } | null> {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const fnUrl = supabaseUrl.replace('/rest/v1', '') + '/functions/v1/extract-brand-colors'
-    const res = await fetch(fnUrl, {
+    const fnUrl = supabaseUrl.replace('https://', 'https://') + '/functions/v1/extract-brand-colors'
+    const baseUrl = new URL(supabaseUrl)
+    const fnFullUrl = `https://${baseUrl.hostname}/functions/v1/extract-brand-colors`
+    const res = await fetch(fnFullUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
       body: JSON.stringify({ url }),
       signal: AbortSignal.timeout(30000),
     })
     if (!res.ok) return null
     const data = await res.json()
     if (!data.ok) return null
-    return {
-      primary: data.colors.primary || '#C9A84C',
-      logoUrl: data.colors.logoUrl || '',
-    }
+    return { primary: data.colors.primary || '#C9A84C', logoUrl: data.colors.logoUrl || '' }
   } catch { return null }
 }
 
-function extractMenuLinks(html: string, baseUrl: string): string[] {
-  const base = new URL(baseUrl)
-  const menuKeywords = ['menu', 'beer', 'tap', 'drink', 'wine', 'coffee', 'food', 'brew', 'cocktail', 'spirits', 'spirit', 'whiskey', 'bourbon', 'gin', 'vodka', 'rum', 'list', 'selection', 'product', 'our-spirits', 'craft']
-  const skipKeywords = ['cart', 'checkout', 'login', 'account', 'privacy', 'terms', 'facebook', 'instagram', 'twitter', 'mailto:', 'tel:', 'wedding', 'press', 'contact', 'about', 'club', 'class', 'party']
+function scoreLink(url: string, base: string): number {
+  const path = url.toLowerCase()
+  const menuKeywords = ['menu','beer','tap','drink','wine','coffee','cocktail','spirits','spirit','whiskey','bourbon','gin','vodka','rum','product','our-spirits','craft','moonshine','barrel']
+  const storyKeywords = ['about','story','our-story','history','team','people','founder','philosophy','process','craft','heritage','mission','who-we-are','tradition','distill','brew','winemaking']
+  const skipKeywords = ['cart','checkout','login','account','privacy','terms','facebook','instagram','twitter','mailto:','tel:','wedding','press','contact','events','club','class','party','bottling','shop','buy','order']
+  if (!url.startsWith(base)) return -1
+  if (skipKeywords.some(k => path.includes(k))) return -1
+  const menuScore = menuKeywords.reduce((s, kw) => path.includes(kw) ? s + 3 : s, 0)
+  const storyScore = storyKeywords.reduce((s, kw) => path.includes(kw) ? s + 2 : s, 0)
+  return menuScore + storyScore
+}
+
+function extractLinks(html: string, baseUrl: string): Array<{ url: string; score: number; type: 'menu' | 'story' | 'both' }> {
+  const base = new URL(baseUrl).origin
   const hrefRegex = /href=["']([^"'#?]+)["']/gi
   const seen = new Set<string>()
-  const links: Array<{ url: string; score: number }> = []
+  const links: Array<{ url: string; score: number; type: 'menu' | 'story' | 'both' }> = []
   let match
   while ((match = hrefRegex.exec(html)) !== null) {
     const raw = match[1].trim()
     if (!raw || raw.startsWith('javascript')) continue
     let full: string
-    try { full = new URL(raw, base.origin).toString() } catch { continue }
-    if (!full.startsWith(base.origin)) continue
+    try { full = new URL(raw, base).toString() } catch { continue }
     if (seen.has(full)) continue
-    if (skipKeywords.some(k => full.toLowerCase().includes(k))) continue
     seen.add(full)
+    const score = scoreLink(full, base)
+    if (score <= 0) continue
     const path = full.toLowerCase()
-    const score = menuKeywords.reduce((s, kw) => path.includes(kw) ? s + 2 : s, 0)
-    if (score > 0) links.push({ url: full, score })
+    const isMenu = ['menu','beer','tap','spirits','product','moonshine','cocktail','wine','coffee'].some(k => path.includes(k))
+    const isStory = ['about','story','team','founder','philosophy','heritage','history','process'].some(k => path.includes(k))
+    const type = isMenu && isStory ? 'both' : isMenu ? 'menu' : 'story'
+    links.push({ url: full, score, type })
   }
-  return links.sort((a, b) => b.score - a.score).slice(0, 8).map(l => l.url)
+  return links.sort((a, b) => b.score - a.score).slice(0, 10)
 }
 
 function stripHtml(html: string): string {
@@ -75,6 +82,7 @@ function stripHtml(html: string): string {
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
     .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
+    .replace(/<header[\s\S]*?<\/header>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -86,88 +94,127 @@ export async function extractSignals(rootUrl: string) {
 
   const title = rootHtml.match(/<title[^>]*>(.*?)<\/title>/i)?.[1]?.trim() || ''
   const metaDesc = rootHtml.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] || ''
+  const links = extractLinks(rootHtml, rootUrl)
 
-  // Run screenshot color extraction in parallel with page crawl
-  const [screenshotColors, subpageTexts] = await Promise.all([
+  // Run screenshot + page crawl in parallel
+  const [screenshotColors, crawlResults] = await Promise.all([
     extractColorsViaScreenshot(rootUrl),
-    (async () => {
-      const subpageUrls = extractMenuLinks(rootHtml, rootUrl)
-      const results: string[] = []
-      const pages = await Promise.allSettled(
-        subpageUrls.map(async (url) => {
-          const html = await fetchPage(url)
-          if (html) return { url, text: stripHtml(html).slice(0, 4000) }
-          return null
-        })
-      )
-      for (const p of pages) {
-        if (p.status === 'fulfilled' && p.value) {
-          results.push(`--- Page: ${p.value.url} ---\n${p.value.text}`)
-        }
-      }
-      return results
-    })()
+    Promise.allSettled(
+      links.map(async (link) => {
+        const html = await fetchPage(link.url)
+        if (!html) return null
+        return { url: link.url, type: link.type, text: stripHtml(html).slice(0, 5000) }
+      })
+    )
   ])
 
+  const menuPages: string[] = []
+  const storyPages: string[] = []
+  const crawledUrls: string[] = [rootUrl]
+
+  for (const result of crawlResults) {
+    if (result.status === 'fulfilled' && result.value) {
+      const { url, type, text } = result.value
+      crawledUrls.push(url)
+      if (type === 'menu' || type === 'both') menuPages.push(`--- ${url} ---\n${text}`)
+      if (type === 'story' || type === 'both') storyPages.push(`--- ${url} ---\n${text}`)
+    }
+  }
+
   const rootText = stripHtml(rootHtml).slice(0, 3000)
-  const allText = [rootText, ...subpageTexts].join('\n\n').slice(0, 16000)
+  const menuText = [rootText, ...menuPages].join('\n\n').slice(0, 10000)
+  const storyText = storyPages.join('\n\n').slice(0, 6000)
 
   return {
-    title,
-    metaDesc,
+    title, metaDesc,
     logoUrl: screenshotColors?.logoUrl || '',
     brandColor: screenshotColors?.primary || '',
-    text: allText,
+    menuText,
+    storyText,
+    rootText,
     sourceUrl: rootUrl,
+    crawledUrls,
   }
 }
 
 export async function normalizeToRetailerDraft(signals: Awaited<ReturnType<typeof extractSignals>>) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-  const prompt = `You are converting vendor website content into structured data for a beverage recommendation app.
+  // Two parallel AI calls: one for catalog, one for story/culture
+  const [catalogMsg, storyMsg] = await Promise.all([
+    anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
+      messages: [{
+        role: 'user',
+        content: `Extract product catalog from this beverage vendor website.
 
-VERTICAL DETECTION RULES:
-- distillery/spirits/whiskey/bourbon/rye/gin/vodka/rum/moonshine → vertical = "distillery"
-- brewery/brewed/craft beer/IPA/stout/lager/ale/tap → vertical = "brewery"
-- winery/vineyard/wine/varietal/vintage → vertical = "winery"
-- coffee/roaster/espresso/latte/pour over → vertical = "coffee"
-- NEVER default to brewery.
+VERTICAL DETECTION:
+- distillery/spirits/whiskey/bourbon/rye/gin/vodka/rum/moonshine → "distillery"
+- brewery/brewed/craft beer/IPA/stout/lager/ale/tap → "brewery"
+- winery/vineyard/wine/varietal/vintage → "winery"
+- coffee/roaster/espresso → "coffee"
+NEVER default to brewery.
 
-COLORS ALREADY EXTRACTED: ${signals.brandColor ? `primary brand color = ${signals.brandColor}` : 'not detected — infer from content or use #C9A84C'}
-LOGO: ${signals.logoUrl ? `detected = ${signals.logoUrl}` : 'not detected'}
-
-Extract ALL products. For cocktails use category = "Cocktail". Include full specs.
+COLORS: ${signals.brandColor ? `primary = ${signals.brandColor}` : 'use #C9A84C'}
+LOGO: ${signals.logoUrl || 'not detected'}
 
 Return ONLY valid JSON:
 {
-  "retailer": { "name": "", "slug": "", "vertical": "distillery|brewery|winery|coffee", "location": "", "tagline": "", "logo_url": "${signals.logoUrl || ''}", "brand_color": "${signals.brandColor || '#C9A84C'}" },
+  "retailer": { "name": "", "slug": "", "vertical": "", "location": "", "tagline": "", "logo_url": "${signals.logoUrl || ''}", "brand_color": "${signals.brandColor || '#C9A84C'}" },
   "products": [{ "name": "", "description": "", "category": "", "flavor_notes": "", "price": null, "style": "", "abv": "", "ibu": "", "in_stock": true, "sort_order": 0 }],
   "flights": [{ "name": "", "description": "", "count": 4, "pour_size": "4oz", "price": 0, "active": true, "sort_order": 0 }]
 }
 
 Site: ${signals.sourceUrl}
 Title: ${signals.title}
-Description: ${signals.metaDesc}
-
 Content:
-${signals.text}`
+${signals.menuText}`
+      }]
+    }),
+    anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1000,
+      messages: [{
+        role: 'user',
+        content: `Analyze this beverage vendor's about/story pages and extract rich context for an AI guide.
 
-  const msg = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 4000,
-    messages: [{ role: 'user', content: prompt }],
-  })
+Return ONLY valid JSON:
+{
+  "story": "2-4 sentences: founding story, who built it and why, what makes it unique. Make it feel human and specific.",
+  "culture": "2-3 sentences: the vibe and atmosphere of the place. What kind of experience do guests have? Relaxed? Reverent? Lively? Local? What do regulars love about it?",
+  "region": "1-2 sentences: the geographic and cultural context. What makes this region special for this type of drink? Local ingredients, traditions, history.",
+  "voice": "3-5 words describing the brand personality: e.g. bold, irreverent, warm, sophisticated, rustic, adventurous"
+}
 
-  const raw = msg.content.map((c: any) => ('text' in c ? c.text : '')).join('').trim()
-  const clean = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
-  const parsed = JSON.parse(clean)
+If story pages are sparse, infer from what you can see. Be specific not generic.
 
-  // Always trust the screenshot-extracted color over AI guess
-  if (signals.brandColor) parsed.retailer.brand_color = signals.brandColor
-  if (signals.logoUrl) parsed.retailer.logo_url = signals.logoUrl
+Site: ${signals.sourceUrl}
+Title: ${signals.title}
+About/Story content:
+${signals.storyText || signals.rootText}`
+      }]
+    })
+  ])
 
-  return parsed
+  // Parse catalog
+  const catalogRaw = catalogMsg.content.map((c: any) => ('text' in c ? c.text : '')).join('').trim()
+  const catalogClean = catalogRaw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
+  const catalog = JSON.parse(catalogClean)
+
+  // Parse story
+  let storyData = { story: '', culture: '', region: '', voice: '' }
+  try {
+    const storyRaw = storyMsg.content.map((c: any) => ('text' in c ? c.text : '')).join('').trim()
+    const storyClean = storyRaw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
+    storyData = JSON.parse(storyClean)
+  } catch { /* story is optional */ }
+
+  // Override with screenshot-extracted values
+  if (signals.brandColor) catalog.retailer.brand_color = signals.brandColor
+  if (signals.logoUrl) catalog.retailer.logo_url = signals.logoUrl
+
+  return { ...catalog, storyData }
 }
 
 export async function createDraftFromUrl(url: string) {
@@ -175,14 +222,15 @@ export async function createDraftFromUrl(url: string) {
   const signals = await extractSignals(url)
   const { data: job } = await supabase
     .from('ingestion_jobs')
-    .insert({ source_type: 'url', source_value: url, status: 'uploaded', raw_text: signals.text.slice(0, 10000), raw_json: { ...signals, text: signals.text.slice(0, 2000) } })
+    .insert({ source_type: 'url', source_value: url, status: 'uploaded', raw_text: signals.menuText.slice(0, 10000), raw_json: { ...signals, menuText: signals.menuText.slice(0, 2000) } })
     .select('id').single()
 
   const normalized = await normalizeToRetailerDraft(signals)
   const { data: existing } = await supabase.from('retailers').select('slug')
-  const slug = ensureUniqueSlug(normalized.retailer.slug || normalized.retailer.name, (existing || []).map((r: any) => r.slug))
+  const { data: existingDrafts } = await supabase.from('retailer_drafts').select('slug')
+  const allSlugs = [...(existing || []), ...(existingDrafts || [])].map((r: any) => r.slug)
+  const slug = ensureUniqueSlug(normalized.retailer.slug || normalized.retailer.name, allSlugs)
   normalized.retailer.slug = slug
-  normalized.retailer.brand_color = normalized.retailer.brand_color || '#C9A84C'
 
   const { data: draft } = await supabase
     .from('retailer_drafts')
@@ -193,11 +241,14 @@ export async function createDraftFromUrl(url: string) {
       location: normalized.retailer.location || null,
       tagline: normalized.retailer.tagline || null,
       logo_url: normalized.retailer.logo_url || null,
-      brand_color: normalized.retailer.brand_color,
+      brand_color: normalized.retailer.brand_color || '#C9A84C',
       source_url: url,
       menu_json: normalized.products,
       flight_json: normalized.flights,
       parsed_json: normalized,
+      story: normalized.storyData?.story || null,
+      culture: normalized.storyData?.culture || null,
+      region: normalized.storyData?.region || null,
     })
     .select('*').single()
 
@@ -212,13 +263,24 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
   const { data: draft } = await supabase.from('retailer_drafts').select('*').eq('id', draftId).single()
   if (!draft) throw new Error('Draft not found')
 
+  // Check slug doesn't conflict with existing retailers only
+  const { data: existing } = await supabase.from('retailers').select('slug')
+  const existingSlugs = (existing || []).map((r: any) => r.slug)
+  let slug = draft.slug
+  if (existingSlugs.includes(slug)) {
+    slug = ensureUniqueSlug(slug, existingSlugs)
+  }
+
   const { data: retailer } = await supabase
     .from('retailers')
     .insert({
-      name: draft.name, slug: draft.slug, vertical: draft.vertical,
+      name: draft.name, slug, vertical: draft.vertical,
       location: draft.location, tagline: draft.tagline,
       logo_url: draft.logo_url, brand_color: draft.brand_color || '#C9A84C',
-      owner_email: ownerEmail || `owner+${draft.slug}@poursona.app`,
+      owner_email: ownerEmail || `owner+${slug}@poursona.app`,
+      story: draft.story || null,
+      culture: draft.culture || null,
+      region: draft.region || null,
       active: true,
     })
     .select('*').single()
@@ -249,5 +311,79 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
   }
 
   await supabase.from('retailer_drafts').update({ status: 'published' }).eq('id', draft.id)
+
+  // Auto-link all poursona team members
+  const { data: team } = await supabase.from('poursona_team').select('email')
+  if (team?.length) {
+    const { data: users } = await supabase.auth.admin.listUsers()
+    for (const member of team) {
+      const user = users?.users?.find((u: any) => u.email === member.email)
+      if (user) {
+        await supabase.from('admin_users').upsert(
+          { user_id: user.id, retailer_id: retailer.id, role: 'owner' },
+          { onConflict: 'user_id,retailer_id' }
+        )
+      }
+    }
+  }
+
   return retailer
+}
+
+export async function rescanRetailer(retailerId: string, url: string, mode: 'catalog' | 'branding' | 'full') {
+  const supabase = getAdmin()
+  const signals = await extractSignals(url)
+  const normalized = await normalizeToRetailerDraft(signals)
+  const updates: any = {}
+
+  if (mode === 'branding' || mode === 'full') {
+    if (signals.brandColor) updates.brand_color = signals.brandColor
+    if (signals.logoUrl) updates.logo_url = signals.logoUrl
+    if (normalized.storyData?.story) updates.story = normalized.storyData.story
+    if (normalized.storyData?.culture) updates.culture = normalized.storyData.culture
+    if (normalized.storyData?.region) updates.region = normalized.storyData.region
+    if (normalized.retailer.tagline) updates.tagline = normalized.retailer.tagline
+    if (normalized.retailer.location) updates.location = normalized.retailer.location
+  }
+
+  if (mode === 'catalog' || mode === 'full') {
+    const products = Array.isArray(normalized.products) ? normalized.products : []
+    if (products.length) {
+      if (mode === 'full') {
+        // Full replace
+        await supabase.from('products').delete().eq('retailer_id', retailerId)
+        await supabase.from('products').insert(
+          products.map((p: any, i: number) => ({
+            retailer_id: retailerId, name: p.name, description: p.description || null,
+            category: p.category || null, flavor_notes: p.flavor_notes || null,
+            price: p.price ?? null, style: p.style || null, abv: p.abv || null,
+            ibu: p.ibu || null, in_stock: true, sort_order: i,
+          }))
+        )
+      } else {
+        // Catalog mode: add new items only
+        const { data: existing } = await supabase.from('products').select('name').eq('retailer_id', retailerId)
+        const existingNames = new Set((existing || []).map((p: any) => p.name.toLowerCase()))
+        const newProducts = products.filter((p: any) => !existingNames.has(p.name.toLowerCase()))
+        if (newProducts.length) {
+          await supabase.from('products').insert(
+            newProducts.map((p: any, i: number) => ({
+              retailer_id: retailerId, name: p.name, description: p.description || null,
+              category: p.category || null, flavor_notes: p.flavor_notes || null,
+              price: p.price ?? null, style: p.style || null, abv: p.abv || null,
+              ibu: p.ibu || null, in_stock: true, sort_order: 1000 + i,
+            }))
+          )
+        }
+        updates._newProductsAdded = newProducts.length
+      }
+    }
+  }
+
+  if (Object.keys(updates).filter(k => !k.startsWith('_')).length > 0) {
+    await supabase.from('retailers').update(updates).eq('id', retailerId)
+  }
+
+  const { data: updatedRetailer } = await supabase.from('retailers').select('*').eq('id', retailerId).single()
+  return { retailer: updatedRetailer, changes: updates, newProducts: updates._newProductsAdded || 0 }
 }
