@@ -1,81 +1,190 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { useActiveRetailer } from '@/lib/useActiveRetailer'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-const EMPTY = { name:'',description:'',category:'',flavor_notes:'',price:'',abv:'',ibu:'',style:'',in_stock:true,sort_order:0 }
-const FIELDS = [{k:'name',l:'Name *',t:'text'},{k:'category',l:'Category',t:'text'},{k:'style',l:'Style',t:'text'},{k:'description',l:'Description',t:'textarea'},{k:'flavor_notes',l:'Flavor Notes (for AI)',t:'textarea'},{k:'price',l:'Price ($)',t:'number'},{k:'abv',l:'ABV %',t:'text'},{k:'ibu',l:'IBU',t:'text'},{k:'sort_order',l:'Sort Order',t:'number'}]
 
 export default function CatalogPage() {
-  const { retailerId, retailer, loading: rLoading } = useActiveRetailer()
-  const [products,setProducts]=useState<any[]>([])
-  const [editing,setEditing]=useState<any|null>(null)
-  const [isNew,setIsNew]=useState(false)
-  const [saving,setSaving]=useState(false)
-  const [loading,setLoading]=useState(true)
+  const [retailer, setRetailer] = useState<any>(null)
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState<string | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [scanResult, setScanResult] = useState<any[]>([])
+  const [newProduct, setNewProduct] = useState({ name: '', category: '', description: '', price: '', abv: '', flavor_notes: '' })
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  useEffect(()=>{ if(retailerId) load() },[retailerId])
+  useEffect(() => { load() }, [])
 
-  async function load(){
-    setLoading(true)
-    const {data}=await sb.from('products').select('*').eq('retailer_id',retailerId!).order('sort_order')
-    setProducts(data||[]);setLoading(false)
+  async function load() {
+    const { data: { user } } = await sb.auth.getUser()
+    if (!user) return
+    const storedId = localStorage.getItem('poursona_active_retailer')
+    let retailerData: any = null
+    if (storedId) {
+      const { data } = await sb.from('retailers').select('*').eq('id', storedId).single()
+      retailerData = data
+    }
+    if (!retailerData) {
+      const { data } = await sb.from('admin_users').select('retailer_id, retailers(*)').eq('user_id', user.id).limit(1).single()
+      retailerData = Array.isArray(data?.retailers) ? data?.retailers[0] : data?.retailers
+    }
+    if (!retailerData) { setLoading(false); return }
+    setRetailer(retailerData)
+    const { data: prods } = await sb.from('products').select('*').eq('retailer_id', retailerData.id).order('sort_order')
+    setProducts(prods || [])
+    setLoading(false)
   }
-  async function save(){
-    if(!retailerId||!editing)return;setSaving(true)
-    const payload={...editing,retailer_id:retailerId,price:editing.price?parseFloat(editing.price):null}
-    const id=payload.id;delete payload.id
-    if(isNew)await sb.from('products').insert(payload)
-    else await sb.from('products').update(payload).eq('id',id)
-    setSaving(false);setEditing(null);load()
-  }
-  async function toggleStock(id:string,cur:boolean){await sb.from('products').update({in_stock:!cur}).eq('id',id);setProducts(p=>p.map(x=>x.id===id?{...x,in_stock:!cur}:x))}
-  async function del(id:string){if(!confirm('Delete?'))return;await sb.from('products').delete().eq('id',id);setProducts(p=>p.filter(x=>x.id!==id))}
 
-  if(rLoading||loading)return <div style={{color:'#C9A84C'}}>Loading…</div>
+  async function toggleStock(id: string, current: boolean) {
+    setSaving(id)
+    await sb.from('products').update({ in_stock: !current }).eq('id', id)
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, in_stock: !current } : p))
+    setSaving(null)
+  }
+
+  async function addProduct() {
+    if (!newProduct.name || !retailer) return
+    setSaving('new')
+    const { data } = await sb.from('products').insert({
+      retailer_id: retailer.id,
+      name: newProduct.name,
+      category: newProduct.category || null,
+      description: newProduct.description || null,
+      price: newProduct.price ? parseFloat(newProduct.price) : null,
+      abv: newProduct.abv || null,
+      flavor_notes: newProduct.flavor_notes || null,
+      in_stock: true,
+      sort_order: products.length,
+    }).select().single()
+    if (data) setProducts(prev => [...prev, data])
+    setNewProduct({ name: '', category: '', description: '', price: '', abv: '', flavor_notes: '' })
+    setShowAdd(false)
+    setSaving(null)
+  }
+
+  async function scanPhoto(file: File) {
+    setScanning(true); setScanResult([])
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const base64 = (e.target?.result as string).split(',')[1]
+      const res = await fetch('/api/menu-scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: base64, retailerId: retailer?.id }) })
+      const data = await res.json()
+      setScanResult(data.products || [])
+      setScanning(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  async function addScannedProduct(p: any) {
+    if (!retailer) return
+    const { data } = await sb.from('products').insert({
+      retailer_id: retailer.id, name: p.name, category: p.category || null,
+      description: p.description || null, price: p.price || null,
+      flavor_notes: p.flavor_notes || null, in_stock: true, sort_order: products.length,
+    }).select().single()
+    if (data) { setProducts(prev => [...prev, data]); setScanResult(prev => prev.filter(x => x.name !== p.name)) }
+  }
+
+  const inStock = products.filter(p => p.in_stock)
+  const outOfStock = products.filter(p => !p.in_stock)
+
+  const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 14, outline: 'none', boxSizing: 'border-box' }
+
+  if (loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
+
   return (
     <div>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:32}}>
+      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
         <div>
-          <div style={{color:'#C9A84C',fontSize:10,letterSpacing:'.3em',textTransform:'uppercase',marginBottom:4}}>Catalog</div>
-          <div style={{color:'#F5ECD7',fontSize:26,fontWeight:700}}>Products</div>
-          {retailer?.name&&<div style={{color:'#4a3a1a',fontSize:12,marginTop:4}}>{retailer.name}</div>}
+          <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Catalog</div>
+          <div style={{ color: '#F5ECD7', fontSize: 24, fontWeight: 700 }}>Menu & Products</div>
+          <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 4 }}>{inStock.length} available · {outOfStock.length} off-menu</div>
         </div>
-        <button onClick={()=>{setEditing({...EMPTY});setIsNew(true)}} style={{padding:'10px 20px',background:'linear-gradient(135deg,#C9A84C,#a07830)',border:'none',borderRadius:8,color:'#0a0603',fontFamily:'Georgia, serif',fontSize:12,fontWeight:700,cursor:'pointer'}}>+ Add Product</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={() => fileRef.current?.click()} style={{ padding: '10px 16px', background: 'rgba(201,168,76,.08)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#C9A84C', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>
+            📷 Scan Menu Photo
+          </button>
+          <button onClick={() => setShowAdd(!showAdd)} style={{ padding: '10px 16px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>
+            + Add Item
+          </button>
+        </div>
       </div>
-      <div style={{background:'linear-gradient(145deg,#0e0b06,#0a0805)',border:'1px solid rgba(201,168,76,.15)',borderRadius:14,overflow:'hidden'}}>
-        {products.length===0?<div style={{padding:'48px 24px',textAlign:'center',color:'#4a3a1a',fontSize:14}}>No products yet.</div>:(
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr style={{borderBottom:'1px solid rgba(201,168,76,.1)'}}>{['Name','Category','Price','In Stock',''].map(h=><th key={h} style={{padding:'12px 20px',textAlign:'left',color:'#4a3a1a',fontSize:10,letterSpacing:'.15em',textTransform:'uppercase',fontWeight:400}}>{h}</th>)}</tr></thead>
-            <tbody>{products.map(p=>(
-              <tr key={p.id} style={{borderBottom:'1px solid rgba(201,168,76,.05)'}}>
-                <td style={{padding:'14px 20px'}}><div style={{color:'#F5ECD7',fontSize:14}}>{p.name}</div>{p.style&&<div style={{color:'#6a5a3a',fontSize:11,marginTop:2}}>{p.style}</div>}</td>
-                <td style={{padding:'14px 20px',color:'#6a5a3a',fontSize:13}}>{p.category||'—'}</td>
-                <td style={{padding:'14px 20px',color:'#C9A84C',fontSize:13}}>{p.price?'$'+p.price:'—'}</td>
-                <td style={{padding:'14px 20px'}}><button onClick={()=>toggleStock(p.id,p.in_stock)} style={{padding:'4px 12px',borderRadius:20,border:'none',cursor:'pointer',background:p.in_stock?'rgba(94,207,138,.15)':'rgba(255,100,100,.1)',color:p.in_stock?'#5ecf8a':'#e07070',fontSize:11,fontFamily:'Georgia, serif'}}>{p.in_stock?'● In Stock':'○ Out'}</button></td>
-                <td style={{padding:'14px 20px'}}><div style={{display:'flex',gap:8}}><button onClick={()=>{setEditing({...p});setIsNew(false)}} style={{background:'transparent',border:'1px solid rgba(201,168,76,.2)',borderRadius:6,padding:'5px 12px',color:'#C9A84C',cursor:'pointer',fontFamily:'Georgia, serif',fontSize:11}}>Edit</button><button onClick={()=>del(p.id)} style={{background:'transparent',border:'1px solid rgba(255,100,100,.2)',borderRadius:6,padding:'5px 12px',color:'#e07070',cursor:'pointer',fontFamily:'Georgia, serif',fontSize:11}}>Delete</button></div></td>
-              </tr>
-            ))}</tbody>
-          </table>
-        )}
-      </div>
-      {editing&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:24}}>
-          <div style={{background:'#0e0b06',border:'1px solid rgba(201,168,76,.2)',borderRadius:18,padding:32,width:'100%',maxWidth:520,maxHeight:'90vh',overflowY:'auto'}}>
-            <div style={{color:'#F5ECD7',fontSize:18,fontWeight:700,marginBottom:24}}>{isNew?'Add Product':'Edit Product'}</div>
-            {FIELDS.map(({k,l,t})=>(
-              <div key={k} style={{marginBottom:16}}>
-                <label style={{color:'#C9A84C',fontSize:10,letterSpacing:'.15em',textTransform:'uppercase',display:'block',marginBottom:6}}>{l}</label>
-                {t==='textarea'?<textarea value={editing[k]||''} onChange={e=>setEditing({...editing,[k]:e.target.value})} rows={3} style={{width:'100%',padding:'10px 12px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(201,168,76,.15)',borderRadius:8,color:'#F5ECD7',fontFamily:'Georgia, serif',fontSize:13,resize:'vertical',outline:'none',boxSizing:'border-box'}}/>:<input type={t} value={editing[k]??''} onChange={e=>setEditing({...editing,[k]:e.target.value})} style={{width:'100%',padding:'10px 12px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(201,168,76,.15)',borderRadius:8,color:'#F5ECD7',fontFamily:'Georgia, serif',fontSize:13,outline:'none',boxSizing:'border-box'}}/>}
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && scanPhoto(e.target.files[0])} />
+
+      {/* Scan results */}
+      {scanning && (
+        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '24px', marginBottom: 16, textAlign: 'center' }}>
+          <div style={{ color: '#C9A84C', fontSize: 14 }}>Reading menu photo…</div>
+          <div style={{ color: '#4a3a1a', fontSize: 12, marginTop: 4 }}>AI is extracting products from your image.</div>
+        </div>
+      )}
+      {scanResult.length > 0 && (
+        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(94,207,138,.2)', borderRadius: 14, padding: '20px', marginBottom: 16 }}>
+          <div style={{ color: '#5ecf8a', fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Found {scanResult.length} items — tap to add</div>
+          {scanResult.map((p, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(201,168,76,.06)' }}>
+              <div>
+                <div style={{ color: '#F5ECD7', fontSize: 14 }}>{p.name}</div>
+                <div style={{ color: '#4a3a1a', fontSize: 11 }}>{[p.category, p.price ? '$'+p.price : null].filter(Boolean).join(' · ')}</div>
               </div>
-            ))}
-            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}><input type="checkbox" id="stk" checked={editing.in_stock} onChange={e=>setEditing({...editing,in_stock:e.target.checked})}/><label htmlFor="stk" style={{color:'#F5ECD7',fontSize:13,cursor:'pointer'}}>In Stock</label></div>
-            <div style={{display:'flex',gap:12}}>
-              <button onClick={save} disabled={saving||!editing.name} style={{flex:1,padding:'12px',background:'linear-gradient(135deg,#C9A84C,#a07830)',border:'none',borderRadius:8,color:'#0a0603',fontFamily:'Georgia, serif',fontSize:13,fontWeight:700,cursor:'pointer'}}>{saving?'Saving…':'Save Product'}</button>
-              <button onClick={()=>setEditing(null)} style={{padding:'12px 20px',background:'transparent',border:'1px solid rgba(201,168,76,.2)',borderRadius:8,color:'#6a5a3a',fontFamily:'Georgia, serif',fontSize:13,cursor:'pointer'}}>Cancel</button>
+              <button onClick={() => addScannedProduct(p)} style={{ padding: '7px 14px', background: 'rgba(94,207,138,.15)', border: '1px solid rgba(94,207,138,.3)', borderRadius: 8, color: '#5ecf8a', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif', fontWeight: 700 }}>+ Add</button>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add product form */}
+      {showAdd && (
+        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px', marginBottom: 16 }}>
+          <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Add New Item</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Name *</div><input value={newProduct.name} onChange={e => setNewProduct(p => ({...p, name: e.target.value}))} placeholder="Dock Beer" style={inp} /></div>
+            <div><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Category</div><input value={newProduct.category} onChange={e => setNewProduct(p => ({...p, category: e.target.value}))} placeholder="Lager, IPA, Moonshine…" style={inp} /></div>
+            <div><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Price</div><input type="number" value={newProduct.price} onChange={e => setNewProduct(p => ({...p, price: e.target.value}))} placeholder="7.00" style={inp} /></div>
+            <div><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>ABV</div><input value={newProduct.abv} onChange={e => setNewProduct(p => ({...p, abv: e.target.value}))} placeholder="5.2%" style={inp} /></div>
           </div>
+          <div style={{ marginBottom: 12 }}><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Description / Flavor Notes</div><input value={newProduct.description} onChange={e => setNewProduct(p => ({...p, description: e.target.value}))} placeholder="Brief description…" style={{...inp, width: '100%'}} /></div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={addProduct} disabled={!newProduct.name || saving === 'new'} style={{ padding: '11px 20px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: !newProduct.name || saving === 'new' ? .5 : 1 }}>{saving === 'new' ? 'Saving…' : 'Add Item'}</button>
+            <button onClick={() => setShowAdd(false)} style={{ padding: '11px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#4a3a1a', fontFamily: 'Georgia, serif', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Available items */}
+      <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px', marginBottom: 12 }}>
+        <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Available Now ({inStock.length})</div>
+        {inStock.map(p => (
+          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(201,168,76,.06)' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 500 }}>{p.name}</div>
+              <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2 }}>{[p.category, p.abv, p.price ? '$'+p.price : null].filter(Boolean).join(' · ')}</div>
+            </div>
+            <button onClick={() => toggleStock(p.id, p.in_stock)} disabled={saving === p.id} style={{ marginLeft: 12, padding: '7px 14px', background: 'rgba(255,100,100,.08)', border: '1px solid rgba(255,100,100,.2)', borderRadius: 8, color: '#e07070', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif', flexShrink: 0, opacity: saving === p.id ? .5 : 1 }}>
+              {saving === p.id ? '…' : 'Mark Off-Menu'}
+            </button>
+          </div>
+        ))}
+        {inStock.length === 0 && <div style={{ color: '#4a3a1a', fontSize: 13 }}>No available items.</div>}
+      </div>
+
+      {/* Off-menu items */}
+      {outOfStock.length > 0 && (
+        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.08)', borderRadius: 14, padding: '20px', opacity: .7 }}>
+          <div style={{ color: '#4a3a1a', fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Off-Menu / Seasonal ({outOfStock.length})</div>
+          {outOfStock.map(p => (
+            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(201,168,76,.04)' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: '#4a3a1a', fontSize: 14 }}>{p.name}</div>
+                <div style={{ color: '#3a2a0a', fontSize: 11, marginTop: 2 }}>{[p.category, p.price ? '$'+p.price : null].filter(Boolean).join(' · ')}</div>
+              </div>
+              <button onClick={() => toggleStock(p.id, p.in_stock)} disabled={saving === p.id} style={{ marginLeft: 12, padding: '7px 14px', background: 'rgba(94,207,138,.08)', border: '1px solid rgba(94,207,138,.2)', borderRadius: 8, color: '#5ecf8a', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif', flexShrink: 0, opacity: saving === p.id ? .5 : 1 }}>
+                {saving === p.id ? '…' : 'Back on Menu'}
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
