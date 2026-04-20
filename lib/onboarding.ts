@@ -21,41 +21,34 @@ async function fetchPage(url: string): Promise<string> {
   } catch { return '' }
 }
 
-function extractLogoFromHtml(html: string, baseUrl: string): string {
-  const base = new URL(baseUrl).origin
-  // Try og:image first
-  const og = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
-  if (og) return og
-  // Try <img> tags with logo-like attributes
-  const logoImgRegex = /<img[^>]+(?:class|alt|id|src)[^>]*(?:logo|brand|header)[^>]*src=["']([^"']+)["']/gi
-  const logoImgMatch = logoImgRegex.exec(html)
-  if (logoImgMatch) {
-    const src = logoImgMatch[1]
-    return src.startsWith('http') ? src : base + (src.startsWith('/') ? '' : '/') + src
-  }
-  // Try link rel=icon
-  const iconMatch = html.match(/<link[^>]+rel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]+href=["']([^"']+)["']/i)?.[1]
-  if (iconMatch) return iconMatch.startsWith('http') ? iconMatch : base + iconMatch
-  return ''
-}
-
-function extractBrandColorFromHtml(html: string): string {
-  // Look for theme-color meta tag
-  const themeColor = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{3,6})["']/i)?.[1]
-  if (themeColor) return themeColor
-  // Look for CSS custom properties or common color variables
-  const cssColorMatch = html.match(/--(?:primary|brand|main|accent|color-primary)[^:]*:s*(#[0-9a-fA-F]{3,6})/i)?.[1]
-  if (cssColorMatch) return cssColorMatch
-  // Look for body or header background colors in inline styles
-  const bgMatch = html.match(/(?:background-color|background):s*(#[0-9a-fA-F]{6})/i)?.[1]
-  if (bgMatch && bgMatch.toLowerCase() !== '#ffffff' && bgMatch.toLowerCase() !== '#000000') return bgMatch
-  return ''
+// Use AI vision to extract brand colors from a screenshot
+async function extractColorsViaScreenshot(url: string): Promise<{ primary: string; logoUrl: string } | null> {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const fnUrl = supabaseUrl.replace('/rest/v1', '') + '/functions/v1/extract-brand-colors'
+    const res = await fetch(fnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({ url }),
+      signal: AbortSignal.timeout(30000),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (!data.ok) return null
+    return {
+      primary: data.colors.primary || '#C9A84C',
+      logoUrl: data.colors.logoUrl || '',
+    }
+  } catch { return null }
 }
 
 function extractMenuLinks(html: string, baseUrl: string): string[] {
   const base = new URL(baseUrl)
   const menuKeywords = ['menu', 'beer', 'tap', 'drink', 'wine', 'coffee', 'food', 'brew', 'cocktail', 'spirits', 'spirit', 'whiskey', 'bourbon', 'gin', 'vodka', 'rum', 'list', 'selection', 'product', 'our-spirits', 'craft']
-  const skipKeywords = ['cart', 'checkout', 'login', 'account', 'privacy', 'terms', 'facebook', 'instagram', 'twitter', 'mailto:', 'tel:', 'event', 'wedding', 'press', 'contact', 'about', 'club', 'tour', 'class', 'party', 'bottling']
+  const skipKeywords = ['cart', 'checkout', 'login', 'account', 'privacy', 'terms', 'facebook', 'instagram', 'twitter', 'mailto:', 'tel:', 'wedding', 'press', 'contact', 'about', 'club', 'class', 'party']
   const hrefRegex = /href=["']([^"'#?]+)["']/gi
   const seen = new Set<string>()
   const links: Array<{ url: string; score: number }> = []
@@ -93,28 +86,40 @@ export async function extractSignals(rootUrl: string) {
 
   const title = rootHtml.match(/<title[^>]*>(.*?)<\/title>/i)?.[1]?.trim() || ''
   const metaDesc = rootHtml.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] || ''
-  const logoUrl = extractLogoFromHtml(rootHtml, rootUrl)
-  const brandColor = extractBrandColorFromHtml(rootHtml)
-  const subpageUrls = extractMenuLinks(rootHtml, rootUrl)
 
-  const subpageTexts: string[] = []
-  const crawled: string[] = [rootUrl]
-  const pages = await Promise.allSettled(
-    subpageUrls.map(async (url) => {
-      const html = await fetchPage(url)
-      if (html) { crawled.push(url); return { url, text: stripHtml(html).slice(0, 4000) } }
-      return null
-    })
-  )
-  for (const p of pages) {
-    if (p.status === 'fulfilled' && p.value) {
-      subpageTexts.push('--- Page: ' + p.value.url + ' ---\n' + p.value.text)
-    }
-  }
+  // Run screenshot color extraction in parallel with page crawl
+  const [screenshotColors, subpageTexts] = await Promise.all([
+    extractColorsViaScreenshot(rootUrl),
+    (async () => {
+      const subpageUrls = extractMenuLinks(rootHtml, rootUrl)
+      const results: string[] = []
+      const pages = await Promise.allSettled(
+        subpageUrls.map(async (url) => {
+          const html = await fetchPage(url)
+          if (html) return { url, text: stripHtml(html).slice(0, 4000) }
+          return null
+        })
+      )
+      for (const p of pages) {
+        if (p.status === 'fulfilled' && p.value) {
+          results.push(`--- Page: ${p.value.url} ---\n${p.value.text}`)
+        }
+      }
+      return results
+    })()
+  ])
+
   const rootText = stripHtml(rootHtml).slice(0, 3000)
   const allText = [rootText, ...subpageTexts].join('\n\n').slice(0, 16000)
 
-  return { title, metaDesc, logoUrl, brandColor, text: allText, sourceUrl: rootUrl, crawledPages: crawled }
+  return {
+    title,
+    metaDesc,
+    logoUrl: screenshotColors?.logoUrl || '',
+    brandColor: screenshotColors?.primary || '',
+    text: allText,
+    sourceUrl: rootUrl,
+  }
 }
 
 export async function normalizeToRetailerDraft(signals: Awaited<ReturnType<typeof extractSignals>>) {
@@ -122,49 +127,30 @@ export async function normalizeToRetailerDraft(signals: Awaited<ReturnType<typeo
 
   const prompt = `You are converting vendor website content into structured data for a beverage recommendation app.
 
-VERTICAL DETECTION RULES — read carefully:
-- If the site mentions: distillery, distilled, spirits, whiskey, whisky, bourbon, rye, gin, vodka, rum, tequila, moonshine, brandy → vertical = "distillery"
-- If the site mentions: brewery, brewed, craft beer, IPA, stout, lager, ale, tap, taproom → vertical = "brewery"  
-- If the site mentions: winery, vineyard, wine, varietal, vintage, grape → vertical = "winery"
-- If the site mentions: coffee, roaster, espresso, latte, pour over, brew bar → vertical = "coffee"
-- NEVER default to brewery. Choose the most specific vertical based on primary offering.
+VERTICAL DETECTION RULES:
+- distillery/spirits/whiskey/bourbon/rye/gin/vodka/rum/moonshine → vertical = "distillery"
+- brewery/brewed/craft beer/IPA/stout/lager/ale/tap → vertical = "brewery"
+- winery/vineyard/wine/varietal/vintage → vertical = "winery"
+- coffee/roaster/espresso/latte/pour over → vertical = "coffee"
+- NEVER default to brewery.
 
-LOGO: Use this if found on the site: ${signals.logoUrl || 'not detected — leave logo_url empty string'}
-BRAND COLOR: Use this if found: ${signals.brandColor || 'not detected — infer from site description or use #333333'}
+COLORS ALREADY EXTRACTED: ${signals.brandColor ? `primary brand color = ${signals.brandColor}` : 'not detected — infer from content or use #C9A84C'}
+LOGO: ${signals.logoUrl ? `detected = ${signals.logoUrl}` : 'not detected'}
 
-PRODUCT EXTRACTION:
-- Extract ALL products including spirits, cocktails, wines, beers, coffees
-- For cocktails: use category = "Cocktail"  
-- For spirits: use category matching the spirit type (Bourbon Whiskey, Gin, Vodka, etc.)
-- For beers: use category matching style (IPA, Stout, Lager, etc.)
-- Include recipe/ingredient details in description for cocktails
-- Include flavor notes for all items
+Extract ALL products. For cocktails use category = "Cocktail". Include full specs.
 
-Return ONLY valid JSON, no markdown, no explanation:
+Return ONLY valid JSON:
 {
-  "retailer": {
-    "name": "",
-    "slug": "",
-    "vertical": "distillery|brewery|winery|coffee",
-    "location": "",
-    "tagline": "",
-    "logo_url": "",
-    "brand_color": ""
-  },
-  "products": [
-    { "name": "", "description": "", "category": "", "flavor_notes": "", "price": null, "style": "", "abv": "", "ibu": "", "in_stock": true, "sort_order": 0 }
-  ],
-  "flights": [
-    { "name": "", "description": "", "count": 4, "pour_size": "4oz", "price": 0, "active": true, "sort_order": 0 }
-  ]
+  "retailer": { "name": "", "slug": "", "vertical": "distillery|brewery|winery|coffee", "location": "", "tagline": "", "logo_url": "${signals.logoUrl || ''}", "brand_color": "${signals.brandColor || '#C9A84C'}" },
+  "products": [{ "name": "", "description": "", "category": "", "flavor_notes": "", "price": null, "style": "", "abv": "", "ibu": "", "in_stock": true, "sort_order": 0 }],
+  "flights": [{ "name": "", "description": "", "count": 4, "pour_size": "4oz", "price": 0, "active": true, "sort_order": 0 }]
 }
 
-Pages crawled: ${signals.crawledPages.join(', ')}
-Site title: ${signals.title}
+Site: ${signals.sourceUrl}
+Title: ${signals.title}
 Description: ${signals.metaDesc}
-Source: ${signals.sourceUrl}
 
-Full content from all pages:
+Content:
 ${signals.text}`
 
   const msg = await anthropic.messages.create({
@@ -177,11 +163,9 @@ ${signals.text}`
   const clean = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
   const parsed = JSON.parse(clean)
 
-  // Override with directly extracted values if AI missed them
-  if (signals.logoUrl && !parsed.retailer.logo_url) parsed.retailer.logo_url = signals.logoUrl
-  if (signals.brandColor && (!parsed.retailer.brand_color || parsed.retailer.brand_color === '#C9A84C')) {
-    parsed.retailer.brand_color = signals.brandColor
-  }
+  // Always trust the screenshot-extracted color over AI guess
+  if (signals.brandColor) parsed.retailer.brand_color = signals.brandColor
+  if (signals.logoUrl) parsed.retailer.logo_url = signals.logoUrl
 
   return parsed
 }
@@ -234,7 +218,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
       name: draft.name, slug: draft.slug, vertical: draft.vertical,
       location: draft.location, tagline: draft.tagline,
       logo_url: draft.logo_url, brand_color: draft.brand_color || '#C9A84C',
-      owner_email: ownerEmail || 'owner+' + draft.slug + '@poursona.app',
+      owner_email: ownerEmail || `owner+${draft.slug}@poursona.app`,
       active: true,
     })
     .select('*').single()
