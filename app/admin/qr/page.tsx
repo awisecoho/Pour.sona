@@ -12,7 +12,7 @@ export default function QRPage() {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [drawn, setDrawn] = useState(false)
-  const canvasRef = useRef<HTMLCAAnvasElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     async function load() {
