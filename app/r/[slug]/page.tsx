@@ -325,6 +325,22 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
         }),
       })
 
+      if (!response.ok) {
+        if (response.status === 402) {
+          setMessages((prev) => {
+            const updated = [...prev]
+            updated[updated.length - 1] = {
+              role: 'assistant',
+              content: 'This guide is currently inactive. Please contact the venue.',
+              streaming: false,
+            }
+            return updated
+          })
+          setStreaming(false)
+          return
+        }
+      }
+
       const reader = response.body?.getReader()
       if (!reader) {
         setStreaming(false)
