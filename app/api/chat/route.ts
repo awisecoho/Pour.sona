@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const now = new Date()
     const trialEnd = retailer.trial_ends_at ? new Date(retailer.trial_ends_at) : null
     const subStatus = retailer.subscription_status
-    if (subStatus === 'cancelled' || subStatus === 'expired') {
+    if (retailer.active === false || subStatus === 'cancelled' || subStatus === 'expired') {
       return NextResponse.json({ error: 'subscription_inactive' }, { status: 402 })
     }
     if (subStatus === 'trial' && trialEnd && now > trialEnd) {
