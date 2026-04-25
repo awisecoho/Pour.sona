@@ -19,6 +19,16 @@ export async function POST(req: NextRequest) {
       supabase.from('flights').select('*').eq('retailer_id', retailerRow.id).eq('active', true),
     ])
     if (!retailer) return NextResponse.json({ error: 'retailer not found' }, { status: 404 })
+    const now = new Date()
+    const trialEnd = retailer.trial_ends_at ? new Date(retailer.trial_ends_at) : null
+    const subStatus = retailer.subscription_status
+    if (subStatus === 'cancelled' || subStatus === 'expired') {
+      return NextResponse.json({ error: 'subscription_inactive' }, { status: 402 })
+    }
+    if (subStatus === 'trial' && trialEnd && now > trialEnd) {
+      await supabase.from('retailers').update({ subscription_status: 'expired' }).eq('id', retailer.id)
+      return NextResponse.json({ error: 'subscription_inactive' }, { status: 402 })
+    }
 
     const systemPrompt = buildSystemPrompt(retailer, inStockProducts || [], activeFlights || [])
 
