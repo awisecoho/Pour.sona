@@ -1,6 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { ensureUniqueSlug } from './slug'
+import { extractBrand } from './agents/brand'
+import { extractEvents } from './agents/events'
+import { generateHostPersona } from './agents/host'
+import type { RawSignals } from './agents/research'
+
+const EVENT_KEYWORDS = ['events','calendar','happenings','upcoming','whats-on','live','schedule','entertainment']
 
 function getAdmin() {
   return createClient(
@@ -44,19 +50,21 @@ function scoreLink(url: string, base: string): number {
   const path = url.toLowerCase()
   const menuKeywords = ['menu','beer','tap','drink','wine','coffee','cocktail','spirits','spirit','whiskey','bourbon','gin','vodka','rum','product','our-spirits','craft','moonshine','barrel']
   const storyKeywords = ['about','story','our-story','history','team','people','founder','philosophy','process','craft','heritage','mission','who-we-are','tradition','distill','brew','winemaking']
-  const skipKeywords = ['cart','checkout','login','account','privacy','terms','facebook','instagram','twitter','mailto:','tel:','wedding','press','contact','events','club','class','party','bottling','shop','buy','order']
+  const eventKeywords = EVENT_KEYWORDS
+  const skipKeywords = ['cart','checkout','login','account','privacy','terms','facebook','instagram','twitter','mailto:','tel:','wedding','press','contact','club','class','party','bottling','shop','buy','order']
   if (!url.startsWith(base)) return -1
   if (skipKeywords.some(k => path.includes(k))) return -1
   const menuScore = menuKeywords.reduce((s, kw) => path.includes(kw) ? s + 3 : s, 0)
   const storyScore = storyKeywords.reduce((s, kw) => path.includes(kw) ? s + 2 : s, 0)
-  return menuScore + storyScore
+  const eventScore = eventKeywords.reduce((s, kw) => path.includes(kw) ? s + 2 : s, 0)
+  return menuScore + storyScore + eventScore
 }
 
-function extractLinks(html: string, baseUrl: string): Array<{ url: string; score: number; type: 'menu' | 'story' | 'both' }> {
+function extractLinks(html: string, baseUrl: string): Array<{ url: string; score: number; type: 'menu' | 'story' | 'events' | 'both' }> {
   const base = new URL(baseUrl).origin
   const hrefRegex = /href=["']([^"'#?]+)["']/gi
   const seen = new Set<string>()
-  const links: Array<{ url: string; score: number; type: 'menu' | 'story' | 'both' }> = []
+  const links: Array<{ url: string; score: number; type: 'menu' | 'story' | 'events' | 'both' }> = []
   let match
   while ((match = hrefRegex.exec(html)) !== null) {
     const raw = match[1].trim()
@@ -70,7 +78,8 @@ function extractLinks(html: string, baseUrl: string): Array<{ url: string; score
     const path = full.toLowerCase()
     const isMenu = ['menu','beer','tap','spirits','product','moonshine','cocktail','wine','coffee'].some(k => path.includes(k))
     const isStory = ['about','story','team','founder','philosophy','heritage','history','process'].some(k => path.includes(k))
-    const type = isMenu && isStory ? 'both' : isMenu ? 'menu' : 'story'
+    const isEvents = EVENT_KEYWORDS.some(k => path.includes(k))
+    const type = (isMenu && isStory) || (isMenu && isEvents) || (isStory && isEvents) ? 'both' : isMenu ? 'menu' : isEvents ? 'events' : 'story'
     links.push({ url: full, score, type })
   }
   return links.sort((a, b) => b.score - a.score).slice(0, 10)
@@ -88,7 +97,7 @@ function stripHtml(html: string): string {
     .trim()
 }
 
-export async function extractSignals(rootUrl: string) {
+export async function extractSignals(rootUrl: string): Promise<RawSignals> {
   const rootHtml = await fetchPage(rootUrl)
   if (!rootHtml) throw new Error('Could not fetch website')
 
@@ -110,6 +119,7 @@ export async function extractSignals(rootUrl: string) {
 
   const menuPages: string[] = []
   const storyPages: string[] = []
+  const eventPages: string[] = []
   const crawledUrls: string[] = [rootUrl]
 
   for (const result of crawlResults) {
@@ -118,12 +128,14 @@ export async function extractSignals(rootUrl: string) {
       crawledUrls.push(url)
       if (type === 'menu' || type === 'both') menuPages.push(`--- ${url} ---\n${text}`)
       if (type === 'story' || type === 'both') storyPages.push(`--- ${url} ---\n${text}`)
+      if (type === 'events' || type === 'both') eventPages.push(`--- ${url} ---\n${text}`)
     }
   }
 
   const rootText = stripHtml(rootHtml).slice(0, 3000)
   const menuText = [rootText, ...menuPages].join('\n\n').slice(0, 10000)
   const storyText = storyPages.join('\n\n').slice(0, 6000)
+  const eventsText = eventPages.join('\n\n').slice(0, 4000)
 
   return {
     title, metaDesc,
@@ -131,6 +143,7 @@ export async function extractSignals(rootUrl: string) {
     brandColor: screenshotColors?.primary || '',
     menuText,
     storyText,
+    eventsText,
     rootText,
     sourceUrl: rootUrl,
     crawledUrls,
@@ -140,8 +153,8 @@ export async function extractSignals(rootUrl: string) {
 export async function normalizeToRetailerDraft(signals: Awaited<ReturnType<typeof extractSignals>>) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-  // Two parallel AI calls: one for catalog, one for story/culture
-  const [catalogMsg, storyMsg] = await Promise.all([
+  // Catalog and brand intelligence run in parallel; catalog remains the critical path.
+  const [catalogMsg, brandData] = await Promise.all([
     anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 4000,
@@ -172,28 +185,11 @@ Content:
 ${signals.menuText}`
       }]
     }),
-    anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1000,
-      messages: [{
-        role: 'user',
-        content: `Analyze this beverage vendor's about/story pages and extract rich context for an AI guide.
-
-Return ONLY valid JSON:
-{
-  "story": "2-4 sentences: founding story, who built it and why, what makes it unique. Make it feel human and specific.",
-  "culture": "2-3 sentences: the vibe and atmosphere of the place. What kind of experience do guests have? Relaxed? Reverent? Lively? Local? What do regulars love about it?",
-  "region": "1-2 sentences: the geographic and cultural context. What makes this region special for this type of drink? Local ingredients, traditions, history.",
-  "voice": "3-5 words describing the brand personality: e.g. bold, irreverent, warm, sophisticated, rustic, adventurous"
-}
-
-If story pages are sparse, infer from what you can see. Be specific not generic.
-
-Site: ${signals.sourceUrl}
-Title: ${signals.title}
-About/Story content:
-${signals.storyText || signals.rootText}`
-      }]
+    extractBrand({
+      storyText: signals.storyText,
+      rootText: signals.rootText,
+      title: signals.title,
+      sourceUrl: signals.sourceUrl,
     })
   ])
 
@@ -201,20 +197,26 @@ ${signals.storyText || signals.rootText}`
   const catalogRaw = catalogMsg.content.map((c: any) => ('text' in c ? c.text : '')).join('').trim()
   const catalogClean = catalogRaw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
   const catalog = JSON.parse(catalogClean)
+  if (!Array.isArray(catalog.products) || catalog.products.length === 0) {
+    throw new Error('Catalog extraction returned no products')
+  }
 
-  // Parse story
-  let storyData = { story: '', culture: '', region: '', voice: '' }
-  try {
-    const storyRaw = storyMsg.content.map((c: any) => ('text' in c ? c.text : '')).join('').trim()
-    const storyClean = storyRaw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
-    storyData = JSON.parse(storyClean)
-  } catch { /* story is optional */ }
+  const eventsData = signals.eventsText
+    ? await extractEvents({ eventsText: signals.eventsText, sourceUrl: signals.sourceUrl, currentDate: new Date().toISOString() })
+    : []
+
+  const storyData = {
+    story: brandData.story,
+    culture: brandData.culture,
+    region: brandData.region,
+    voice: brandData.voice,
+  }
 
   // Override with screenshot-extracted values
   if (signals.brandColor) catalog.retailer.brand_color = signals.brandColor
   if (signals.logoUrl) catalog.retailer.logo_url = signals.logoUrl
 
-  return { ...catalog, storyData }
+  return { ...catalog, storyData, brandData, eventsData }
 }
 
 export async function createDraftFromUrl(url: string) {
@@ -226,6 +228,23 @@ export async function createDraftFromUrl(url: string) {
     .select('id').single()
 
   const normalized = await normalizeToRetailerDraft(signals)
+  const hostOutput = await generateHostPersona({
+    retailerName: normalized.retailer.name,
+    vertical: normalized.retailer.vertical,
+    location: normalized.retailer.location || null,
+    tagline: normalized.retailer.tagline || null,
+    story: normalized.storyData?.story || null,
+    culture: normalized.storyData?.culture || null,
+    brand_personality: normalized.brandData?.brand_personality || [],
+    brand_voice_tone: normalized.brandData?.brand_voice_tone || '',
+    signature_items: normalized.brandData?.signature_items || [],
+    topProducts: Array.isArray(normalized.products) ? normalized.products.slice(0, 5).map((p: any) => p.name).filter(Boolean) : [],
+    hasFlights: Array.isArray(normalized.flights) && normalized.flights.length > 0,
+  })
+  const intelligenceJson = {
+    ...(normalized.brandData || {}),
+    ...hostOutput,
+  }
   const { data: existing } = await supabase.from('retailers').select('slug')
   const { data: existingDrafts } = await supabase.from('retailer_drafts').select('slug')
   const allSlugs = [...(existing || []), ...(existingDrafts || [])].map((r: any) => r.slug)
@@ -249,6 +268,10 @@ export async function createDraftFromUrl(url: string) {
       story: normalized.storyData?.story || null,
       culture: normalized.storyData?.culture || null,
       region: normalized.storyData?.region || null,
+      voice: normalized.storyData?.voice || null,
+      events_json: normalized.eventsData || [],
+      intelligence_json: intelligenceJson,
+      research_confidence: normalized.brandData?.research_confidence || 0,
     })
     .select('*').single()
 
