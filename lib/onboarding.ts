@@ -97,6 +97,46 @@ function stripHtml(html: string): string {
     .trim()
 }
 
+function extractJsonFromClaude(raw: string): any {
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
+  const start = cleaned.search(/[\[{]/)
+  if (start < 0) throw new Error('No JSON object or array found in Claude response')
+
+  const open = cleaned[start]
+  const close = open === '{' ? '}' : ']'
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let i = start; i < cleaned.length; i++) {
+    const ch = cleaned[i]
+
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (ch === '\\') {
+        escaped = true
+      } else if (ch === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (ch === '"') {
+      inString = true
+    } else if (ch === open) {
+      depth++
+    } else if (ch === close) {
+      depth--
+      if (depth === 0) {
+        return JSON.parse(cleaned.slice(start, i + 1))
+      }
+    }
+  }
+
+  throw new Error('Incomplete JSON object or array in Claude response')
+}
+
 export async function extractSignals(rootUrl: string): Promise<RawSignals> {
   const rootHtml = await fetchPage(rootUrl)
   if (!rootHtml) throw new Error('Could not fetch website')
@@ -195,8 +235,14 @@ ${signals.menuText}`
 
   // Parse catalog
   const catalogRaw = catalogMsg.content.map((c: any) => ('text' in c ? c.text : '')).join('').trim()
-  const catalogClean = catalogRaw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
-  const catalog = JSON.parse(catalogClean)
+  let catalog: any
+  try {
+    catalog = extractJsonFromClaude(catalogRaw)
+  } catch (err) {
+    console.error('[Onboarding] catalog parse failed:', err instanceof Error ? err.message : String(err))
+    console.error('[Onboarding] catalog raw preview:', catalogRaw.slice(0, 500))
+    throw err
+  }
   if (!Array.isArray(catalog.products) || catalog.products.length === 0) {
     throw new Error('Catalog extraction returned no products')
   }
@@ -251,7 +297,7 @@ export async function createDraftFromUrl(url: string) {
   const slug = ensureUniqueSlug(normalized.retailer.slug || normalized.retailer.name, allSlugs)
   normalized.retailer.slug = slug
 
-  const { data: draft } = await supabase
+  const { data: draft, error: draftError } = await supabase
     .from('retailer_drafts')
     .insert({
       ingestion_job_id: job?.id, status: 'draft',
@@ -274,6 +320,15 @@ export async function createDraftFromUrl(url: string) {
       research_confidence: normalized.brandData?.research_confidence || 0,
     })
     .select('*').single()
+
+  if (draftError) {
+    console.error('[Onboarding] retailer_drafts insert failed:', draftError.message, draftError.details || '', draftError.hint || '')
+    throw new Error(`retailer_drafts insert failed: ${draftError.message}`)
+  }
+  if (!draft) {
+    console.error('[Onboarding] retailer_drafts insert returned no draft')
+    throw new Error('retailer_drafts insert returned no draft')
+  }
 
   if (job?.id) {
     await supabase.from('ingestion_jobs').update({ status: 'parsed', normalized_json: normalized }).eq('id', job.id)
