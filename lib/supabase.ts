@@ -1,33 +1,58 @@
-import { createClient } from '@supabase/supabase-js'
+type RetailerBootstrap = {
+  retailer: Retailer
+  flights: unknown[]
+  sessionId: string | null
+}
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://ikqkwwsyzqsvmwxqbqyf.supabase.co'
-const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
-const supabaseRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+const retailerBootstrapBySlug = new Map<string, RetailerBootstrap>()
+const sessionIdByRetailerId = new Map<string, string | null>()
 
-export const supabase = supabaseUrl ? createClient(supabaseUrl, supabaseAnon) : null as any
-export const supabaseAdmin = supabaseUrl ? createClient(supabaseUrl, supabaseRole, { auth: { autoRefreshToken: false, persistSession: false } }) : null as any
+export const supabase = null as any
+export const supabaseAdmin = null as any
+
+async function fetchRetailerBootstrap(slug: string) {
+  const response = await fetch(`/api/retailer?slug=${encodeURIComponent(slug)}`, {
+    cache: 'no-store',
+  })
+
+  if (!response.ok) {
+    if (response.status === 404) return null
+    throw new Error(`Retailer bootstrap failed with status ${response.status}`)
+  }
+
+  const payload = (await response.json()) as RetailerBootstrap
+  retailerBootstrapBySlug.set(slug, payload)
+  sessionIdByRetailerId.set(payload.retailer.id, payload.sessionId)
+  return payload
+}
 
 export async function getRetailerBySlug(slug: string) {
-  const { data } = await supabase.from('retailers').select('*').eq('slug', slug).eq('active', true).single()
-  return data
+  const cached = retailerBootstrapBySlug.get(slug)
+  if (cached) return cached.retailer
+
+  const payload = await fetchRetailerBootstrap(slug)
+  return payload?.retailer || null
 }
 
 export async function getProductsByRetailer(retailerId: string) {
-  const { data } = await supabase.from('products').select('*').eq('retailer_id', retailerId).eq('in_stock', true).order('sort_order')
-  return data || []
+  void retailerId
+  return []
 }
 
 export async function createSession(retailerId: string) {
-  const { data } = await supabase.from('sessions').insert({ retailer_id: retailerId, messages: [] }).select('id').single()
-  return data?.id || null
+  return sessionIdByRetailerId.get(retailerId) || null
 }
 
 export async function updateSession(sessionId: string, updates: any) {
-  await supabase.from('sessions').update(updates).eq('id', sessionId)
+  void sessionId
+  void updates
 }
 
 export async function logEvent(retailerId: string, sessionId: string | null, eventType: string, payload: any = {}) {
-  await supabase.from('events').insert({ retailer_id: retailerId, session_id: sessionId, event_type: eventType, payload })
+  void retailerId
+  void sessionId
+  void eventType
+  void payload
 }
 
 export type Vertical = 'coffee' | 'brewery' | 'winery'
