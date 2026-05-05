@@ -1,4 +1,4 @@
-import { clerkMiddleware } from '@clerk/nextjs/server'
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Simple in-memory rate limiter (resets on cold start — acceptable for MVP)
@@ -48,22 +48,17 @@ function applyRateLimit(req: NextRequest) {
   return NextResponse.next()
 }
 
-export default clerkMiddleware(async (auth, req) => {
-  const path = req.nextUrl.pathname
-  const isVendorAdmin =
-    path.startsWith('/admin') &&
-    !path.startsWith('/admin/login') &&
-    !path.startsWith('/admin/auth')
-  const isInternalAdmin =
-    path.startsWith('/poursona-admin') &&
-    !path.startsWith('/poursona-admin/login')
-  const isProtectedApi =
-    path === '/api/admin/access' ||
-    path === '/api/poursona-admin/invite' ||
-    path === '/api/poursona-admin/system-check' ||
-    path === '/api/poursona-admin/me'
+const isProtectedRoute = createRouteMatcher([
+  '/admin((?!/login|/auth).*)',
+  '/poursona-admin((?!/login).*)',
+  '/api/admin/access',
+  '/api/poursona-admin/invite',
+  '/api/poursona-admin/system-check',
+  '/api/poursona-admin/me',
+])
 
-  if (isVendorAdmin || isInternalAdmin || isProtectedApi) {
+export default clerkMiddleware(async (auth, req) => {
+  if (isProtectedRoute(req)) {
     await auth().protect()
   }
 
