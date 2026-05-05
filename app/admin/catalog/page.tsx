@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { getBrowserSupabase } from '@/lib/browser-supabase'
+import { loadAdminAccess } from '@/lib/admin-access'
 
 export default function CatalogPage() {
   const [retailer, setRetailer] = useState<any>(null)
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadMessage, setLoadMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [scanning, setScanning] = useState(false)
@@ -16,44 +18,56 @@ export default function CatalogPage() {
   useEffect(() => { load() }, [])
 
   async function load() {
-    const sb = getBrowserSupabase()
     try {
-      const { data: { user } } = await sb.auth.getUser()
-      if (!user) {
+      setLoadMessage(null)
+      const access = await loadAdminAccess()
+      if (!access?.ok) {
+        console.error('[admin/catalog] auth getUser/getSession failed:', access)
         setLoading(false)
         window.location.href = '/admin/login'
         return
       }
 
+      const sb = getBrowserSupabase()
       const storedId = localStorage.getItem('poursona_active_retailer')
       let retailerData: any = null
 
       if (storedId) {
-        const { data } = await (sb.from('retailers') as any).select('*').eq('id', storedId).single()
+        const { data, error } = await (sb.from('retailers') as any).select('*').eq('id', storedId).single()
+        if (error) {
+          console.error('[admin/catalog] retailers lookup failed:', error)
+        }
         retailerData = data
       }
 
       if (!retailerData) {
-        const { data } = await (sb.from('admin_users') as any)
-          .select('retailer_id, retailers(*)')
-          .eq('user_id', user.id)
-          .limit(1)
-          .single()
-
-        retailerData = Array.isArray(data?.retailers) ? data?.retailers[0] : data?.retailers
+        retailerData = access.retailers?.[0] || null
+        if (!retailerData) {
+          console.error('[admin/catalog] admin_users lookup returned no retailer')
+        }
       }
 
       if (!retailerData) {
+        setLoadMessage('No retailer is linked to this admin account.')
         setLoading(false)
         return
       }
 
       setRetailer(retailerData)
+      localStorage.setItem('poursona_active_retailer', retailerData.id)
+      sessionStorage.setItem('active_retailer', JSON.stringify(retailerData))
 
-      const { data: prods } = await (sb.from('products') as any)
+      const { data: prods, error } = await (sb.from('products') as any)
         .select('*')
         .eq('retailer_id', retailerData.id)
         .order('sort_order')
+
+      if (error) {
+        console.error('[admin/catalog] products lookup failed:', error)
+        setLoadMessage('Products could not be loaded right now.')
+        setLoading(false)
+        return
+      }
 
       setProducts(prods || [])
       setLoading(false)
@@ -121,7 +135,8 @@ export default function CatalogPage() {
 
   const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 14, outline: 'none', boxSizing: 'border-box' }
 
-  if (loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
+  if (loading) return <div style={{ color: '#C9A84C' }}>Loading...</div>
+  if (loadMessage) return <div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 14 }}>{loadMessage}</div>
 
   return (
     <div>
@@ -133,7 +148,7 @@ export default function CatalogPage() {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={() => fileRef.current?.click()} style={{ padding: '10px 16px', background: 'rgba(201,168,76,.08)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#C9A84C', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>
-            📷 Scan Menu Photo
+            Scan Menu Photo
           </button>
           <button onClick={() => setShowAdd(!showAdd)} style={{ padding: '10px 16px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>
             + Add Item
@@ -142,16 +157,15 @@ export default function CatalogPage() {
       </div>
       <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && scanPhoto(e.target.files[0])} />
 
-      {/* Scan results */}
       {scanning && (
         <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '24px', marginBottom: 16, textAlign: 'center' }}>
-          <div style={{ color: '#C9A84C', fontSize: 14 }}>Reading menu photo…</div>
+          <div style={{ color: '#C9A84C', fontSize: 14 }}>Reading menu photo...</div>
           <div style={{ color: '#4a3a1a', fontSize: 12, marginTop: 4 }}>AI is extracting products from your image.</div>
         </div>
       )}
       {scanResult.length > 0 && (
         <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(94,207,138,.2)', borderRadius: 14, padding: '20px', marginBottom: 16 }}>
-          <div style={{ color: '#5ecf8a', fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Found {scanResult.length} items — tap to add</div>
+          <div style={{ color: '#5ecf8a', fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Found {scanResult.length} items - tap to add</div>
           {scanResult.map((p, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(201,168,76,.06)' }}>
               <div>
@@ -164,25 +178,23 @@ export default function CatalogPage() {
         </div>
       )}
 
-      {/* Add product form */}
       {showAdd && (
         <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px', marginBottom: 16 }}>
           <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Add New Item</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Name *</div><input value={newProduct.name} onChange={e => setNewProduct(p => ({...p, name: e.target.value}))} placeholder="Dock Beer" style={inp} /></div>
-            <div><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Category</div><input value={newProduct.category} onChange={e => setNewProduct(p => ({...p, category: e.target.value}))} placeholder="Lager, IPA, Moonshine…" style={inp} /></div>
+            <div><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Category</div><input value={newProduct.category} onChange={e => setNewProduct(p => ({...p, category: e.target.value}))} placeholder="Lager, IPA, Moonshine..." style={inp} /></div>
             <div><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Price</div><input type="number" value={newProduct.price} onChange={e => setNewProduct(p => ({...p, price: e.target.value}))} placeholder="7.00" style={inp} /></div>
             <div><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>ABV</div><input value={newProduct.abv} onChange={e => setNewProduct(p => ({...p, abv: e.target.value}))} placeholder="5.2%" style={inp} /></div>
           </div>
-          <div style={{ marginBottom: 12 }}><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Description / Flavor Notes</div><input value={newProduct.description} onChange={e => setNewProduct(p => ({...p, description: e.target.value}))} placeholder="Brief description…" style={{...inp, width: '100%'}} /></div>
+          <div style={{ marginBottom: 12 }}><div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Description / Flavor Notes</div><input value={newProduct.description} onChange={e => setNewProduct(p => ({...p, description: e.target.value}))} placeholder="Brief description..." style={{...inp, width: '100%'}} /></div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={addProduct} disabled={!newProduct.name || saving === 'new'} style={{ padding: '11px 20px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: !newProduct.name || saving === 'new' ? .5 : 1 }}>{saving === 'new' ? 'Saving…' : 'Add Item'}</button>
+            <button onClick={addProduct} disabled={!newProduct.name || saving === 'new'} style={{ padding: '11px 20px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: !newProduct.name || saving === 'new' ? .5 : 1 }}>{saving === 'new' ? 'Saving...' : 'Add Item'}</button>
             <button onClick={() => setShowAdd(false)} style={{ padding: '11px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#4a3a1a', fontFamily: 'Georgia, serif', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
 
-      {/* Available items */}
       <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px', marginBottom: 12 }}>
         <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Available Now ({inStock.length})</div>
         {inStock.map(p => (
@@ -192,14 +204,13 @@ export default function CatalogPage() {
               <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2 }}>{[p.category, p.abv, p.price ? '$'+p.price : null].filter(Boolean).join(' · ')}</div>
             </div>
             <button onClick={() => toggleStock(p.id, p.in_stock)} disabled={saving === p.id} style={{ marginLeft: 12, padding: '7px 14px', background: 'rgba(255,100,100,.08)', border: '1px solid rgba(255,100,100,.2)', borderRadius: 8, color: '#e07070', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif', flexShrink: 0, opacity: saving === p.id ? .5 : 1 }}>
-              {saving === p.id ? '…' : 'Mark Off-Menu'}
+              {saving === p.id ? '...' : 'Mark Off-Menu'}
             </button>
           </div>
         ))}
         {inStock.length === 0 && <div style={{ color: '#4a3a1a', fontSize: 13 }}>No available items.</div>}
       </div>
 
-      {/* Off-menu items */}
       {outOfStock.length > 0 && (
         <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.08)', borderRadius: 14, padding: '20px', opacity: .7 }}>
           <div style={{ color: '#4a3a1a', fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Off-Menu / Seasonal ({outOfStock.length})</div>
@@ -210,7 +221,7 @@ export default function CatalogPage() {
                 <div style={{ color: '#3a2a0a', fontSize: 11, marginTop: 2 }}>{[p.category, p.price ? '$'+p.price : null].filter(Boolean).join(' · ')}</div>
               </div>
               <button onClick={() => toggleStock(p.id, p.in_stock)} disabled={saving === p.id} style={{ marginLeft: 12, padding: '7px 14px', background: 'rgba(94,207,138,.08)', border: '1px solid rgba(94,207,138,.2)', borderRadius: 8, color: '#5ecf8a', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif', flexShrink: 0, opacity: saving === p.id ? .5 : 1 }}>
-                {saving === p.id ? '…' : 'Back on Menu'}
+                {saving === p.id ? '...' : 'Back on Menu'}
               </button>
             </div>
           ))}
