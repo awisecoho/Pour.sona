@@ -25,35 +25,42 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     async function init() {
-      const access = await loadAdminAccess()
-      const retailers = access.retailers || []
-      if (!access.ok) {
-        console.error('[admin/layout] admin access failed:', access)
-        if (!pathname.includes('/admin/login')) router.push('/admin/login')
-        setLoading(false)
-        return
-      }
+      try {
+        const access = await loadAdminAccess()
+        const retailers = access.retailers || []
+        if (!access.ok) {
+          console.error('[admin/layout] admin access failed:', access)
+          if (!pathname.includes('/admin/login')) router.push('/admin/login')
+          setLoading(false)
+          return
+        }
 
-      setAllRetailers(retailers)
-      if (retailers.length === 0) {
-        setRetailer(null)
+        setAllRetailers(retailers)
+        if (retailers.length === 0) {
+          setRetailer(null)
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('poursona_active_retailer')
+            sessionStorage.removeItem('active_retailer')
+          }
+          setLoading(false)
+          return
+        }
+        const savedId = typeof window !== 'undefined' ? localStorage.getItem('poursona_active_retailer') : null
+        const saved = retailers.find((r: any) => r.id === savedId)
+        const nextRetailer = saved || retailers[0]
+        setRetailer(nextRetailer)
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('poursona_active_retailer')
-          sessionStorage.removeItem('active_retailer')
+          localStorage.setItem('poursona_active_retailer', nextRetailer.id)
+          sessionStorage.setItem('active_retailer', JSON.stringify(nextRetailer))
         }
         setLoading(false)
-        return
+      } catch (error) {
+        console.error('[admin/layout] init failed:', error)
+        setLoading(false)
+        if (!pathname.includes('/admin/login')) router.push('/admin/login')
       }
-      const savedId = typeof window !== 'undefined' ? localStorage.getItem('poursona_active_retailer') : null
-      const saved = retailers.find((r: any) => r.id === savedId)
-      const nextRetailer = saved || retailers[0]
-      setRetailer(nextRetailer)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('poursona_active_retailer', nextRetailer.id)
-        sessionStorage.setItem('active_retailer', JSON.stringify(nextRetailer))
-      }
-      setLoading(false)
     }
+    if (pathname.includes('/admin/login') || pathname.includes('/admin/auth')) return
     init()
   }, [pathname, router])
 

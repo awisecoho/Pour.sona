@@ -17,14 +17,26 @@ export default function InternalLayout({ children }: { children: React.ReactNode
 
   useEffect(() => {
     async function check() {
-      const res = await fetch('/api/poursona-admin/me', { cache: 'no-store' })
-      const json = await res.json()
-      if (!json.ok) { router.push('/poursona-admin/login'); setLoading(false); return }
-      setMember(json.member)
-      setLoading(false)
+      try {
+        const res = await fetch('/api/poursona-admin/me', { cache: 'no-store' })
+        const json = await res.json()
+        if (!json.ok) {
+          console.error('[poursona-admin/layout] member check failed:', json)
+          router.push('/poursona-admin/login')
+          setLoading(false)
+          return
+        }
+        setMember(json.member)
+        setLoading(false)
+      } catch (error) {
+        console.error('[poursona-admin/layout] member check failed:', error)
+        router.push('/poursona-admin/login')
+        setLoading(false)
+      }
     }
+    if (pathname.includes('/poursona-admin/login')) return
     check()
-  }, [router])
+  }, [pathname, router])
 
   function handleSignOut() {
     window.location.href = '/poursona-admin/login'
