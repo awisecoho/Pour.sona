@@ -14,6 +14,7 @@ export default function InternalLayout({ children }: { children: React.ReactNode
   const pathname = usePathname()
   const [member, setMember] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
     async function check() {
@@ -22,11 +23,16 @@ export default function InternalLayout({ children }: { children: React.ReactNode
         const json = await res.json()
         if (!json.ok) {
           console.error('[poursona-admin/layout] member check failed:', json)
-          router.push('/poursona-admin/login')
+          if (json.error === 'forbidden') {
+            setMessage('This Clerk account is not linked to a Poursona internal team member.')
+          } else {
+            router.push('/poursona-admin/login')
+          }
           setLoading(false)
           return
         }
         setMember(json.member)
+        setMessage(null)
         setLoading(false)
       } catch (error) {
         console.error('[poursona-admin/layout] member check failed:', error)
@@ -44,6 +50,7 @@ export default function InternalLayout({ children }: { children: React.ReactNode
 
   if (pathname.includes('/poursona-admin/login')) return <>{children}</>
   if (loading) return <div style={{ minHeight: '100vh', background: '#060403', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif' }}>Verifying accessâ€¦</div></div>
+  if (message) return <div style={{ minHeight: '100vh', background: '#060403', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}><div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif', maxWidth: 420, textAlign: 'center' }}>{message}</div></div>
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#060403', fontFamily: 'Georgia, serif' }}>
       <aside style={{ width: 240, flexShrink: 0, background: 'linear-gradient(180deg,#0a0704,#060403)', borderRight: '1px solid rgba(201,168,76,.15)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0 }}>

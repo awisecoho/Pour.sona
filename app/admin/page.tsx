@@ -1,9 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { useActiveRetailer } from '@/lib/useActiveRetailer'
-
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { getBrowserSupabase } from '@/lib/browser-supabase'
 
 const ICONS: Record<string, string> = { brewery: '🍺', winery: '🍷', distillery: '🥃', coffee: '☕' }
 
@@ -22,15 +20,28 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ scans: 0, convos: 0, recs: 0, orders: 0 })
   const [recent, setRecent] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!retailerId) return
+    if (retailerLoading) return
+    if (!retailerId) {
+      setMessage('No retailer is linked to this admin account.')
+      setLoading(false)
+      return
+    }
     setLoading(true)
     async function load() {
+      const sb = getBrowserSupabase()
       const [s, e] = await Promise.all([
-        sb.from('sessions').select('id,order_status,created_at').eq('retailer_id', retailerId).order('created_at', { ascending: false }).limit(50),
-        sb.from('events').select('event_type').eq('retailer_id', retailerId),
+        (sb.from('sessions') as any).select('id,order_status,created_at').eq('retailer_id', retailerId).order('created_at', { ascending: false }).limit(50),
+        (sb.from('events') as any).select('event_type').eq('retailer_id', retailerId),
       ])
+      if (s.error || e.error) {
+        console.error('[admin/dashboard] load failed:', { sessions: s.error, events: e.error })
+        setMessage('Dashboard data could not be loaded right now.')
+        setLoading(false)
+        return
+      }
       const sessions = s.data || [], events = e.data || []
       setStats({
         scans: events.filter((x: any) => x.event_type === 'scan').length,
@@ -39,12 +50,14 @@ export default function Dashboard() {
         orders: sessions.filter((x: any) => x.order_status === 'ordered').length,
       })
       setRecent(sessions.slice(0, 10))
+      setMessage(null)
       setLoading(false)
     }
     load()
-  }, [retailerId])
+  }, [retailerId, retailerLoading])
 
   if (retailerLoading || loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
+  if (message) return <div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif' }}>{message}</div>
 
   const rate = stats.convos > 0 ? Math.round((stats.recs / stats.convos) * 100) : 0
   const icon = ICONS[retailer?.vertical] || '✦'
