@@ -57,13 +57,36 @@ const isProtectedRoute = createRouteMatcher([
   '/api/poursona-admin/me',
 ])
 
-export default clerkMiddleware(async (auth, req) => {
+const hasClerkEnv =
+  Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&
+  Boolean(process.env.CLERK_SECRET_KEY)
+
+const protectedMiddleware = clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
     await auth().protect()
   }
 
   return applyRateLimit(req)
 })
+
+export default function middleware(req: NextRequest, evt: any) {
+  if (!hasClerkEnv) {
+    if (isProtectedRoute(req)) {
+      if (req.nextUrl.pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { ok: false, error: 'Admin authentication is not configured.' },
+          { status: 503 }
+        )
+      }
+
+      return NextResponse.redirect(new URL('/admin/login', req.url))
+    }
+
+    return applyRateLimit(req)
+  }
+
+  return protectedMiddleware(req, evt)
+}
 
 export const config = {
   matcher: [

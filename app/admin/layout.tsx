@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { useClerk } from '@clerk/nextjs'
 import { loadAdminAccess } from '@/lib/admin-access'
 
 const NAV = [
@@ -17,7 +16,6 @@ const NAV = [
 const VERTICAL_ICONS: Record<string, string> = { brewery: 'ðŸº', winery: 'ðŸ·', distillery: 'ðŸ¥ƒ', coffee: 'â˜•' }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { signOut } = useClerk()
   const router = useRouter()
   const pathname = usePathname()
   const [allRetailers, setAllRetailers] = useState<any[]>([])
@@ -65,6 +63,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (typeof window !== 'undefined') localStorage.setItem('poursona_active_retailer', r.id)
     if (typeof window !== 'undefined') sessionStorage.setItem('active_retailer', JSON.stringify(r))
     router.push('/admin')
+  }
+
+  function handleSignOut() {
+    window.location.href = '/admin/login'
   }
 
   if (pathname.includes('/admin/login') || pathname.includes('/admin/auth')) return <>{children}</>
@@ -146,7 +148,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <span>âŠž</span> Download QR
             </a>
           )}
-          <button onClick={() => signOut({ redirectUrl: '/admin/login' })} style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: '1px solid rgba(201,168,76,.1)', borderRadius: 8, color: '#4a3a1a', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 11, textAlign: 'left' }}>â† Sign Out</button>
+          <button onClick={handleSignOut} style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: '1px solid rgba(201,168,76,.1)', borderRadius: 8, color: '#4a3a1a', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 11, textAlign: 'left' }}>â† Sign Out</button>
         </div>
       </aside>
 

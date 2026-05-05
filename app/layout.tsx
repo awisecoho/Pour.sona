@@ -8,12 +8,14 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const hasClerkEnv =
+    Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&
+    Boolean(process.env.CLERK_SECRET_KEY)
+
   return (
     <html lang="en">
       <body style={{ margin: 0, padding: 0, background: '#0a0806' }}>
-        <ClerkProvider>
-          {children}
-        </ClerkProvider>
+        {hasClerkEnv ? <ClerkProvider>{children}</ClerkProvider> : children}
       </body>
     </html>
   )

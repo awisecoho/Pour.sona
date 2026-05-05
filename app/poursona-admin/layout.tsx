@@ -1,33 +1,37 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+
 const NAV = [
-  { href: '/poursona-admin', label: 'All Retailers', icon: '◈' },
-  { href: '/poursona-admin/onboard', label: 'Onboard New', icon: '✦' },
-  { href: '/poursona-admin/team', label: 'Team', icon: '◎' },
+  { href: '/poursona-admin', label: 'All Retailers', icon: 'â—ˆ' },
+  { href: '/poursona-admin/onboard', label: 'Onboard New', icon: 'âœ¦' },
+  { href: '/poursona-admin/team', label: 'Team', icon: 'â—Ž' },
 ]
+
 export default function InternalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [member, setMember] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
   useEffect(() => {
     async function check() {
-      const { data: { session } } = await sb.auth.getSession()
-      if (!session) { router.push('/poursona-admin/login'); setLoading(false); return }
-      const res = await fetch('/api/poursona-admin/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: session.user.email }) })
+      const res = await fetch('/api/poursona-admin/me', { cache: 'no-store' })
       const json = await res.json()
-      if (!json.ok) { router.push('/'); setLoading(false); return }
+      if (!json.ok) { router.push('/poursona-admin/login'); setLoading(false); return }
       setMember(json.member)
       setLoading(false)
     }
     check()
-  }, [])
+  }, [router])
+
+  function handleSignOut() {
+    window.location.href = '/poursona-admin/login'
+  }
+
   if (pathname.includes('/poursona-admin/login')) return <>{children}</>
-  if (loading) return <div style={{ minHeight: '100vh', background: '#060403', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif' }}>Verifying access…</div></div>
+  if (loading) return <div style={{ minHeight: '100vh', background: '#060403', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif' }}>Verifying accessâ€¦</div></div>
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#060403', fontFamily: 'Georgia, serif' }}>
       <aside style={{ width: 240, flexShrink: 0, background: 'linear-gradient(180deg,#0a0704,#060403)', borderRight: '1px solid rgba(201,168,76,.15)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0 }}>
@@ -47,8 +51,8 @@ export default function InternalLayout({ children }: { children: React.ReactNode
           })}
         </nav>
         <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(201,168,76,.1)' }}>
-          <Link href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, marginBottom: 8, background: 'rgba(201,168,76,.05)', border: '1px solid rgba(201,168,76,.1)', color: '#6a5a3a', textDecoration: 'none', fontSize: 12 }}>⊞ My Vendor Portal</Link>
-          <button onClick={() => sb.auth.signOut().then(() => router.push('/poursona-admin/login'))} style={{ width: '100%', padding: '9px 12px', background: 'transparent', border: '1px solid rgba(201,168,76,.1)', borderRadius: 8, color: '#4a3a1a', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 12, textAlign: 'left' }}>← Sign Out</button>
+          <Link href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, marginBottom: 8, background: 'rgba(201,168,76,.05)', border: '1px solid rgba(201,168,76,.1)', color: '#6a5a3a', textDecoration: 'none', fontSize: 12 }}>âŠž My Vendor Portal</Link>
+          <button onClick={handleSignOut} style={{ width: '100%', padding: '9px 12px', background: 'transparent', border: '1px solid rgba(201,168,76,.1)', borderRadius: 8, color: '#4a3a1a', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 12, textAlign: 'left' }}>â† Sign Out</button>
         </div>
       </aside>
       <main style={{ flex: 1, marginLeft: 240, padding: '32px 40px', overflowY: 'auto' as const }}>{children}</main>

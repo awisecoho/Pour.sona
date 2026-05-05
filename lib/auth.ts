@@ -1,11 +1,17 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { dbQuery } from '@/lib/db'
 
+const hasClerkEnv =
+  Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&
+  Boolean(process.env.CLERK_SECRET_KEY)
+
 export function normalizeEmail(email: string | null | undefined) {
   return email?.toLowerCase().trim() || null
 }
 
 export async function getAuthenticatedEmail() {
+  if (!hasClerkEnv) return null
+
   const { userId } = await auth()
   if (!userId) return null
 
@@ -19,6 +25,8 @@ export async function getAuthenticatedEmail() {
 }
 
 export async function getAuthenticatedIdentity() {
+  if (!hasClerkEnv) return null
+
   const { userId } = await auth()
   if (!userId) return null
 
