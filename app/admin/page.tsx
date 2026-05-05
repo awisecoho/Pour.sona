@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useActiveRetailer } from '@/lib/useActiveRetailer'
-import { getBrowserSupabase } from '@/lib/browser-supabase'
 
 const ICONS: Record<string, string> = { brewery: '🍺', winery: '🍷', distillery: '🥃', coffee: '☕' }
 
@@ -29,29 +28,30 @@ export default function Dashboard() {
       setLoading(false)
       return
     }
+    const activeRetailerId = retailerId
     setLoading(true)
     async function load() {
-      const sb = getBrowserSupabase()
-      const [s, e] = await Promise.all([
-        (sb.from('sessions') as any).select('id,order_status,created_at').eq('retailer_id', retailerId).order('created_at', { ascending: false }).limit(50),
-        (sb.from('events') as any).select('event_type').eq('retailer_id', retailerId),
-      ])
-      if (s.error || e.error) {
-        console.error('[admin/dashboard] load failed:', { sessions: s.error, events: e.error })
+      try {
+        const res = await fetch(`/api/admin/dashboard?retailerId=${encodeURIComponent(activeRetailerId)}`, {
+          cache: 'no-store',
+        })
+        const json = await res.json()
+        if (!res.ok || !json?.ok) {
+          console.error('[admin/dashboard] load failed:', json)
+          setMessage('Dashboard data could not be loaded right now.')
+          setLoading(false)
+          return
+        }
+        const sessions = json.recent || []
+        setStats(json.stats || { scans: 0, convos: 0, recs: 0, orders: 0 })
+        setRecent(sessions)
+        setMessage(null)
+        setLoading(false)
+      } catch (error) {
+        console.error('[admin/dashboard] load failed:', error)
         setMessage('Dashboard data could not be loaded right now.')
         setLoading(false)
-        return
       }
-      const sessions = s.data || [], events = e.data || []
-      setStats({
-        scans: events.filter((x: any) => x.event_type === 'scan').length,
-        convos: sessions.length,
-        recs: sessions.filter((x: any) => ['recommended','ordered'].includes(x.order_status)).length,
-        orders: sessions.filter((x: any) => x.order_status === 'ordered').length,
-      })
-      setRecent(sessions.slice(0, 10))
-      setMessage(null)
-      setLoading(false)
     }
     load()
   }, [retailerId, retailerLoading])

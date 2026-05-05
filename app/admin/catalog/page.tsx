@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-import { getBrowserSupabase } from '@/lib/browser-supabase'
 import { loadAdminAccess } from '@/lib/admin-access'
 
 export default function CatalogPage() {
@@ -28,16 +27,12 @@ export default function CatalogPage() {
         return
       }
 
-      const sb = getBrowserSupabase()
       const storedId = localStorage.getItem('poursona_active_retailer')
       let retailerData: any = null
 
       if (storedId) {
-        const { data, error } = await (sb.from('retailers') as any).select('*').eq('id', storedId).single()
-        if (error) {
-          console.error('[admin/catalog] retailers lookup failed:', error)
-        }
-        retailerData = data
+        retailerData = access.retailers?.find((r: any) => r.id === storedId) || null
+        if (!retailerData) console.error('[admin/catalog] retailers lookup failed:', { storedId, accessible: access.retailers?.map((r: any) => r.id) })
       }
 
       if (!retailerData) {
@@ -57,13 +52,12 @@ export default function CatalogPage() {
       localStorage.setItem('poursona_active_retailer', retailerData.id)
       sessionStorage.setItem('active_retailer', JSON.stringify(retailerData))
 
-      const { data: prods, error } = await (sb.from('products') as any)
-        .select('*')
-        .eq('retailer_id', retailerData.id)
-        .order('sort_order')
-
-      if (error) {
-        console.error('[admin/catalog] products lookup failed:', error)
+      const res = await fetch(`/api/catalog?retailerId=${encodeURIComponent(retailerData.id)}`, {
+        cache: 'no-store',
+      })
+      const prods = await res.json()
+      if (!res.ok) {
+        console.error('[admin/catalog] products lookup failed:', prods)
         setLoadMessage('Products could not be loaded right now.')
         setLoading(false)
         return
@@ -78,28 +72,45 @@ export default function CatalogPage() {
   }
 
   async function toggleStock(id: string, current: boolean) {
-    const sb = getBrowserSupabase()
     setSaving(id)
-    await (sb.from('products') as any).update({ in_stock: !current }).eq('id', id)
+    const res = await fetch('/api/catalog', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, in_stock: !current }),
+    })
+    if (!res.ok) {
+      console.error('[admin/catalog] stock toggle failed:', await res.json())
+      setSaving(null)
+      return
+    }
     setProducts(prev => prev.map(p => p.id === id ? { ...p, in_stock: !current } : p))
     setSaving(null)
   }
 
   async function addProduct() {
     if (!newProduct.name || !retailer) return
-    const sb = getBrowserSupabase()
     setSaving('new')
-    const { data } = await (sb.from('products') as any).insert({
-      retailer_id: retailer.id,
-      name: newProduct.name,
-      category: newProduct.category || null,
-      description: newProduct.description || null,
-      price: newProduct.price ? parseFloat(newProduct.price) : null,
-      abv: newProduct.abv || null,
-      flavor_notes: newProduct.flavor_notes || null,
-      in_stock: true,
-      sort_order: products.length,
-    }).select().single()
+    const res = await fetch('/api/catalog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        retailerId: retailer.id,
+        name: newProduct.name,
+        category: newProduct.category || null,
+        description: newProduct.description || null,
+        price: newProduct.price ? parseFloat(newProduct.price) : null,
+        abv: newProduct.abv || null,
+        flavor_notes: newProduct.flavor_notes || null,
+        in_stock: true,
+        sort_order: products.length,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      console.error('[admin/catalog] add product failed:', data)
+      setSaving(null)
+      return
+    }
     if (data) setProducts(prev => [...prev, data])
     setNewProduct({ name: '', category: '', description: '', price: '', abv: '', flavor_notes: '' })
     setShowAdd(false)
@@ -121,12 +132,25 @@ export default function CatalogPage() {
 
   async function addScannedProduct(p: any) {
     if (!retailer) return
-    const sb = getBrowserSupabase()
-    const { data } = await (sb.from('products') as any).insert({
-      retailer_id: retailer.id, name: p.name, category: p.category || null,
-      description: p.description || null, price: p.price || null,
-      flavor_notes: p.flavor_notes || null, in_stock: true, sort_order: products.length,
-    }).select().single()
+    const res = await fetch('/api/catalog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        retailerId: retailer.id,
+        name: p.name,
+        category: p.category || null,
+        description: p.description || null,
+        price: p.price || null,
+        flavor_notes: p.flavor_notes || null,
+        in_stock: true,
+        sort_order: products.length,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      console.error('[admin/catalog] add scanned product failed:', data)
+      return
+    }
     if (data) { setProducts(prev => [...prev, data]); setScanResult(prev => prev.filter(x => x.name !== p.name)) }
   }
 
