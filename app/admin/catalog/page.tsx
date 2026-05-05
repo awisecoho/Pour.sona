@@ -1,8 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { getBrowserSupabase } from '@/lib/browser-supabase'
 
 export default function CatalogPage() {
   const [retailer, setRetailer] = useState<any>(null)
@@ -18,36 +16,66 @@ export default function CatalogPage() {
   useEffect(() => { load() }, [])
 
   async function load() {
-    const { data: { user } } = await sb.auth.getUser()
-    if (!user) return
-    const storedId = localStorage.getItem('poursona_active_retailer')
-    let retailerData: any = null
-    if (storedId) {
-      const { data } = await sb.from('retailers').select('*').eq('id', storedId).single()
-      retailerData = data
+    const sb = getBrowserSupabase()
+    try {
+      const { data: { user } } = await sb.auth.getUser()
+      if (!user) {
+        setLoading(false)
+        window.location.href = '/admin/login'
+        return
+      }
+
+      const storedId = localStorage.getItem('poursona_active_retailer')
+      let retailerData: any = null
+
+      if (storedId) {
+        const { data } = await (sb.from('retailers') as any).select('*').eq('id', storedId).single()
+        retailerData = data
+      }
+
+      if (!retailerData) {
+        const { data } = await (sb.from('admin_users') as any)
+          .select('retailer_id, retailers(*)')
+          .eq('user_id', user.id)
+          .limit(1)
+          .single()
+
+        retailerData = Array.isArray(data?.retailers) ? data?.retailers[0] : data?.retailers
+      }
+
+      if (!retailerData) {
+        setLoading(false)
+        return
+      }
+
+      setRetailer(retailerData)
+
+      const { data: prods } = await (sb.from('products') as any)
+        .select('*')
+        .eq('retailer_id', retailerData.id)
+        .order('sort_order')
+
+      setProducts(prods || [])
+      setLoading(false)
+    } catch (error) {
+      console.error('[admin/catalog] load failed:', error)
+      setLoading(false)
     }
-    if (!retailerData) {
-      const { data } = await sb.from('admin_users').select('retailer_id, retailers(*)').eq('user_id', user.id).limit(1).single()
-      retailerData = Array.isArray(data?.retailers) ? data?.retailers[0] : data?.retailers
-    }
-    if (!retailerData) { setLoading(false); return }
-    setRetailer(retailerData)
-    const { data: prods } = await sb.from('products').select('*').eq('retailer_id', retailerData.id).order('sort_order')
-    setProducts(prods || [])
-    setLoading(false)
   }
 
   async function toggleStock(id: string, current: boolean) {
+    const sb = getBrowserSupabase()
     setSaving(id)
-    await sb.from('products').update({ in_stock: !current }).eq('id', id)
+    await (sb.from('products') as any).update({ in_stock: !current }).eq('id', id)
     setProducts(prev => prev.map(p => p.id === id ? { ...p, in_stock: !current } : p))
     setSaving(null)
   }
 
   async function addProduct() {
     if (!newProduct.name || !retailer) return
+    const sb = getBrowserSupabase()
     setSaving('new')
-    const { data } = await sb.from('products').insert({
+    const { data } = await (sb.from('products') as any).insert({
       retailer_id: retailer.id,
       name: newProduct.name,
       category: newProduct.category || null,
@@ -79,7 +107,8 @@ export default function CatalogPage() {
 
   async function addScannedProduct(p: any) {
     if (!retailer) return
-    const { data } = await sb.from('products').insert({
+    const sb = getBrowserSupabase()
+    const { data } = await (sb.from('products') as any).insert({
       retailer_id: retailer.id, name: p.name, category: p.category || null,
       description: p.description || null, price: p.price || null,
       flavor_notes: p.flavor_notes || null, in_stock: true, sort_order: products.length,
