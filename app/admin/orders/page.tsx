@@ -1,22 +1,21 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { loadAdminAccess } from '@/lib/admin-access'
 export default function OrdersPage() {
   const [orders,setOrders]=useState<any[]>([])
   const [sessions,setSessions]=useState<any[]>([])
   const [loading,setLoading]=useState(true)
   const [tab,setTab]=useState<'orders'|'sessions'>('orders')
   useEffect(()=>{(async()=>{
-    const {data:{session}}=await sb.auth.getSession()
-    if(!session)return
-    const {data:au}=await sb.from('admin_users').select('retailer_id').eq('user_id',session.user.id).single()
-    if(!au)return
-    const rid=au.retailer_id
-    const [o,s]=await Promise.all([sb.from('orders').select('*').eq('retailer_id',rid).order('created_at',{ascending:false}),sb.from('sessions').select('id,created_at,order_status,blend_name,messages').eq('retailer_id',rid).order('created_at',{ascending:false}).limit(50)])
-    setOrders(o.data||[]);setSessions(s.data||[]);setLoading(false)
+    const access = await loadAdminAccess()
+    const rid = (typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('active_retailer') || 'null')?.id : null) || access.retailers?.[0]?.id
+    if(!rid){setLoading(false);return}
+    const res = await fetch(`/api/admin/orders?retailerId=${encodeURIComponent(rid)}`, { cache: 'no-store' })
+    const json = await res.json()
+    if(!res.ok || !json?.ok){console.error('[admin/orders] load failed:', json);setLoading(false);return}
+    setOrders(json.orders||[]);setSessions(json.sessions||[]);setLoading(false)
   })()},[])
-  async function updateStatus(id:string,status:string){await sb.from('orders').update({status}).eq('id',id);setOrders(o=>o.map(x=>x.id===id?{...x,status}:x))}
+  async function updateStatus(id:string,status:string){const rid=(typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('active_retailer') || 'null')?.id : null);if(!rid)return;const res=await fetch('/api/admin/orders',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({retailerId:rid,id,status})});const json=await res.json();if(!res.ok||!json?.ok){console.error('[admin/orders] update failed:',json);return}setOrders(o=>o.map(x=>x.id===id?{...x,status}:x))}
   if(loading)return <div style={{color:'#C9A84C'}}>Loading…</div>
   return (
     <div>

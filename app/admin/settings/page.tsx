@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { loadAdminAccess } from '@/lib/admin-access'
 export default function SettingsPage() {
   const [retailer,setRetailer]=useState<any>(null)
   const [form,setForm]=useState<any>(null)
@@ -9,16 +8,19 @@ export default function SettingsPage() {
   const [saved,setSaved]=useState(false)
   const [loading,setLoading]=useState(true)
   useEffect(()=>{(async()=>{
-    const {data:{session}}=await sb.auth.getSession()
-    if(!session)return
-    const {data:au}=await sb.from('admin_users').select('retailer_id,retailers(*)').eq('user_id',session.user.id).single()
-    if(!au?.retailers)return
-    setRetailer(au.retailers);setForm({...au.retailers});setLoading(false)
+    const access = await loadAdminAccess()
+    const retailers = access.retailers || []
+    const storedId = typeof window !== 'undefined' ? localStorage.getItem('poursona_active_retailer') : null
+    const nextRetailer = retailers.find((r: any) => r.id === storedId) || retailers[0]
+    if(!nextRetailer)return
+    setRetailer(nextRetailer);setForm({...nextRetailer});setLoading(false)
   })()},[])
   async function save(e:React.FormEvent){
     e.preventDefault();if(!retailer)return;setSaving(true)
-    await sb.from('retailers').update({name:form.name,tagline:form.tagline,location:form.location,brand_color:form.brand_color}).eq('id',retailer.id)
-    setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),3000)
+    const res = await fetch('/api/admin/retailer', {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({retailerId:retailer.id,name:form.name,tagline:form.tagline,location:form.location,brand_color:form.brand_color})})
+    const json = await res.json()
+    if(!res.ok || !json?.ok){console.error('[admin/settings] save failed:', json);setSaving(false);return}
+    setRetailer(json.retailer);setForm({...json.retailer});setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),3000)
   }
   if(loading)return <div style={{color:'#C9A84C'}}>Loading…</div>
   return (

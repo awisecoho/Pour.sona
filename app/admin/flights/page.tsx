@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { loadAdminAccess } from '@/lib/admin-access'
 const EMPTY = {name:'',description:'',count:4,pour_size:'4oz',price:'',active:true,sort_order:0}
 export default function FlightsPage() {
   const [flights,setFlights]=useState<any[]>([])
@@ -12,24 +11,26 @@ export default function FlightsPage() {
   const [loading,setLoading]=useState(true)
   useEffect(()=>{load()},[])
   async function load(){
-    const {data:{session}}=await sb.auth.getSession()
-    if(!session)return
-    const {data:au}=await sb.from('admin_users').select('retailer_id').eq('user_id',session.user.id).single()
-    if(!au)return
-    setRid(au.retailer_id)
-    const {data}=await sb.from('flights').select('*').eq('retailer_id',au.retailer_id).order('sort_order')
-    setFlights(data||[]);setLoading(false)
+    const access = await loadAdminAccess()
+    const nextRid = (typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('active_retailer') || 'null')?.id : null) || access.retailers?.[0]?.id
+    if(!nextRid){setLoading(false);return}
+    setRid(nextRid)
+    const res = await fetch(`/api/admin/flights?retailerId=${encodeURIComponent(nextRid)}`, { cache: 'no-store' })
+    const json = await res.json()
+    if(!res.ok || !json?.ok){console.error('[admin/flights] load failed:', json);setLoading(false);return}
+    setFlights(json.flights||[]);setLoading(false)
   }
   async function save(){
     if(!rid||!editing)return;setSaving(true)
     const payload={...editing,retailer_id:rid,price:editing.price?parseFloat(editing.price):0}
     const id=payload.id;delete payload.id
-    if(isNew)await sb.from('flights').insert(payload)
-    else await sb.from('flights').update(payload).eq('id',id)
+    const res=await fetch('/api/admin/flights',{method:isNew?'POST':'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(isNew?{retailerId:rid,...payload}:{retailerId:rid,id,...payload})})
+    const json=await res.json()
+    if(!res.ok||!json?.ok){console.error('[admin/flights] save failed:',json);setSaving(false);return}
     setSaving(false);setEditing(null);load()
   }
-  async function toggle(id:string,cur:boolean){await sb.from('flights').update({active:!cur}).eq('id',id);setFlights(f=>f.map(x=>x.id===id?{...x,active:!cur}:x))}
-  async function del(id:string){if(!confirm('Delete?'))return;await sb.from('flights').delete().eq('id',id);setFlights(f=>f.filter(x=>x.id!==id))}
+  async function toggle(id:string,cur:boolean){if(!rid)return;const res=await fetch('/api/admin/flights',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({retailerId:rid,id,active:!cur})});const json=await res.json();if(!res.ok||!json?.ok){console.error('[admin/flights] toggle failed:',json);return}setFlights(f=>f.map(x=>x.id===id?{...x,active:!cur}:x))}
+  async function del(id:string){if(!confirm('Delete?')||!rid)return;const res=await fetch(`/api/admin/flights?retailerId=${encodeURIComponent(rid)}&id=${encodeURIComponent(id)}`,{method:'DELETE'});const json=await res.json();if(!res.ok||!json?.ok){console.error('[admin/flights] delete failed:',json);return}setFlights(f=>f.filter(x=>x.id!==id))}
   if(loading)return <div style={{color:'#C9A84C'}}>Loading…</div>
   return (
     <div>

@@ -1,8 +1,6 @@
 'use client'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { loadAdminAccess } from '@/lib/admin-access'
 
 export default function QRPage() {
   const [retailer, setRetailer] = useState<any>(null)
@@ -16,18 +14,14 @@ export default function QRPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await sb.auth.getUser()
-      if (!user) return
       const storedId = localStorage.getItem('poursona_active_retailer')
       if (storedId) {
-        const { data } = await sb.from('retailers').select('*').eq('id', storedId).single()
-        if (data) { setRetailer(data); setLoading(false); return }
+        const res = await fetch(`/api/admin/retailer?retailerId=${encodeURIComponent(storedId)}`, { cache: 'no-store' })
+        const json = await res.json()
+        if (res.ok && json?.ok && json.retailer) { setRetailer(json.retailer); setLoading(false); return }
       }
-      const { data } = await sb.from('admin_users').select('retailer_id, retailers(*)').eq('user_id', user.id).limit(1).single()
-      if (data?.retailers) {
-        const r = Array.isArray(data.retailers) ? data.retailers[0] : data.retailers
-        setRetailer(r)
-      }
+      const access = await loadAdminAccess()
+      if (access.retailers?.[0]) setRetailer(access.retailers[0])
       setLoading(false)
     }
     load()
