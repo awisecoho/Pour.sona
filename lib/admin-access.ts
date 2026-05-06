@@ -14,8 +14,10 @@ export async function loadAdminAccess() {
     inFlight = fetch('/api/admin/access', { cache: 'no-store' })
       .then(async (res) => {
         const json = await res.json()
-        lastValue = json
-        lastLoadedAt = Date.now()
+        if (res.ok && json?.ok) {
+          lastValue = json
+          lastLoadedAt = Date.now()
+        }
         return json
       })
       .finally(() => {

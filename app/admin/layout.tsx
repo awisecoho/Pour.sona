@@ -25,8 +25,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     async function init() {
+      let access = null
       try {
-        const access = await loadAdminAccess()
+        access = await loadAdminAccess()
+        if (!access?.ok) {
+          await new Promise((resolve) => setTimeout(resolve, 350))
+          access = await loadAdminAccess()
+        }
+
         const retailers = access.retailers || []
         if (!access.ok) {
           console.error('[admin/layout] admin access failed:', access)
