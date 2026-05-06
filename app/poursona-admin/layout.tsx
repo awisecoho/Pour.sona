@@ -13,6 +13,7 @@ export default function InternalLayout({ children }: { children: React.ReactNode
   const router = useRouter()
   const pathname = usePathname()
   const [member, setMember] = useState<any>(null)
+  const [memberRole, setMemberRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -21,21 +22,26 @@ export default function InternalLayout({ children }: { children: React.ReactNode
       try {
         const res = await fetch('/api/poursona-admin/me', { cache: 'no-store' })
         const json = await res.json()
-        if (!json.ok) {
+        if (!res.ok || !json.ok) {
           console.error('[poursona-admin/layout] member check failed:', json)
           if (json.error === 'forbidden') {
             setMessage('This Clerk account is not linked to a Poursona internal team member.')
           } else {
+            setMember(null)
+            setMemberRole(null)
             router.push('/poursona-admin/login')
           }
           setLoading(false)
           return
         }
-        setMember(json.member)
+        setMember(json.user || null)
+        setMemberRole(json.role || null)
         setMessage(null)
         setLoading(false)
       } catch (error) {
         console.error('[poursona-admin/layout] member check failed:', error)
+        setMember(null)
+        setMemberRole(null)
         router.push('/poursona-admin/login')
         setLoading(false)
       }
@@ -57,7 +63,7 @@ export default function InternalLayout({ children }: { children: React.ReactNode
         <div style={{ padding: '28px 24px', borderBottom: '1px solid rgba(201,168,76,.1)' }}>
           <div style={{ color: '#C9A84C', fontSize: 9, letterSpacing: '.4em', textTransform: 'uppercase', marginBottom: 4 }}>Poursona Internal</div>
           <div style={{ color: '#F5ECD7', fontSize: 15, fontWeight: 700 }}>{member?.name || member?.email || 'Team'}</div>
-          <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2, textTransform: 'capitalize' }}>{member?.role || 'staff'}</div>
+          <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2, textTransform: 'capitalize' }}>{memberRole || 'staff'}</div>
         </div>
         <nav style={{ flex: 1, padding: '16px 12px' }}>
           {NAV.map(item => {
