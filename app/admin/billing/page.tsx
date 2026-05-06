@@ -1,9 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { loadAdminAccess } from '@/lib/admin-access'
 function BillingContent() {
   const [retailer, setRetailer] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -14,10 +13,11 @@ function BillingContent() {
   const cancelled = params.get('cancelled')
   useEffect(() => {
     (async () => {
-      const { data: { session } } = await sb.auth.getSession()
-      if (!session) return
-      const { data: au } = await sb.from('admin_users').select('retailer_id, retailers(*)').eq('user_id', session.user.id).single()
-      if (au?.retailers) setRetailer(au.retailers)
+      const access = await loadAdminAccess()
+      const retailers = access.retailers || []
+      const storedId = typeof window !== 'undefined' ? localStorage.getItem('poursona_active_retailer') : null
+      const nextRetailer = retailers.find((r: any) => r.id === storedId) || retailers[0] || null
+      if (nextRetailer) setRetailer(nextRetailer)
       setLoading(false)
     })()
   }, [])
