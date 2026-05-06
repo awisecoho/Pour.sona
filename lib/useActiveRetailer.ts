@@ -1,8 +1,6 @@
 // lib/useActiveRetailer.ts
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { loadAdminAccess } from '@/lib/admin-access'
 
 export function useActiveRetailer() {
   const [retailer, setRetailer] = useState<any>(null)
@@ -11,33 +9,47 @@ export function useActiveRetailer() {
 
   useEffect(() => {
     async function load() {
-      const { data: { session } } = await sb.auth.getSession()
-      if (!session) { setLoading(false); return }
+      const access = await loadAdminAccess()
+      const retailers = access.retailers || []
+      if (!access.ok || retailers.length === 0) { setLoading(false); return }
 
-      // Check if layout stored active retailer in sessionStorage
-      const stored = typeof window !== 'undefined' ? sessionStorage.getItem('active_retailer') : null
-      if (stored) {
-        try {
-          const r = JSON.parse(stored)
-          setRetailer(r)
-          setRetailerId(r.id)
+      const storedRetailerId = typeof window !== 'undefined' ? localStorage.getItem('poursona_active_retailer') : null
+      if (storedRetailerId) {
+        const matchedRetailer = retailers.find((r: any) => r.id === storedRetailerId)
+        if (matchedRetailer) {
+          setRetailer(matchedRetailer)
+          setRetailerId(matchedRetailer.id)
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('active_retailer', JSON.stringify(matchedRetailer))
+          }
           setLoading(false)
           return
+        }
+      }
+
+      const storedRetailer = typeof window !== 'undefined' ? sessionStorage.getItem('active_retailer') : null
+      if (storedRetailer) {
+        try {
+          const parsedRetailer = JSON.parse(storedRetailer)
+          const matchedRetailer = retailers.find((r: any) => r.id === parsedRetailer?.id)
+          if (matchedRetailer) {
+            setRetailer(matchedRetailer)
+            setRetailerId(matchedRetailer.id)
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('poursona_active_retailer', matchedRetailer.id)
+            }
+            setLoading(false)
+            return
+          }
         } catch {}
       }
 
-      // Fall back to first linked retailer
-      const { data: au } = await sb
-        .from('admin_users')
-        .select('retailer_id, retailers(*)')
-        .eq('user_id', session.user.id)
-        .limit(1)
-        .single()
-
-      if (au?.retailers) {
-        setRetailer(au.retailers)
-        setRetailerId(au.retailer_id)
-        if (typeof window !== 'undefined') sessionStorage.setItem('active_retailer', JSON.stringify(au.retailers))
+      const firstRetailer = retailers[0]
+      setRetailer(firstRetailer)
+      setRetailerId(firstRetailer.id)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('poursona_active_retailer', firstRetailer.id)
+        sessionStorage.setItem('active_retailer', JSON.stringify(firstRetailer))
       }
       setLoading(false)
     }
