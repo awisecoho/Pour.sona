@@ -1,49 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server'
 import QRCode from 'qrcode'
-import { createClient } from '@supabase/supabase-js'
+import { dbQuery } from '@/lib/db'
+import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
+
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const slug = searchParams.get('slug')
-  const format = searchParams.get('format') || 'png' // png | svg
-  if (!slug) return NextResponse.json({ error: 'slug required' }, { status: 400 })
+  try {
+    const { searchParams } = new URL(req.url)
+    const slug = searchParams.get('slug')
+    const format = searchParams.get('format') || 'png'
 
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } })
-  const { data: retailer } = await supabase.from('retailers').select('name, brand_color, logo_url, slug').eq('slug', slug).single()
-  if (!retailer) return NextResponse.json({ error: 'not found' }, { status: 404 })
+    if (!slug) {
+      return NextResponse.json({ error: 'slug required' }, { status: 400 })
+    }
 
-  const url = `https://pour-sona.vercel.app/r/${slug}`
-  const brandColor = retailer.brand_color || '#C9A84C'
+    const identity = await getAuthenticatedIdentity()
+    if (!identity) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
 
-  // Generate QR as data URL with brand color
-  const qrDataUrl = await QRCode.toDataURL(url, {
-    width: 400,
-    margin: 2,
-    color: { dark: brandColor, light: '#00000000' },
-    errorCorrectionLevel: 'H', // High — needed for logo overlay
-  })
+    const retailerResult = await dbQuery<{
+      id: string
+      name: string
+      brand_color: string | null
+      logo_url: string | null
+      slug: string
+    }>('select id, name, brand_color, logo_url, slug from retailers where slug = $1 limit 1', [slug])
 
-  if (format === 'svg') {
-    const svgStr = await QRCode.toString(url, {
-      type: 'svg',
+    const retailer = retailerResult.rows[0]
+    if (!retailer) {
+      return NextResponse.json({ error: 'not found' }, { status: 404 })
+    }
+
+    const accessRows = await getRetailersForIdentity(identity.userId, identity.email)
+    if (!accessRows.some((row) => row.retailer_id === retailer.id)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+
+    const url = `https://pour-sona.vercel.app/r/${slug}`
+    const brandColor = retailer.brand_color || '#C9A84C'
+
+    const qrDataUrl = await QRCode.toDataURL(url, {
       width: 400,
       margin: 2,
       color: { dark: brandColor, light: '#00000000' },
       errorCorrectionLevel: 'H',
     })
-    return new NextResponse(svgStr, { headers: { 'Content-Type': 'image/svg+xml', 'Content-Disposition': `attachment; filename="${slug}-qr.svg"` } })
-  }
 
-  // For PNG: compose QR + logo using Canvas API if logo exists
-  // Since we can't use canvas server-side easily, return the QR data URL info
-  // Client-side will compose with logo via canvas
-  return NextResponse.json({
-    qrDataUrl,
-    brandColor,
-    logoUrl: retailer.logo_url,
-    retailerName: retailer.name,
-    slug,
-    guideUrl: url,
-  })
+    if (format === 'svg') {
+      const svgStr = await QRCode.toString(url, {
+        type: 'svg',
+        width: 400,
+        margin: 2,
+        color: { dark: brandColor, light: '#00000000' },
+        errorCorrectionLevel: 'H',
+      })
+
+      return new NextResponse(svgStr, {
+        headers: {
+          'Content-Type': 'image/svg+xml',
+          'Content-Disposition': `attachment; filename="${slug}-qr.svg"`,
+        },
+      })
+    }
+
+    return NextResponse.json({
+      qrDataUrl,
+      brandColor,
+      logoUrl: retailer.logo_url,
+      retailerName: retailer.name,
+      slug,
+      guideUrl: url,
+    })
+  } catch (error) {
+    console.error('[api/qr] get failed:', error)
+    return NextResponse.json({ error: 'qr generation failed' }, { status: 500 })
+  }
 }
