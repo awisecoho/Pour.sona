@@ -1,13 +1,40 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import {
-  BlendRecommendation,
-  createSession,
-  getRetailerBySlug,
-  logEvent,
-  Retailer,
-} from '@/lib/supabase'
+
+interface Retailer {
+  id: string
+  name: string
+  slug: string
+  vertical: 'coffee' | 'brewery' | 'winery'
+  location?: string
+  tagline?: string
+  logo_url?: string
+  brand_color: string
+  owner_email: string
+  subscription_status: string
+  subscription_tier: string
+  active: boolean
+}
+
+interface BlendRecommendation {
+  blendName: string
+  recommendationName?: string
+  tagline: string
+  beans?: Array<{ name: string; ratio: number }>
+  roastLevel?: string
+  flavorProfile: string[]
+  acidity: string
+  body: string
+  bestBrew: string[]
+  storyTitle: string
+  story: string
+  whyItFitsYou: string
+  grindNote: string
+  origin?: string[]
+  selectedProducts?: Array<{ name: string; why: string }>
+  selectedWines?: Array<{ name: string; why: string }>
+}
 
 interface Message {
   role: 'user' | 'assistant'
@@ -23,6 +50,23 @@ const VERTICAL_ICONS: Record<string, string> = {
 
 const stripRec = (text: string) =>
   text.replace(/---RECOMMENDATION_START---[\s\S]*?---RECOMMENDATION_END---/g, '').trim()
+
+async function fetchRetailerBootstrap(slug: string) {
+  const response = await fetch(`/api/retailer?slug=${encodeURIComponent(slug)}`, {
+    cache: 'no-store',
+  })
+
+  if (!response.ok) {
+    if (response.status === 404) return null
+    throw new Error(`Retailer bootstrap failed with status ${response.status}`)
+  }
+
+  return (await response.json()) as {
+    retailer: Retailer
+    flights: unknown[]
+    sessionId: string | null
+  }
+}
 
 function LoadingScreen({ retailer }: { retailer: Retailer | null }) {
   return (
@@ -286,21 +330,24 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
 
   useEffect(() => {
     async function init() {
-      const retailerData = await getRetailerBySlug(params.slug)
-      if (!retailerData) {
-        setNotFound(true)
-        setLoading(false)
-        return
-      }
+      try {
+        const bootstrap = await fetchRetailerBootstrap(params.slug)
+        if (!bootstrap) {
+          setNotFound(true)
+          setLoading(false)
+          return
+        }
 
-      setRetailer(retailerData)
-      const createdSessionId = await createSession(retailerData.id)
-      setSessionId(createdSessionId)
-      await logEvent(retailerData.id, createdSessionId, 'scan', { slug: params.slug })
-      setLoading(false)
+        setRetailer(bootstrap.retailer)
+        setSessionId(bootstrap.sessionId)
+      } catch {
+        setNotFound(true)
+      } finally {
+        setLoading(false)
+      }
     }
 
-    init()
+    void init()
   }, [params.slug])
 
   useEffect(() => {
