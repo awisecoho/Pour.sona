@@ -54,6 +54,92 @@ async function extractColorsViaScreenshot(url: string): Promise<{ primary: strin
   } catch { return null }
 }
 
+async function insertIngestionJob(url: string, signals: RawSignals) {
+  const result = await dbQuery<{ id: string }>(
+    `insert into ingestion_jobs (source_type, source_value, status, raw_text, raw_json)
+     values ($1, $2, $3, $4, $5)
+     returning id`,
+    ['url', url, 'uploaded', signals.menuText.slice(0, 10000), { ...signals, menuText: signals.menuText.slice(0, 2000) }]
+  )
+  return result.rows[0] || null
+}
+
+async function updateIngestionJobParsed(jobId: string, normalized: any) {
+  await dbQuery(
+    'update ingestion_jobs set status = $2, normalized_json = $3 where id = $1',
+    [jobId, 'parsed', normalized]
+  )
+}
+
+async function getExistingRetailerSlugs() {
+  const result = await dbQuery<{ slug: string }>('select slug from retailers', [])
+  return result.rows
+}
+
+async function getExistingDraftSlugs() {
+  const result = await dbQuery<{ slug: string }>('select slug from retailer_drafts', [])
+  return result.rows
+}
+
+async function insertRetailerDraft(params: {
+  jobId: string | null
+  slug: string
+  url: string
+  normalized: any
+  intelligenceJson: any
+}) {
+  const { jobId, slug, url, normalized, intelligenceJson } = params
+
+  const result = await dbQuery(
+    `insert into retailer_drafts (
+      ingestion_job_id, status, name, slug, vertical, location, tagline, logo_url, brand_color,
+      source_url, menu_json, flight_json, parsed_json, story, culture, region, voice,
+      events_json, intelligence_json, research_confidence
+    ) values (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9,
+      $10, $11, $12, $13, $14, $15, $16, $17,
+      $18, $19, $20
+    )
+    returning *`,
+    [
+      jobId,
+      'draft',
+      normalized.retailer.name,
+      slug,
+      normalized.retailer.vertical,
+      normalized.retailer.location || null,
+      normalized.retailer.tagline || null,
+      normalized.retailer.logo_url || null,
+      normalized.retailer.brand_color || '#C9A84C',
+      url,
+      normalized.products,
+      normalized.flights,
+      normalized,
+      normalized.storyData?.story || null,
+      normalized.storyData?.culture || null,
+      normalized.storyData?.region || null,
+      normalized.storyData?.voice || null,
+      normalized.eventsData || [],
+      intelligenceJson,
+      normalized.brandData?.research_confidence || 0,
+    ]
+  )
+
+  return result.rows[0] || null
+}
+
+async function getRetailerDraftById(draftId: string) {
+  const result = await dbQuery<any>(
+    'select * from retailer_drafts where id = $1 limit 1',
+    [draftId]
+  )
+  return result.rows[0] || null
+}
+
+async function markDraftPublished(draftId: string) {
+  await dbQuery('update retailer_drafts set status = $2 where id = $1', [draftId, 'published'])
+}
+
 function scoreLink(url: string, base: string): number {
   const path = url.toLowerCase()
   const menuKeywords = ['menu','beer','tap','drink','wine','coffee','cocktail','spirits','spirit','whiskey','bourbon','gin','vodka','rum','product','our-spirits','craft','moonshine','barrel']
@@ -275,13 +361,7 @@ ${signals.menuText}`
 
 export async function createDraftFromUrl(url: string) {
   const signals = await extractSignals(url)
-  const jobResult = await dbQuery<{ id: string }>(
-    `insert into ingestion_jobs (source_type, source_value, status, raw_text, raw_json)
-     values ($1, $2, $3, $4, $5)
-     returning id`,
-    ['url', url, 'uploaded', signals.menuText.slice(0, 10000), { ...signals, menuText: signals.menuText.slice(0, 2000) }]
-  )
-  const job = jobResult.rows[0] || null
+  const job = await insertIngestionJob(url, signals)
 
   const normalized = await normalizeToRetailerDraft(signals)
   const hostOutput = await generateHostPersona({
@@ -302,50 +382,22 @@ export async function createDraftFromUrl(url: string) {
     ...hostOutput,
   }
   const [existingRetailers, existingDrafts] = await Promise.all([
-    dbQuery<{ slug: string }>('select slug from retailers', []),
-    dbQuery<{ slug: string }>('select slug from retailer_drafts', []),
+    getExistingRetailerSlugs(),
+    getExistingDraftSlugs(),
   ])
-  const allSlugs = [...existingRetailers.rows, ...existingDrafts.rows].map((r) => r.slug)
+  const allSlugs = [...existingRetailers, ...existingDrafts].map((r) => r.slug)
   const slug = ensureUniqueSlug(normalized.retailer.slug || normalized.retailer.name, allSlugs)
   normalized.retailer.slug = slug
 
   let draft: any = null
   try {
-    const draftResult = await dbQuery(
-      `insert into retailer_drafts (
-        ingestion_job_id, status, name, slug, vertical, location, tagline, logo_url, brand_color,
-        source_url, menu_json, flight_json, parsed_json, story, culture, region, voice,
-        events_json, intelligence_json, research_confidence
-      ) values (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9,
-        $10, $11, $12, $13, $14, $15, $16, $17,
-        $18, $19, $20
-      )
-      returning *`,
-      [
-        job?.id || null,
-        'draft',
-        normalized.retailer.name,
-        slug,
-        normalized.retailer.vertical,
-        normalized.retailer.location || null,
-        normalized.retailer.tagline || null,
-        normalized.retailer.logo_url || null,
-        normalized.retailer.brand_color || '#C9A84C',
-        url,
-        normalized.products,
-        normalized.flights,
-        normalized,
-        normalized.storyData?.story || null,
-        normalized.storyData?.culture || null,
-        normalized.storyData?.region || null,
-        normalized.storyData?.voice || null,
-        normalized.eventsData || [],
-        intelligenceJson,
-        normalized.brandData?.research_confidence || 0,
-      ]
-    )
-    draft = draftResult.rows[0] || null
+    draft = await insertRetailerDraft({
+      jobId: job?.id || null,
+      slug,
+      url,
+      normalized,
+      intelligenceJson,
+    })
   } catch (draftError: any) {
     console.error('[Onboarding] retailer_drafts insert failed:', draftError.message)
     throw new Error(`retailer_drafts insert failed: ${draftError.message}`)
@@ -356,25 +408,18 @@ export async function createDraftFromUrl(url: string) {
   }
 
   if (job?.id) {
-    await dbQuery(
-      'update ingestion_jobs set status = $2, normalized_json = $3 where id = $1',
-      [job.id, 'parsed', normalized]
-    )
+    await updateIngestionJobParsed(job.id, normalized)
   }
   return draft
 }
 
 export async function publishDraft(draftId: string, ownerEmail?: string) {
-  const draftResult = await dbQuery<any>(
-    'select * from retailer_drafts where id = $1 limit 1',
-    [draftId]
-  )
-  const draft = draftResult.rows[0] || null
+  const draft = await getRetailerDraftById(draftId)
   if (!draft) throw new Error('Draft not found')
 
   // Check slug doesn't conflict with existing retailers only
-  const existingResult = await dbQuery<{ slug: string }>('select slug from retailers', [])
-  const existingSlugs = existingResult.rows.map((r) => r.slug)
+  const existingRetailers = await getExistingRetailerSlugs()
+  const existingSlugs = existingRetailers.map((r) => r.slug)
   let slug = draft.slug
   if (existingSlugs.includes(slug)) {
     slug = ensureUniqueSlug(slug, existingSlugs)
@@ -462,7 +507,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
     }
   }
 
-  await dbQuery('update retailer_drafts set status = $2 where id = $1', [draft.id, 'published'])
+  await markDraftPublished(draft.id)
 
   return retailer
 }
