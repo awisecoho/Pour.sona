@@ -1,42 +1,99 @@
 'use client'
+
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+
 export default function TeamPage() {
   const [team, setTeam] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadMessage, setLoadMessage] = useState<string | null>(null)
+  const [viewerRole, setViewerRole] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState('staff')
   const [saving, setSaving] = useState(false)
-  useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    load()
+  }, [])
+
   async function load() {
-    const { data: { session } } = await sb.auth.getSession()
-    if (!session) return
-    const res = await fetch('/api/poursona-admin/team-list', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: session.user.email }) })
-    const json = await res.json()
-    setTeam(json.team || [])
-    setLoading(false)
+    try {
+      setLoadMessage(null)
+      const meRes = await fetch('/api/poursona-admin/me', { cache: 'no-store' })
+      const me = await meRes.json()
+
+      if (!meRes.ok || !me.ok || !me.user?.email) {
+        setTeam([])
+        setViewerRole(null)
+        setLoadMessage(
+          me?.error === 'forbidden'
+            ? 'This Clerk account is not linked to a Poursona internal team member.'
+            : 'Team access could not be loaded right now.'
+        )
+        setLoading(false)
+        return
+      }
+
+      setViewerRole(me.role || null)
+
+      const res = await fetch('/api/poursona-admin/team-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: me.user.email }),
+      })
+      const json = await res.json()
+
+      setTeam(json.team || [])
+      setLoading(false)
+    } catch (error) {
+      console.error('[poursona-admin/team] load failed:', error)
+      setTeam([])
+      setViewerRole(null)
+      setLoadMessage('Team access could not be loaded right now.')
+      setLoading(false)
+    }
   }
+
   async function addMember(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
-    await fetch('/api/poursona-admin/team-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: newEmail, name: newName, role: newRole }) })
-    setNewEmail(''); setNewName(''); setNewRole('staff'); setAdding(false); setSaving(false); load()
-  }
-  async function removeMember(email: string) {
-    if (!confirm('Remove ' + email + ' from the team?')) return
-    await fetch('/api/poursona-admin/team-remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+    e.preventDefault()
+    setSaving(true)
+    await fetch('/api/poursona-admin/team-add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: newEmail, name: newName, role: newRole }),
+    })
+    setNewEmail('')
+    setNewName('')
+    setNewRole('staff')
+    setAdding(false)
+    setSaving(false)
     load()
   }
-  if (loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
+
+  async function removeMember(email: string) {
+    if (!confirm('Remove ' + email + ' from the team?')) return
+    await fetch('/api/poursona-admin/team-remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    load()
+  }
+
+  if (loading) return <div style={{ color: '#C9A84C' }}>Loadingâ€¦</div>
+  if (loadMessage) return <div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 14 }}>{loadMessage}</div>
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
         <div>
           <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Poursona Internal</div>
           <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>Team Members</div>
-          <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 4 }}>These people have access to this portal.</div>
+          <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 4 }}>
+            These people have access to this portal.
+            {viewerRole ? ` You are signed in as ${viewerRole}.` : ''}
+          </div>
         </div>
         <button onClick={() => setAdding(true)} style={{ padding: '10px 20px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ Add Member</button>
       </div>
@@ -45,7 +102,7 @@ export default function TeamPage() {
           <thead><tr style={{ borderBottom: '1px solid rgba(201,168,76,.1)' }}>{['Name','Email','Role','Added',''].map(h => <th key={h} style={{ padding: '12px 20px', textAlign: 'left', color: '#4a3a1a', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>)}</tr></thead>
           <tbody>{team.map(m => (
             <tr key={m.id} style={{ borderBottom: '1px solid rgba(201,168,76,.05)' }}>
-              <td style={{ padding: '14px 20px', color: '#F5ECD7', fontSize: 13 }}>{m.name || '—'}</td>
+              <td style={{ padding: '14px 20px', color: '#F5ECD7', fontSize: 13 }}>{m.name || 'â€”'}</td>
               <td style={{ padding: '14px 20px', color: '#C9A84C', fontSize: 13 }}>{m.email}</td>
               <td style={{ padding: '14px 20px' }}><span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10, background: m.role === 'owner' ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.05)', color: m.role === 'owner' ? '#C9A84C' : '#6a5a3a' }}>{m.role}</span></td>
               <td style={{ padding: '14px 20px', color: '#4a3a1a', fontSize: 12 }}>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
@@ -74,7 +131,7 @@ export default function TeamPage() {
                 </select>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button type="submit" disabled={saving || !newEmail} style={{ flex: 1, padding: '11px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Adding…' : 'Add Member'}</button>
+                <button type="submit" disabled={saving || !newEmail} style={{ flex: 1, padding: '11px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Addingâ€¦' : 'Add Member'}</button>
                 <button type="button" onClick={() => setAdding(false)} style={{ padding: '11px 16px', background: 'transparent', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#6a5a3a', fontFamily: 'Georgia, serif', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
               </div>
             </form>
