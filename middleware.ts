@@ -48,9 +48,26 @@ function applyRateLimit(req: NextRequest) {
   return NextResponse.next()
 }
 
-const isProtectedRoute = createRouteMatcher([
-  '/admin((?!/login|/auth).*)',
-  '/poursona-admin((?!/login).*)',
+const isVendorAdminPage = createRouteMatcher([
+  '/admin',
+  '/admin/(.*)',
+])
+
+const isVendorAdminPublicPage = createRouteMatcher([
+  '/admin/login(.*)',
+  '/admin/auth(.*)',
+])
+
+const isInternalAdminPage = createRouteMatcher([
+  '/poursona-admin',
+  '/poursona-admin/(.*)',
+])
+
+const isInternalAdminPublicPage = createRouteMatcher([
+  '/poursona-admin/login(.*)',
+])
+
+const isProtectedApiRoute = createRouteMatcher([
   '/api/admin/access',
   '/api/poursona-admin/invite',
   '/api/poursona-admin/system-check',
@@ -62,16 +79,34 @@ const hasClerkEnv =
   Boolean(process.env.CLERK_SECRET_KEY)
 
 const protectedMiddleware = clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    await auth().protect()
+  const { userId } = await auth()
+  const path = req.nextUrl.pathname
+
+  const needsVendorLogin = isVendorAdminPage(req) && !isVendorAdminPublicPage(req)
+  const needsInternalLogin = isInternalAdminPage(req) && !isInternalAdminPublicPage(req)
+
+  if (needsVendorLogin && !userId) {
+    return NextResponse.redirect(new URL('/admin/login', req.url))
+  }
+
+  if (needsInternalLogin && !userId) {
+    return NextResponse.redirect(new URL('/poursona-admin/login', req.url))
+  }
+
+  if (isProtectedApiRoute(req) && !userId) {
+    return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
   }
 
   return applyRateLimit(req)
 })
 
 export default function middleware(req: NextRequest, evt: any) {
+  const needsVendorLogin = isVendorAdminPage(req) && !isVendorAdminPublicPage(req)
+  const needsInternalLogin = isInternalAdminPage(req) && !isInternalAdminPublicPage(req)
+  const protectedPage = needsVendorLogin || needsInternalLogin
+
   if (!hasClerkEnv) {
-    if (isProtectedRoute(req)) {
+    if (protectedPage || isProtectedApiRoute(req)) {
       if (req.nextUrl.pathname.startsWith('/api/')) {
         return NextResponse.json(
           { ok: false, error: 'Admin authentication is not configured.' },
@@ -79,7 +114,8 @@ export default function middleware(req: NextRequest, evt: any) {
         )
       }
 
-      return NextResponse.redirect(new URL('/admin/login', req.url))
+      const loginPath = needsInternalLogin ? '/poursona-admin/login' : '/admin/login'
+      return NextResponse.redirect(new URL(loginPath, req.url))
     }
 
     return applyRateLimit(req)
