@@ -9,11 +9,34 @@ export function normalizeEmail(email: string | null | undefined) {
   return email?.toLowerCase().trim() || null
 }
 
+function getEmailFromSessionClaims(sessionClaims: Record<string, any> | null | undefined) {
+  if (!sessionClaims) return null
+
+  const candidates = [
+    sessionClaims.email,
+    sessionClaims.email_address,
+    sessionClaims.primary_email_address,
+    Array.isArray(sessionClaims.email_addresses) ? sessionClaims.email_addresses[0] : null,
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return normalizeEmail(candidate)
+    }
+  }
+
+  return null
+}
+
 export async function getAuthenticatedEmail() {
   if (!hasClerkEnv) return null
 
-  const { userId } = await auth()
+  const authState = await auth()
+  const { userId, sessionClaims } = authState
   if (!userId) return null
+
+  const claimedEmail = getEmailFromSessionClaims(sessionClaims as Record<string, any> | null | undefined)
+  if (claimedEmail) return claimedEmail
 
   const user = await currentUser()
   const primaryEmail =
@@ -27,8 +50,14 @@ export async function getAuthenticatedEmail() {
 export async function getAuthenticatedIdentity() {
   if (!hasClerkEnv) return null
 
-  const { userId } = await auth()
+  const authState = await auth()
+  const { userId, sessionClaims } = authState
   if (!userId) return null
+
+  const claimedEmail = getEmailFromSessionClaims(sessionClaims as Record<string, any> | null | undefined)
+  if (claimedEmail) {
+    return { userId, email: claimedEmail }
+  }
 
   const user = await currentUser()
   const email = normalizeEmail(
