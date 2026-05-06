@@ -1,20 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@supabase/supabase-js'
 import { ensureUniqueSlug } from './slug'
 import { extractBrand } from './agents/brand'
 import { extractEvents } from './agents/events'
 import { generateHostPersona } from './agents/host'
 import type { RawSignals } from './agents/research'
+import { dbQuery } from './db'
+import { grantRetailerAccessByEmail } from './auth'
 
 const EVENT_KEYWORDS = ['events','calendar','happenings','upcoming','whats-on','live','schedule','entertainment']
-
-function getAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-}
 
 async function fetchPage(url: string): Promise<string> {
   try {
@@ -27,18 +20,33 @@ async function fetchPage(url: string): Promise<string> {
   } catch { return '' }
 }
 
+function getSupabaseBrandExtractionConfig() {
+  return {
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    functionPath: '/functions/v1/extract-brand-colors',
+  }
+}
+
+async function extractBrandColorsWithSupabase(url: string) {
+  const { supabaseUrl, serviceRoleKey, functionPath } = getSupabaseBrandExtractionConfig()
+  const baseUrl = new URL(supabaseUrl)
+  const functionUrl = `https://${baseUrl.hostname}${functionPath}`
+
+  return fetch(functionUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+    body: JSON.stringify({ url }),
+    signal: AbortSignal.timeout(30000),
+  })
+}
+
 async function extractColorsViaScreenshot(url: string): Promise<{ primary: string; logoUrl: string } | null> {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const fnUrl = supabaseUrl.replace('https://', 'https://') + '/functions/v1/extract-brand-colors'
-    const baseUrl = new URL(supabaseUrl)
-    const fnFullUrl = `https://${baseUrl.hostname}/functions/v1/extract-brand-colors`
-    const res = await fetch(fnFullUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-      body: JSON.stringify({ url }),
-      signal: AbortSignal.timeout(30000),
-    })
+    const res = await extractBrandColorsWithSupabase(url)
     if (!res.ok) return null
     const data = await res.json()
     if (!data.ok) return null
@@ -266,12 +274,14 @@ ${signals.menuText}`
 }
 
 export async function createDraftFromUrl(url: string) {
-  const supabase = getAdmin()
   const signals = await extractSignals(url)
-  const { data: job } = await supabase
-    .from('ingestion_jobs')
-    .insert({ source_type: 'url', source_value: url, status: 'uploaded', raw_text: signals.menuText.slice(0, 10000), raw_json: { ...signals, menuText: signals.menuText.slice(0, 2000) } })
-    .select('id').single()
+  const jobResult = await dbQuery<{ id: string }>(
+    `insert into ingestion_jobs (source_type, source_value, status, raw_text, raw_json)
+     values ($1, $2, $3, $4, $5)
+     returning id`,
+    ['url', url, 'uploaded', signals.menuText.slice(0, 10000), { ...signals, menuText: signals.menuText.slice(0, 2000) }]
+  )
+  const job = jobResult.rows[0] || null
 
   const normalized = await normalizeToRetailerDraft(signals)
   const hostOutput = await generateHostPersona({
@@ -291,38 +301,53 @@ export async function createDraftFromUrl(url: string) {
     ...(normalized.brandData || {}),
     ...hostOutput,
   }
-  const { data: existing } = await supabase.from('retailers').select('slug')
-  const { data: existingDrafts } = await supabase.from('retailer_drafts').select('slug')
-  const allSlugs = [...(existing || []), ...(existingDrafts || [])].map((r: any) => r.slug)
+  const [existingRetailers, existingDrafts] = await Promise.all([
+    dbQuery<{ slug: string }>('select slug from retailers', []),
+    dbQuery<{ slug: string }>('select slug from retailer_drafts', []),
+  ])
+  const allSlugs = [...existingRetailers.rows, ...existingDrafts.rows].map((r) => r.slug)
   const slug = ensureUniqueSlug(normalized.retailer.slug || normalized.retailer.name, allSlugs)
   normalized.retailer.slug = slug
 
-  const { data: draft, error: draftError } = await supabase
-    .from('retailer_drafts')
-    .insert({
-      ingestion_job_id: job?.id, status: 'draft',
-      name: normalized.retailer.name, slug,
-      vertical: normalized.retailer.vertical,
-      location: normalized.retailer.location || null,
-      tagline: normalized.retailer.tagline || null,
-      logo_url: normalized.retailer.logo_url || null,
-      brand_color: normalized.retailer.brand_color || '#C9A84C',
-      source_url: url,
-      menu_json: normalized.products,
-      flight_json: normalized.flights,
-      parsed_json: normalized,
-      story: normalized.storyData?.story || null,
-      culture: normalized.storyData?.culture || null,
-      region: normalized.storyData?.region || null,
-      voice: normalized.storyData?.voice || null,
-      events_json: normalized.eventsData || [],
-      intelligence_json: intelligenceJson,
-      research_confidence: normalized.brandData?.research_confidence || 0,
-    })
-    .select('*').single()
-
-  if (draftError) {
-    console.error('[Onboarding] retailer_drafts insert failed:', draftError.message, draftError.details || '', draftError.hint || '')
+  let draft: any = null
+  try {
+    const draftResult = await dbQuery(
+      `insert into retailer_drafts (
+        ingestion_job_id, status, name, slug, vertical, location, tagline, logo_url, brand_color,
+        source_url, menu_json, flight_json, parsed_json, story, culture, region, voice,
+        events_json, intelligence_json, research_confidence
+      ) values (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9,
+        $10, $11, $12, $13, $14, $15, $16, $17,
+        $18, $19, $20
+      )
+      returning *`,
+      [
+        job?.id || null,
+        'draft',
+        normalized.retailer.name,
+        slug,
+        normalized.retailer.vertical,
+        normalized.retailer.location || null,
+        normalized.retailer.tagline || null,
+        normalized.retailer.logo_url || null,
+        normalized.retailer.brand_color || '#C9A84C',
+        url,
+        normalized.products,
+        normalized.flights,
+        normalized,
+        normalized.storyData?.story || null,
+        normalized.storyData?.culture || null,
+        normalized.storyData?.region || null,
+        normalized.storyData?.voice || null,
+        normalized.eventsData || [],
+        intelligenceJson,
+        normalized.brandData?.research_confidence || 0,
+      ]
+    )
+    draft = draftResult.rows[0] || null
+  } catch (draftError: any) {
+    console.error('[Onboarding] retailer_drafts insert failed:', draftError.message)
     throw new Error(`retailer_drafts insert failed: ${draftError.message}`)
   }
   if (!draft) {
@@ -331,85 +356,118 @@ export async function createDraftFromUrl(url: string) {
   }
 
   if (job?.id) {
-    await supabase.from('ingestion_jobs').update({ status: 'parsed', normalized_json: normalized }).eq('id', job.id)
+    await dbQuery(
+      'update ingestion_jobs set status = $2, normalized_json = $3 where id = $1',
+      [job.id, 'parsed', normalized]
+    )
   }
   return draft
 }
 
 export async function publishDraft(draftId: string, ownerEmail?: string) {
-  const supabase = getAdmin()
-  const { data: draft } = await supabase.from('retailer_drafts').select('*').eq('id', draftId).single()
+  const draftResult = await dbQuery<any>(
+    'select * from retailer_drafts where id = $1 limit 1',
+    [draftId]
+  )
+  const draft = draftResult.rows[0] || null
   if (!draft) throw new Error('Draft not found')
 
   // Check slug doesn't conflict with existing retailers only
-  const { data: existing } = await supabase.from('retailers').select('slug')
-  const existingSlugs = (existing || []).map((r: any) => r.slug)
+  const existingResult = await dbQuery<{ slug: string }>('select slug from retailers', [])
+  const existingSlugs = existingResult.rows.map((r) => r.slug)
   let slug = draft.slug
   if (existingSlugs.includes(slug)) {
     slug = ensureUniqueSlug(slug, existingSlugs)
   }
 
-  const { data: retailer } = await supabase
-    .from('retailers')
-    .insert({
-      name: draft.name, slug, vertical: draft.vertical,
-      location: draft.location, tagline: draft.tagline,
-      logo_url: draft.logo_url, brand_color: draft.brand_color || '#C9A84C',
-      owner_email: ownerEmail || `owner+${slug}@poursona.app`,
-      story: draft.story || null,
-      culture: draft.culture || null,
-      region: draft.region || null,
-      active: true,
-    })
-    .select('*').single()
+  const finalOwnerEmail = ownerEmail || draft.owner_email || `owner+${slug}@poursona.app`
+  const retailerResult = await dbQuery<any>(
+    `insert into retailers (
+      name, slug, vertical, location, tagline, logo_url, brand_color, owner_email,
+      story, culture, region, active
+    ) values (
+      $1, $2, $3, $4, $5, $6, $7, $8,
+      $9, $10, $11, $12
+    )
+    returning *`,
+    [
+      draft.name,
+      slug,
+      draft.vertical,
+      draft.location,
+      draft.tagline,
+      draft.logo_url,
+      draft.brand_color || '#C9A84C',
+      finalOwnerEmail,
+      draft.story || null,
+      draft.culture || null,
+      draft.region || null,
+      true,
+    ]
+  )
+  const retailer = retailerResult.rows[0] || null
 
   if (!retailer) throw new Error('Failed to create retailer')
 
+  if (finalOwnerEmail) {
+    await grantRetailerAccessByEmail(retailer.id, finalOwnerEmail, 'owner')
+  }
+
   const products = Array.isArray(draft.menu_json) ? draft.menu_json : []
   if (products.length) {
-    await supabase.from('products').insert(
-      products.map((p: any, i: number) => ({
-        retailer_id: retailer.id, name: p.name, description: p.description || null,
-        category: p.category || null, flavor_notes: p.flavor_notes || null,
-        price: p.price ?? null, style: p.style || null, abv: p.abv || null,
-        ibu: p.ibu || null, in_stock: p.in_stock ?? true, sort_order: i,
-      }))
-    )
+    for (const [i, p] of products.entries()) {
+      await dbQuery(
+        `insert into products (
+          retailer_id, name, description, category, flavor_notes, price, style, abv, ibu, in_stock, sort_order
+        ) values (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+        )`,
+        [
+          retailer.id,
+          p.name,
+          p.description || null,
+          p.category || null,
+          p.flavor_notes || null,
+          p.price ?? null,
+          p.style || null,
+          p.abv || null,
+          p.ibu || null,
+          p.in_stock ?? true,
+          i,
+        ]
+      )
+    }
   }
 
   const flights = Array.isArray(draft.flight_json) ? draft.flight_json : []
   if (flights.length) {
-    await supabase.from('flights').insert(
-      flights.map((f: any, i: number) => ({
-        retailer_id: retailer.id, name: f.name, description: f.description || null,
-        count: f.count ?? 4, pour_size: f.pour_size || '4oz',
-        price: f.price ?? 0, active: f.active ?? true, sort_order: i,
-      }))
-    )
-  }
-
-  await supabase.from('retailer_drafts').update({ status: 'published' }).eq('id', draft.id)
-
-  // Auto-link all poursona team members
-  const { data: team } = await supabase.from('poursona_team').select('email')
-  if (team?.length) {
-    const { data: users } = await supabase.auth.admin.listUsers()
-    for (const member of team) {
-      const user = users?.users?.find((u: any) => u.email === member.email)
-      if (user) {
-        await supabase.from('admin_users').upsert(
-          { user_id: user.id, retailer_id: retailer.id, role: 'owner' },
-          { onConflict: 'user_id,retailer_id' }
-        )
-      }
+    for (const [i, f] of flights.entries()) {
+      await dbQuery(
+        `insert into flights (
+          retailer_id, name, description, count, pour_size, price, active, sort_order
+        ) values (
+          $1, $2, $3, $4, $5, $6, $7, $8
+        )`,
+        [
+          retailer.id,
+          f.name,
+          f.description || null,
+          f.count ?? 4,
+          f.pour_size || '4oz',
+          f.price ?? 0,
+          f.active ?? true,
+          i,
+        ]
+      )
     }
   }
+
+  await dbQuery('update retailer_drafts set status = $2 where id = $1', [draft.id, 'published'])
 
   return retailer
 }
 
 export async function rescanRetailer(retailerId: string, url: string, mode: 'catalog' | 'branding' | 'full') {
-  const supabase = getAdmin()
   const signals = await extractSignals(url)
   const normalized = await normalizeToRetailerDraft(signals)
   const updates: any = {}
@@ -429,29 +487,60 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
     if (products.length) {
       if (mode === 'full') {
         // Full replace
-        await supabase.from('products').delete().eq('retailer_id', retailerId)
-        await supabase.from('products').insert(
-          products.map((p: any, i: number) => ({
-            retailer_id: retailerId, name: p.name, description: p.description || null,
-            category: p.category || null, flavor_notes: p.flavor_notes || null,
-            price: p.price ?? null, style: p.style || null, abv: p.abv || null,
-            ibu: p.ibu || null, in_stock: true, sort_order: i,
-          }))
-        )
+        await dbQuery('delete from products where retailer_id = $1', [retailerId])
+        for (const [i, p] of products.entries()) {
+          await dbQuery(
+            `insert into products (
+              retailer_id, name, description, category, flavor_notes, price, style, abv, ibu, in_stock, sort_order
+            ) values (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+            )`,
+            [
+              retailerId,
+              p.name,
+              p.description || null,
+              p.category || null,
+              p.flavor_notes || null,
+              p.price ?? null,
+              p.style || null,
+              p.abv || null,
+              p.ibu || null,
+              true,
+              i,
+            ]
+          )
+        }
       } else {
         // Catalog mode: add new items only
-        const { data: existing } = await supabase.from('products').select('name').eq('retailer_id', retailerId)
-        const existingNames = new Set((existing || []).map((p: any) => p.name.toLowerCase()))
+        const existing = await dbQuery<{ name: string }>(
+          'select name from products where retailer_id = $1',
+          [retailerId]
+        )
+        const existingNames = new Set(existing.rows.map((p) => p.name.toLowerCase()))
         const newProducts = products.filter((p: any) => !existingNames.has(p.name.toLowerCase()))
         if (newProducts.length) {
-          await supabase.from('products').insert(
-            newProducts.map((p: any, i: number) => ({
-              retailer_id: retailerId, name: p.name, description: p.description || null,
-              category: p.category || null, flavor_notes: p.flavor_notes || null,
-              price: p.price ?? null, style: p.style || null, abv: p.abv || null,
-              ibu: p.ibu || null, in_stock: true, sort_order: 1000 + i,
-            }))
-          )
+          for (const [i, p] of newProducts.entries()) {
+            await dbQuery(
+              `insert into products (
+                retailer_id, name, description, category, flavor_notes, price, style, abv, ibu, in_stock, sort_order
+              ) values (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+              )`,
+              [
+                retailerId,
+                p.name,
+                p.description || null,
+                p.category || null,
+                p.flavor_notes || null,
+                p.price ?? null,
+                p.style || null,
+                p.abv || null,
+                p.ibu || null,
+                true,
+                1000 + i,
+              ]
+            )
+          }
         }
         updates._newProductsAdded = newProducts.length
       }
@@ -459,9 +548,33 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
   }
 
   if (Object.keys(updates).filter(k => !k.startsWith('_')).length > 0) {
-    await supabase.from('retailers').update(updates).eq('id', retailerId)
+    await dbQuery(
+      `update retailers
+       set brand_color = coalesce($2, brand_color),
+           logo_url = coalesce($3, logo_url),
+           story = coalesce($4, story),
+           culture = coalesce($5, culture),
+           region = coalesce($6, region),
+           tagline = coalesce($7, tagline),
+           location = coalesce($8, location)
+       where id = $1`,
+      [
+        retailerId,
+        updates.brand_color || null,
+        updates.logo_url || null,
+        updates.story || null,
+        updates.culture || null,
+        updates.region || null,
+        updates.tagline || null,
+        updates.location || null,
+      ]
+    )
   }
 
-  const { data: updatedRetailer } = await supabase.from('retailers').select('*').eq('id', retailerId).single()
+  const updatedRetailerResult = await dbQuery<any>(
+    'select * from retailers where id = $1 limit 1',
+    [retailerId]
+  )
+  const updatedRetailer = updatedRetailerResult.rows[0] || null
   return { retailer: updatedRetailer, changes: updates, newProducts: updates._newProductsAdded || 0 }
 }
