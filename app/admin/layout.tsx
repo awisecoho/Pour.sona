@@ -44,7 +44,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const hasStableAccessRef = useRef(false)
 
   useEffect(() => {
-    if (isAdminAuthPath(pathname)) return
+    if (isAdminAuthPath(pathname)) {
+      requestIdRef.current += 1
+      initializedRef.current = false
+      hasStableAccessRef.current = false
+      setSwitching(false)
+      setShellState('auth-loading')
+      return
+    }
 
     let cancelled = false
     const requestId = ++requestIdRef.current
@@ -75,7 +82,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     async function init() {
-      if (initializedRef.current) return
+      if (initializedRef.current && hasStableAccessRef.current) return
       initializedRef.current = true
 
       setShellState('auth-loading')
@@ -92,6 +99,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         if (!access?.ok) {
           console.error('[admin/layout] admin access failed after retry:', access)
+          initializedRef.current = false
           hasStableAccessRef.current = false
           setShellState('unauthorized')
           return
@@ -127,6 +135,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       } catch (error) {
         if (cancelled || requestIdRef.current !== requestId) return
         console.error('[admin/layout] init failed:', error)
+        initializedRef.current = false
         hasStableAccessRef.current = false
         setShellState('unauthorized')
       }
