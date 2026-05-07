@@ -20,12 +20,23 @@ export default function Dashboard() {
   const [recent, setRecent] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
+  const [diagnostic, setDiagnostic] = useState<any>(null)
 
   useEffect(() => {
     if (retailerLoading) return
     if (!retailerId) {
       setMessage('No retailer is linked to this admin account.')
       setLoading(false)
+      fetch('/api/admin/access-diagnostic', { cache: 'no-store' })
+        .then((res) => res.json())
+        .then((json) => setDiagnostic(json))
+        .catch((error) => {
+          console.error('[admin/dashboard] diagnostic failed:', error)
+          setDiagnostic({
+            ok: false,
+            dbQueryError: error instanceof Error ? error.message : 'diagnostic failed',
+          })
+        })
       return
     }
     const activeRetailerId = retailerId
@@ -57,7 +68,18 @@ export default function Dashboard() {
   }, [retailerId, retailerLoading])
 
   if (retailerLoading || loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
-  if (message) return <div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif' }}>{message}</div>
+  if (message) {
+    return (
+      <div>
+        <div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif', marginBottom: 16 }}>{message}</div>
+        {diagnostic && (
+          <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px 22px', color: '#F5ECD7', fontFamily: 'monospace', fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+            {JSON.stringify(diagnostic, null, 2)}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const rate = stats.convos > 0 ? Math.round((stats.recs / stats.convos) * 100) : 0
   const icon = ICONS[retailer?.vertical] || '✦'
