@@ -4,6 +4,12 @@ let inFlight: Promise<any> | null = null
 let lastLoadedAt = 0
 let lastValue: any = null
 
+export function resetAdminAccessCache() {
+  inFlight = null
+  lastLoadedAt = 0
+  lastValue = null
+}
+
 export async function loadAdminAccess() {
   const now = Date.now()
   if (lastValue && now - lastLoadedAt < 5000) {

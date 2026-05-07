@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { loadAdminAccess } from '@/lib/admin-access'
+import { loadAdminAccess, resetAdminAccessCache } from '@/lib/admin-access'
 
 const NAV = [
   { href: '/admin', label: 'Dashboard', icon: 'D' },
@@ -21,15 +21,39 @@ const VERTICAL_ICONS: Record<string, string> = {
   coffee: 'C',
 }
 
-type AdminShellState =
-  | 'auth-loading'
-  | 'authenticated'
-  | 'retailer-loading'
-  | 'authenticated-no-retailers'
-  | 'unauthorized'
+type AdminShellState = 'bootstrapping' | 'ready' | 'no-retailers' | 'unauthorized'
 
 function isAdminAuthPath(pathname: string) {
   return pathname.includes('/admin/login') || pathname.includes('/admin/auth')
+}
+
+function resolveRetailer(access: any, previousRetailer: any) {
+  const retailers = Array.isArray(access?.retailers) ? access.retailers : []
+  if (retailers.length === 0) {
+    return null
+  }
+
+  const savedId =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('poursona_active_retailer')
+      : null
+
+  if (savedId) {
+    const savedRetailer = retailers.find((r: any) => r.id === savedId)
+    if (savedRetailer) return savedRetailer
+  }
+
+  if (previousRetailer?.id) {
+    const previous = retailers.find((r: any) => r.id === previousRetailer.id)
+    if (previous) return previous
+  }
+
+  if (access?.defaultRetailerId) {
+    const defaultRetailer = retailers.find((r: any) => r.id === access.defaultRetailerId)
+    if (defaultRetailer) return defaultRetailer
+  }
+
+  return retailers[0]
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -37,76 +61,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const [allRetailers, setAllRetailers] = useState<any[]>([])
   const [retailer, setRetailer] = useState<any>(null)
-  const [shellState, setShellState] = useState<AdminShellState>('auth-loading')
+  const [shellState, setShellState] = useState<AdminShellState>('bootstrapping')
   const [switching, setSwitching] = useState(false)
-  const requestIdRef = useRef(0)
-  const initializedRef = useRef(false)
-  const hasStableAccessRef = useRef(false)
+  const bootstrapPromiseRef = useRef<Promise<void> | null>(null)
+  const currentRequestIdRef = useRef(0)
 
   useEffect(() => {
-    if (isAdminAuthPath(pathname)) {
-      requestIdRef.current += 1
-      initializedRef.current = false
-      hasStableAccessRef.current = false
-      setSwitching(false)
-      setShellState('auth-loading')
-      return
-    }
+    if (!isAdminAuthPath(pathname)) return
+
+    currentRequestIdRef.current += 1
+    bootstrapPromiseRef.current = null
+    resetAdminAccessCache()
+    setSwitching(false)
+    setAllRetailers([])
+    setRetailer(null)
+    setShellState('bootstrapping')
+  }, [pathname])
+
+  useEffect(() => {
+    if (isAdminAuthPath(pathname)) return
+    if (bootstrapPromiseRef.current) return
 
     let cancelled = false
-    const requestId = ++requestIdRef.current
+    const requestId = ++currentRequestIdRef.current
 
-    async function waitForAuthReadiness() {
-      const graceMs = [150, 300]
-
-      for (const delay of graceMs) {
-        if (cancelled) return
-        await new Promise((resolve) => setTimeout(resolve, delay))
-      }
-    }
-
-    async function loadAccessWithRetry() {
-      const backoffMs = [250, 600]
-      let lastAccess: any = null
-
-      for (let attempt = 0; attempt <= backoffMs.length; attempt++) {
-        lastAccess = await loadAdminAccess()
-        if (lastAccess?.ok) return lastAccess
-
-        if (attempt < backoffMs.length) {
-          await new Promise((resolve) => setTimeout(resolve, backoffMs[attempt]))
-        }
-      }
-
-      return lastAccess
-    }
-
-    async function init() {
-      if (initializedRef.current && hasStableAccessRef.current) return
-      initializedRef.current = true
-
-      setShellState('auth-loading')
-      await waitForAuthReadiness()
-      if (cancelled || requestIdRef.current !== requestId) return
-
-      if (!hasStableAccessRef.current) {
-        setShellState('retailer-loading')
-      }
+    const bootstrap = async () => {
+      setShellState((current) => (current === 'ready' ? current : 'bootstrapping'))
 
       try {
-        const access = await loadAccessWithRetry()
-        if (cancelled || requestIdRef.current !== requestId) return
+        const access = await loadAdminAccess()
+        if (cancelled || currentRequestIdRef.current !== requestId) return
 
         if (!access?.ok) {
-          console.error('[admin/layout] admin access failed after retry:', access)
-          initializedRef.current = false
-          hasStableAccessRef.current = false
+          console.error('[admin/layout] admin access failed:', access)
           setShellState('unauthorized')
           return
         }
 
         const retailers = Array.isArray(access.retailers) ? access.retailers : []
-        hasStableAccessRef.current = true
         setAllRetailers(retailers)
 
         if (retailers.length === 0) {
@@ -115,33 +107,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             localStorage.removeItem('poursona_active_retailer')
             sessionStorage.removeItem('active_retailer')
           }
-          setShellState('authenticated-no-retailers')
+          setShellState('no-retailers')
           return
         }
 
-        const savedId =
-          typeof window !== 'undefined'
-            ? localStorage.getItem('poursona_active_retailer')
-            : null
-        const saved = retailers.find((r: any) => r.id === savedId)
-        const nextRetailer = saved || retailers[0]
-
-        setRetailer(nextRetailer)
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('poursona_active_retailer', nextRetailer.id)
-          sessionStorage.setItem('active_retailer', JSON.stringify(nextRetailer))
-        }
-        setShellState('authenticated')
+        setRetailer((previousRetailer: any) => {
+          const nextRetailer = resolveRetailer(access, previousRetailer)
+          if (nextRetailer && typeof window !== 'undefined') {
+            localStorage.setItem('poursona_active_retailer', nextRetailer.id)
+            sessionStorage.setItem('active_retailer', JSON.stringify(nextRetailer))
+          }
+          return nextRetailer
+        })
+        setShellState('ready')
       } catch (error) {
-        if (cancelled || requestIdRef.current !== requestId) return
-        console.error('[admin/layout] init failed:', error)
-        initializedRef.current = false
-        hasStableAccessRef.current = false
+        if (cancelled || currentRequestIdRef.current !== requestId) return
+        console.error('[admin/layout] bootstrap failed:', error)
         setShellState('unauthorized')
+      } finally {
+        if (!cancelled && currentRequestIdRef.current === requestId) {
+          bootstrapPromiseRef.current = null
+        }
       }
     }
 
-    init()
+    bootstrapPromiseRef.current = bootstrap()
 
     return () => {
       cancelled = true
@@ -166,12 +156,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   function handleSignOut() {
+    resetAdminAccessCache()
     window.location.href = '/admin/login'
   }
 
   if (isAdminAuthPath(pathname)) return <>{children}</>
 
-  if (shellState === 'auth-loading' || shellState === 'retailer-loading') {
+  if (shellState === 'bootstrapping') {
     return (
       <div
         style={{

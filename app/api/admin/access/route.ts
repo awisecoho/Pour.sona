@@ -21,6 +21,7 @@ export async function GET() {
       ok: true,
       email: identity.email,
       userId: identity.userId,
+      defaultRetailerId: retailers[0]?.id || null,
       retailers,
     })
   } catch (err) {
