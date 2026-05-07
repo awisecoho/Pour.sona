@@ -65,8 +65,9 @@ export async function GET() {
         `update admin_users
          set clerk_user_id = coalesce(clerk_user_id, $1),
              email = coalesce(email, $2)
-         where lower(email) = $2
-           and clerk_user_id is null`,
+         where lower(email) = lower($2)
+           and (clerk_user_id is null or clerk_user_id = $1)
+         returning retailer_id, clerk_user_id`,
         [userId, resolvedEmail]
       )
       clerkUserIdBackfillRan = (updateResult.rowCount || 0) > 0
@@ -88,6 +89,13 @@ export async function GET() {
       clerkEmailResolved: resolvedEmail,
       sessionClaimsEmail,
       currentUserEmail,
+      rawClerkAuth: {
+        userId,
+        hasSessionClaims: Boolean(authState.sessionClaims),
+      },
+      rawCurrentUserId: user?.id || null,
+      rawCurrentUserEmail: user?.emailAddresses?.[0]?.emailAddress || null,
+      middlewareDebug: 'Check middleware.ts matcher for /api/admin/*',
       matchingAdminUsersByEmail,
       matchingAdminUsersByClerkUserId,
       returnedRetailersCount,
