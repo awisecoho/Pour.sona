@@ -297,10 +297,10 @@ export async function normalizeToRetailerDraft(signals: Awaited<ReturnType<typeo
         content: `Extract product catalog from this beverage vendor website.
 
 VERTICAL DETECTION:
-- distillery/spirits/whiskey/bourbon/rye/gin/vodka/rum/moonshine → "distillery"
-- brewery/brewed/craft beer/IPA/stout/lager/ale/tap → "brewery"
-- winery/vineyard/wine/varietal/vintage → "winery"
-- coffee/roaster/espresso → "coffee"
+- distillery/spirits/whiskey/bourbon/rye/gin/vodka/rum/moonshine â "distillery"
+- brewery/brewed/craft beer/IPA/stout/lager/ale/tap â "brewery"
+- winery/vineyard/wine/varietal/vintage â "winery"
+- coffee/roaster/espresso â "coffee"
 NEVER default to brewery.
 
 COLORS: ${signals.brandColor ? `primary = ${signals.brandColor}` : 'use #C9A84C'}
@@ -340,6 +340,12 @@ ${signals.menuText}`
   if (!Array.isArray(catalog.products) || catalog.products.length === 0) {
     throw new Error('Catalog extraction returned no products')
   }
+
+  // Defensive normalization — Claude may omit keys when no data exists
+  catalog.products = Array.isArray(catalog.products) ? catalog.products : []
+  catalog.flights = Array.isArray(catalog.flights) ? catalog.flights : []
+  if (catalog.retailer && !catalog.retailer.brand_color) catalog.retailer.brand_color = signals.brandColor || '#C9A84C'
+  if (catalog.retailer && !catalog.retailer.logo_url) catalog.retailer.logo_url = signals.logoUrl || ''
 
   const eventsData = signals.eventsText
     ? await extractEvents({ eventsText: signals.eventsText, sourceUrl: signals.sourceUrl, currentDate: new Date().toISOString() })
