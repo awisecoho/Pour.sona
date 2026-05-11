@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 export const dynamic = 'force-dynamic'
 
-const ADD_MISSING = `
--- Add any columns that may have been missing from first schema run
+// Step 1: fix any column mismatches from partial first run
+const FIX_SCHEMA = `
 DO $$ BEGIN
+  -- retailers missing columns
   BEGIN ALTER TABLE retailers ADD COLUMN source_url text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN bg_color text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN qr_color text; EXCEPTION WHEN duplicate_column THEN NULL; END;
@@ -16,18 +17,24 @@ DO $$ BEGIN
   BEGIN ALTER TABLE retailers ADD COLUMN hours jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN stripe_customer_id text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN subscription_tier text DEFAULT 'starter'; EXCEPTION WHEN duplicate_column THEN NULL; END;
-  BEGIN ALTER TABLE admin_users ADD COLUMN clerk_user_id text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- admin_users: add user_email if missing (old schema had user_id uuid)
+  BEGIN ALTER TABLE admin_users ADD COLUMN user_email text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE admin_users ADD COLUMN email text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE admin_users ADD COLUMN clerk_user_id text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- drop the old user_id FK if it exists (from Supabase auth.users)
+  BEGIN ALTER TABLE admin_users DROP COLUMN user_id; EXCEPTION WHEN undefined_column THEN NULL; END;
 END $$;
 `
 
+// Step 2: seed core data
 const SEED = `
 INSERT INTO poursona_team (email, name, role)
 VALUES ('awise873@gmail.com', 'Ang', 'owner')
 ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO retailers
-  (id, name, slug, vertical, location, tagline, logo_url, brand_color, owner_email, subscription_status, active, story, culture, region, source_url)
+  (id, name, slug, vertical, location, tagline, logo_url, brand_color,
+   owner_email, subscription_status, active, story, culture, region, source_url)
 VALUES
   ('2420636e-a6f1-4ece-ab9f-cb5e8a9c21e8',
    'Keuka Brewing Co.', 'keuka-brewing-company', 'brewery',
@@ -51,8 +58,10 @@ ON CONFLICT (slug) DO NOTHING;
 
 INSERT INTO admin_users (user_email, email, retailer_id, role)
 VALUES
-  ('awise873@gmail.com', 'awise873@gmail.com', '2420636e-a6f1-4ece-ab9f-cb5e8a9c21e8', 'owner'),
-  ('awise873@gmail.com', 'awise873@gmail.com', 'bc2fde10-8eb1-42f7-9a03-d6b106332247', 'owner')
+  ('awise873@gmail.com', 'awise873@gmail.com',
+   '2420636e-a6f1-4ece-ab9f-cb5e8a9c21e8', 'owner'),
+  ('awise873@gmail.com', 'awise873@gmail.com',
+   'bc2fde10-8eb1-42f7-9a03-d6b106332247', 'owner')
 ON CONFLICT DO NOTHING;
 `
 
@@ -62,16 +71,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
   try {
-    await dbQuery(ADD_MISSING)
+    // Get current admin_users columns for diagnostics
+    const cols = await dbQuery(`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'admin_users'
+      ORDER BY ordinal_position
+    `)
+
+    await dbQuery(FIX_SCHEMA)
     await dbQuery(SEED)
-    const tables = await dbQuery(`SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename`)
+
+    const tables = await dbQuery(`
+      SELECT tablename FROM pg_tables
+      WHERE schemaname = 'public' ORDER BY tablename
+    `)
     const counts = await dbQuery(`
       SELECT
         (SELECT COUNT(*) FROM retailers) as retailers,
         (SELECT COUNT(*) FROM admin_users) as admin_users,
         (SELECT COUNT(*) FROM poursona_team) as poursona_team
     `)
-    return NextResponse.json({ ok: true, tables: tables.rows.map((r:any) => r.tablename), counts: counts.rows[0] })
+    const adminCols = await dbQuery(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'admin_users'
+      ORDER BY ordinal_position
+    `)
+
+    return NextResponse.json({
+      ok: true,
+      tables: tables.rows.map((r: any) => r.tablename),
+      counts: counts.rows[0],
+      admin_users_columns: adminCols.rows.map((r: any) => r.column_name),
+      before_fix_columns: cols.rows.map((r: any) => r.column_name + ':' + r.data_type)
+    })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
