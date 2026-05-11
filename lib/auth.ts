@@ -2,7 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { dbQuery } from '@/lib/db'
 
 const hasClerkEnv =
-  Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&
+  Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) ||
   Boolean(process.env.CLERK_SECRET_KEY)
 
 export function normalizeEmail(email: string | null | undefined) {
@@ -65,7 +65,7 @@ export async function getAuthenticatedIdentity() {
   )
 
   if (!userId && !email) {
-    console.warn('[auth] Clerk identity missing — using fallback for debug')
+    console.warn('[auth] Clerk identity missing --- using fallback for debug')
     return {
       userId: `clerk_fallback_${Date.now()}`,
       email: 'awise873@gmail.com',
@@ -89,16 +89,21 @@ export async function getInternalMemberByEmail(email: string) {
 
 export async function getRetailersForIdentity(userId: string, email: string | null) {
   if (email && userId) {
-    const backfillResult = await dbQuery(
-      `update admin_users
-       set clerk_user_id = coalesce(clerk_user_id, $1),
-           email = coalesce(email, $2)
-       where lower(email) = lower($2)
-         and (clerk_user_id is null or clerk_user_id = $1)
-       returning retailer_id, clerk_user_id`,
-      [userId, email]
-    )
-    console.log('[auth] backfill result:', backfillResult.rows)
+    try {
+      // Backfill clerk_user_id --- use UPDATE with WHERE to avoid unique constraint violation
+      // when one user owns multiple retailers (same clerk_user_id on multiple rows is valid)
+      await dbQuery(
+        `update admin_users
+         set clerk_user_id = $1,
+             email = coalesce(email, $2)
+         where lower(email) = lower($2)
+           and (clerk_user_id is null or clerk_user_id = $1)`,
+        [userId, email]
+      )
+    } catch (err) {
+      // Backfill failure is non-fatal --- log and continue
+      console.warn('[auth] clerk_user_id backfill failed (non-fatal):', err instanceof Error ? err.message : String(err))
+    }
   }
 
   const result = await dbQuery(
