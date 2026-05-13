@@ -12,7 +12,7 @@ export default function RetailerDetail() {
   const [sessions, setSessions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [tab, setTab] = useState<'overview' | 'products' | 'rescan' | 'invite'>('overview')
+  const [tab, setTab] = useState<'overview' | 'products' | 'billing' | 'rescan' | 'invite'>('overview')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting, setInviting] = useState(false)
   const [inviteResult, setInviteResult] = useState('')
@@ -21,42 +21,31 @@ export default function RetailerDetail() {
   const [rescanResult, setRescanResult] = useState<any>(null)
   const [rescanError, setRescanError] = useState('')
   const [loadError, setLoadError] = useState('')
+  // Billing / trial
+  const [extendDays, setExtendDays] = useState(30)
+  const [extending, setExtending] = useState(false)
+  const [billingMsg, setBillingMsg] = useState('')
 
-  useEffect(() => {
-    if (id) load()
-  }, [id])
+  useEffect(() => { if (id) load() }, [id])
 
   async function load() {
     try {
       setLoadError('')
-      const res = await fetch(`/api/poursona-admin/retailer/${encodeURIComponent(id)}`, {
-        cache: 'no-store',
-      })
+      const res = await fetch('/api/poursona-admin/retailer/' + encodeURIComponent(id), { cache: 'no-store' })
       const json = await res.json()
       if (!res.ok || !json?.ok) {
-        console.error('[poursona-admin/retailer] load failed:', json)
-        setRetailer(null)
-        setProducts([])
-        setFlights([])
-        setSessions([])
-        setLoadError(json?.error || 'Retailer detail could not be loaded.')
+        setLoadError(json?.error || 'Load failed')
         setLoading(false)
         return
       }
-
       setRetailer(json.retailer || null)
       setProducts(json.products || [])
       setFlights(json.flights || [])
       setSessions(json.sessions || [])
       if (json.retailer?.source_url) setRescanUrl(json.retailer.source_url)
       setLoading(false)
-    } catch (error) {
-      console.error('[poursona-admin/retailer] load failed:', error)
-      setRetailer(null)
-      setProducts([])
-      setFlights([])
-      setSessions([])
-      setLoadError('Retailer detail could not be loaded.')
+    } catch {
+      setLoadError('Could not load retailer.')
       setLoading(false)
     }
   }
@@ -64,21 +53,14 @@ export default function RetailerDetail() {
   async function saveField(field: string, value: any) {
     setSaving(true)
     try {
-      const res = await fetch(`/api/poursona-admin/retailer/${encodeURIComponent(id)}`, {
+      const res = await fetch('/api/poursona-admin/retailer/' + encodeURIComponent(id), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
       })
       const json = await res.json()
-      if (!res.ok || !json?.ok) {
-        console.error('[poursona-admin/retailer] save failed:', json)
-        setSaving(false)
-        return
-      }
-      setRetailer(json.retailer || null)
-    } catch (error) {
-      console.error('[poursona-admin/retailer] save failed:', error)
-    }
+      if (res.ok && json?.ok) setRetailer(json.retailer || null)
+    } catch {}
     setSaving(false)
   }
 
@@ -118,6 +100,36 @@ export default function RetailerDetail() {
     setInviting(false)
   }
 
+  async function extendTrial() {
+    if (!retailer) return
+    setExtending(true)
+    setBillingMsg('')
+    try {
+      const res = await fetch('/api/poursona-admin/extend-trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retailerId: id, days: extendDays }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json?.ok) throw new Error(json.error || 'Failed')
+      setRetailer((prev: any) => ({
+        ...prev,
+        subscription_status: json.retailer.subscription_status,
+        trial_ends_at: json.retailer.trial_ends_at,
+      }))
+      setBillingMsg('Trial extended. New expiry: ' + new Date(json.retailer.trial_ends_at).toLocaleDateString())
+    } catch (err: any) {
+      setBillingMsg('Error: ' + err.message)
+    }
+    setExtending(false)
+  }
+
+  async function setStatus(status: string) {
+    setBillingMsg('')
+    await saveField('subscription_status', status)
+    setBillingMsg('Status set to ' + status)
+  }
+
   function openVendorAdmin() {
     if (!retailer) return
     sessionStorage.setItem('active_retailer', JSON.stringify(retailer))
@@ -129,18 +141,80 @@ export default function RetailerDetail() {
   if (loadError) return <div style={{ color: '#F5ECD7' }}>{loadError}</div>
   if (!retailer) return <div style={{ color: '#e07070' }}>Retailer not found.</div>
 
+  const trialEnds = retailer.trial_ends_at ? new Date(retailer.trial_ends_at) : null
+  const trialExpired = trialEnds && trialEnds < new Date()
+  const daysLeft = trialEnds ? Math.ceil((trialEnds.getTime() - Date.now()) / 86400000) : null
+
   const s = {
-    card: { background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px', marginBottom: 16 } as React.CSSProperties,
-    label: { color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 6 },
-    inp: { width: '100%', padding: '11px 12px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 14, outline: 'none', boxSizing: 'border-box' as const },
-    tabBtn: (active: boolean) => ({ padding: '9px 16px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, background: active ? 'rgba(201,168,76,.15)' : 'transparent', color: active ? '#C9A84C' : '#4a3a1a', borderBottom: active ? '2px solid #C9A84C' : '2px solid transparent' } as React.CSSProperties),
-    rescanBtn: (color: string) => ({ padding: '12px 18px', border: 'none', borderRadius: 8, background: color, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: rescanning ? 'wait' : 'pointer', opacity: rescanning ? .5 : 1, flex: 1 } as React.CSSProperties),
+    card: {
+      background: 'linear-gradient(145deg,#0e0b06,#0a0805)',
+      border: '1px solid rgba(201,168,76,.15)',
+      borderRadius: 14,
+      padding: '20px',
+      marginBottom: 16,
+    } as React.CSSProperties,
+    label: {
+      color: '#C9A84C',
+      fontSize: 10,
+      letterSpacing: '.15em',
+      textTransform: 'uppercase' as const,
+      display: 'block',
+      marginBottom: 6,
+    },
+    inp: {
+      width: '100%',
+      padding: '11px 12px',
+      background: 'rgba(255,255,255,.05)',
+      border: '1px solid rgba(201,168,76,.2)',
+      borderRadius: 8,
+      color: '#F5ECD7',
+      fontFamily: 'Georgia, serif',
+      fontSize: 14,
+      outline: 'none',
+      boxSizing: 'border-box' as const,
+    },
+    tabBtn: (active: boolean) => ({
+      padding: '9px 16px',
+      borderRadius: '8px 8px 0 0',
+      border: 'none',
+      cursor: 'pointer',
+      fontFamily: 'Georgia, serif',
+      fontSize: 12,
+      fontWeight: 700,
+      background: active ? 'rgba(201,168,76,.15)' : 'transparent',
+      color: active ? '#C9A84C' : '#4a3a1a',
+      borderBottom: active ? '2px solid #C9A84C' : '2px solid transparent',
+    } as React.CSSProperties),
+    rescanBtn: (color: string) => ({
+      padding: '12px 18px',
+      border: 'none',
+      borderRadius: 8,
+      background: color,
+      color: '#060403',
+      fontFamily: 'Georgia, serif',
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: rescanning ? 'wait' : 'pointer',
+      opacity: rescanning ? .5 : 1,
+      flex: 1,
+    } as React.CSSProperties),
+    btn: (v?: string) => ({
+      padding: '11px 20px',
+      borderRadius: 8,
+      border: 'none',
+      cursor: 'pointer',
+      fontFamily: 'Georgia, serif',
+      fontSize: 12,
+      fontWeight: 700,
+      background: v === 'danger' ? 'rgba(255,100,100,.15)' : v === 'green' ? 'rgba(94,207,138,.15)' : 'linear-gradient(135deg,#C9A84C,#a07830)',
+      color: v === 'danger' ? '#e07070' : v === 'green' ? '#5ecf8a' : '#060403',
+    } as React.CSSProperties),
   }
 
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <Link href="/poursona-admin" style={{ color: '#4a3a1a', fontSize: 12, textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>Back to All Retailers</Link>
+        <Link href="/poursona-admin" style={{ color: '#4a3a1a', fontSize: 12, textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>← Back</Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 48, height: 48, borderRadius: 10, background: retailer.brand_color || '#C9A84C', flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
@@ -156,13 +230,17 @@ export default function RetailerDetail() {
         <button onClick={openVendorAdmin} style={{ padding: '10px 16px', background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#C9A84C', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>Vendor Admin</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 0, borderBottom: '1px solid rgba(201,168,76,.1)' }}>
-        {(['overview', 'products', 'rescan', 'invite'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={s.tabBtn(tab === t)}>{t === 'rescan' ? 'Re-scan' : t.charAt(0).toUpperCase() + t.slice(1)}</button>
+      <div style={{ display: 'flex', gap: 2, marginBottom: 0, borderBottom: '1px solid rgba(201,168,76,.1)', flexWrap: 'wrap' }}>
+        {(['overview', 'products', 'billing', 'rescan', 'invite'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={s.tabBtn(tab === t)}>
+            {t === 'rescan' ? 'Re-scan' : t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === 'billing' && trialExpired ? ' ⚠' : ''}
+          </button>
         ))}
       </div>
 
       <div style={{ paddingTop: 16 }}>
+
         {tab === 'overview' && (
           <div>
             <div style={s.card}>
@@ -177,7 +255,9 @@ export default function RetailerDetail() {
                 <div key={field} style={{ marginBottom: 14 }}>
                   <label style={s.label}>{label}</label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {field === 'brand_color' && <div style={{ width: 32, height: 32, borderRadius: 6, background: retailer.brand_color || '#C9A84C', flexShrink: 0, border: '1px solid rgba(255,255,255,.1)' }} />}
+                    {field === 'brand_color' && (
+                      <div style={{ width: 32, height: 32, borderRadius: 6, background: retailer.brand_color || '#C9A84C', flexShrink: 0, border: '1px solid rgba(255,255,255,.1)' }} />
+                    )}
                     <input defaultValue={value} onBlur={e => saveField(field, e.target.value)} style={s.inp} />
                   </div>
                 </div>
@@ -193,13 +273,15 @@ export default function RetailerDetail() {
             )}
             <div style={s.card}>
               <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Recent Sessions</div>
-              {sessions.length === 0 ? <div style={{ color: '#4a3a1a', fontSize: 13 }}>No sessions yet.</div> : sessions.map(s => (
-                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(201,168,76,.06)' }}>
-                  <span style={{ color: '#6a5a3a', fontSize: 12 }}>{s.id.substring(0, 8)}...</span>
-                  <span style={{ color: s.order_status === 'ordered' ? '#5ecf8a' : s.order_status === 'recommended' ? '#C9A84C' : '#4a3a1a', fontSize: 12 }}>{s.order_status}</span>
-                  <span style={{ color: '#4a3a1a', fontSize: 11 }}>{new Date(s.created_at).toLocaleDateString()}</span>
-                </div>
-              ))}
+              {sessions.length === 0
+                ? <div style={{ color: '#4a3a1a', fontSize: 13 }}>No sessions yet.</div>
+                : sessions.map(sess => (
+                  <div key={sess.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(201,168,76,.06)' }}>
+                    <span style={{ color: '#6a5a3a', fontSize: 12 }}>{sess.id.substring(0, 8)}...</span>
+                    <span style={{ color: sess.order_status === 'ordered' ? '#5ecf8a' : sess.order_status === 'recommended' ? '#C9A84C' : '#4a3a1a', fontSize: 12 }}>{sess.order_status}</span>
+                    <span style={{ color: '#4a3a1a', fontSize: 11 }}>{new Date(sess.created_at).toLocaleDateString()}</span>
+                  </div>
+                ))}
             </div>
           </div>
         )}
@@ -210,18 +292,119 @@ export default function RetailerDetail() {
             {products.map(p => (
               <div key={p.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(201,168,76,.06)' }}>
                 <div style={{ color: '#F5ECD7', fontSize: 14 }}>{p.name}</div>
-                <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2 }}>{[p.category, p.style, p.abv ? p.abv + ' ABV' : null, p.price ? '$' + p.price : null].filter(Boolean).join(' · ')}</div>
+                <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2 }}>
+                  {[p.category, p.style, p.abv ? p.abv + ' ABV' : null, p.price ? '$' + p.price : null].filter(Boolean).join(' · ')}
+                </div>
               </div>
             ))}
-            {flights.length > 0 && <>
-              <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, margin: '20px 0 14px' }}>Flights ({flights.length})</div>
-              {flights.map(f => (
-                <div key={f.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(201,168,76,.06)' }}>
-                  <div style={{ color: '#F5ECD7', fontSize: 14 }}>{f.name}</div>
-                  <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2 }}>{f.count} × {f.pour_size} · ${f.price}</div>
+            {flights.length > 0 && (
+              <>
+                <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, margin: '20px 0 14px' }}>Flights ({flights.length})</div>
+                {flights.map(f => (
+                  <div key={f.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(201,168,76,.06)' }}>
+                    <div style={{ color: '#F5ECD7', fontSize: 14 }}>{f.name}</div>
+                    <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2 }}>{f.count} × {f.pour_size} · ${f.price}</div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+
+        {tab === 'billing' && (
+          <div>
+            {/* Current status card */}
+            <div style={s.card}>
+              <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Subscription Status</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <span style={{
+                  padding: '5px 14px',
+                  borderRadius: 20,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  background: retailer.subscription_status === 'active' ? 'rgba(94,207,138,.15)' : trialExpired ? 'rgba(255,100,100,.12)' : 'rgba(201,168,76,.12)',
+                  color: retailer.subscription_status === 'active' ? '#5ecf8a' : trialExpired ? '#e07070' : '#C9A84C',
+                  border: '1px solid ' + (retailer.subscription_status === 'active' ? 'rgba(94,207,138,.3)' : trialExpired ? 'rgba(255,100,100,.3)' : 'rgba(201,168,76,.25)'),
+                }}>
+                  {retailer.subscription_status || 'trial'}
+                </span>
+                {trialEnds && (
+                  <span style={{ color: trialExpired ? '#e07070' : '#4a3a1a', fontSize: 13 }}>
+                    {trialExpired
+                      ? 'Expired ' + trialEnds.toLocaleDateString()
+                      : daysLeft + ' days left · ' + trialEnds.toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              <label style={s.label}>Override Status</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {['trial', 'active', 'cancelled', 'expired'].map(status => (
+                  <button
+                    key={status}
+                    onClick={() => setStatus(status)}
+                    style={{
+                      ...s.btn(status === 'active' ? 'green' : status === 'cancelled' || status === 'expired' ? 'danger' : undefined),
+                      opacity: retailer.subscription_status === status ? 1 : 0.55,
+                      textTransform: 'capitalize',
+                    }}>
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Extend trial card */}
+            <div style={s.card}>
+              <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Extend Trial</div>
+              <div style={{ color: '#4a3a1a', fontSize: 13, marginBottom: 18, lineHeight: 1.6 }}>
+                Adds days from today (or from current expiry if not yet expired). Resets status to trial.
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                {[7, 14, 30, 60, 90].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setExtendDays(d)}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      border: '1px solid rgba(201,168,76,' + (extendDays === d ? '.6' : '.2') + ')',
+                      background: extendDays === d ? 'rgba(201,168,76,.15)' : 'transparent',
+                      color: extendDays === d ? '#C9A84C' : '#4a3a1a',
+                      cursor: 'pointer',
+                      fontFamily: 'Georgia, serif',
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}>
+                    {d}d
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={extendTrial}
+                disabled={extending}
+                style={{ ...s.btn(), opacity: extending ? .6 : 1 }}>
+                {extending ? 'Extending...' : 'Extend +' + extendDays + ' days'}
+              </button>
+              {billingMsg && (
+                <div style={{
+                  marginTop: 14,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: billingMsg.startsWith('Error') ? 'rgba(255,100,100,.08)' : 'rgba(94,207,138,.08)',
+                  border: '1px solid ' + (billingMsg.startsWith('Error') ? 'rgba(255,100,100,.2)' : 'rgba(94,207,138,.2)'),
+                  color: billingMsg.startsWith('Error') ? '#e07070' : '#5ecf8a',
+                  fontSize: 13,
+                }}>
+                  {billingMsg}
                 </div>
-              ))}
-            </>}
+              )}
+            </div>
+
+            {/* Stripe placeholder */}
+            <div style={{ ...s.card, opacity: .45 }}>
+              <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Stripe (coming soon)</div>
+              <div style={{ color: '#4a3a1a', fontSize: 13 }}>Customer ID: {retailer.stripe_customer_id || 'Not connected'}</div>
+            </div>
           </div>
         )}
 
@@ -229,54 +412,35 @@ export default function RetailerDetail() {
           <div>
             <div style={s.card}>
               <div style={{ color: '#F5ECD7', fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Re-scan Website</div>
-              <div style={{ color: '#4a3a1a', fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>Update this retailer&apos;s data by re-reading their website. Choose what to update.</div>
+              <div style={{ color: '#4a3a1a', fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
+                Update this retailer&apos;s data by re-reading their website.
+              </div>
               <div style={{ marginBottom: 20 }}>
                 <label style={s.label}>Website URL</label>
-                <input
-                  type="url"
-                  value={rescanUrl}
-                  onChange={e => setRescanUrl(e.target.value)}
-                  placeholder="https://theirwebsite.com"
-                  style={s.inp}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                />
+                <input type="url" value={rescanUrl} onChange={e => setRescanUrl(e.target.value)} placeholder="https://theirwebsite.com" style={s.inp} autoCapitalize="none" autoCorrect="off" />
               </div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-                <button onClick={() => runRescan('catalog')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('rgba(201,168,76,.3)')}>
-                  {rescanning ? '...' : 'Catalog Only'}
-                </button>
-                <button onClick={() => runRescan('branding')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('rgba(201,168,76,.3)')}>
-                  {rescanning ? '...' : 'Branding Only'}
-                </button>
-                <button onClick={() => runRescan('full')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('linear-gradient(135deg,#C9A84C,#a07830)')}>
-                  {rescanning ? 'Scanning...' : 'Full Rescan'}
-                </button>
+                <button onClick={() => runRescan('catalog')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('rgba(201,168,76,.3)')}>{rescanning ? '...' : 'Catalog Only'}</button>
+                <button onClick={() => runRescan('branding')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('rgba(201,168,76,.3)')}>{rescanning ? '...' : 'Branding Only'}</button>
+                <button onClick={() => runRescan('full')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('linear-gradient(135deg,#C9A84C,#a07830)')}>{rescanning ? 'Scanning...' : 'Full Rescan'}</button>
               </div>
               <div style={{ color: '#4a3a1a', fontSize: 11, lineHeight: 1.7 }}>
-                <strong style={{ color: '#6a5a3a' }}>Catalog Only</strong> - adds new products, keeps manual edits<br />
-                <strong style={{ color: '#6a5a3a' }}>Branding Only</strong> - updates colors, logo, story, and tagline<br />
-                <strong style={{ color: '#6a5a3a' }}>Full Rescan</strong> - replaces all products, updates all branding and story
+                <strong style={{ color: '#6a5a3a' }}>Catalog Only</strong> — adds new products, keeps manual edits<br />
+                <strong style={{ color: '#6a5a3a' }}>Branding Only</strong> — updates colors, logo, story, tagline<br />
+                <strong style={{ color: '#6a5a3a' }}>Full Rescan</strong> — replaces all products, updates all branding
               </div>
             </div>
             {rescanning && (
               <div style={{ ...s.card, textAlign: 'center', padding: '32px' }}>
                 <div style={{ color: '#C9A84C', fontSize: 14, marginBottom: 8 }}>Reading website...</div>
-                <div style={{ color: '#4a3a1a', fontSize: 12 }}>This takes 20-40 seconds. AI is extracting colors, story, and products.</div>
+                <div style={{ color: '#4a3a1a', fontSize: 12 }}>20-40 seconds. AI is extracting colors, story, and products.</div>
               </div>
             )}
             {rescanResult && (
               <div style={{ ...s.card, border: '1px solid rgba(94,207,138,.25)' }}>
                 <div style={{ color: '#5ecf8a', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Rescan Complete</div>
                 <div style={{ color: '#F5ECD7', fontSize: 13, marginBottom: 8 }}>Mode: <span style={{ color: '#C9A84C' }}>{rescanResult.mode}</span></div>
-                {rescanResult.retailer?.brand_color && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <div style={{ width: 20, height: 20, borderRadius: 4, background: rescanResult.retailer.brand_color, border: '1px solid rgba(255,255,255,.1)' }} />
-                    <span style={{ color: '#C9A84C', fontSize: 12 }}>{rescanResult.retailer.brand_color}</span>
-                  </div>
-                )}
                 {rescanResult.newProducts > 0 && <div style={{ color: '#F5ECD7', fontSize: 13 }}>{rescanResult.newProducts} new products added</div>}
-                {rescanResult.retailer?.story && <div style={{ color: '#6a5a3a', fontSize: 12, marginTop: 10, lineHeight: 1.6 }}>{rescanResult.retailer.story}</div>}
               </div>
             )}
             {rescanError && <div style={{ color: '#e07070', fontSize: 13, padding: '12px', background: 'rgba(255,100,100,.08)', borderRadius: 8 }}>{rescanError}</div>}
@@ -299,6 +463,7 @@ export default function RetailerDetail() {
             </div>
           </div>
         )}
+
       </div>
     </div>
   )
