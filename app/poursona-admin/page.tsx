@@ -145,7 +145,7 @@ export default function AppCommandCenter() {
           </div>
           {expired.length > 0 && (
             <div style={{ background: 'rgba(255,100,100,.06)', border: '1px solid rgba(255,100,100,.2)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-              <div style={{ color: '#e07070', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>⚠ {expired.length} expired trial{nexpired.length !== 1 ? 's' : ''} need attention</div>
+              <div style={{ color: '#e07070', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>⚠ {expired.length} expired trial{expired.length !== 1 ? 's' : ''} need attention</div>
               {expired.map(r => (
                 <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,100,100,.1)' }}>
                   <div><span style={{ color: '#F5ECD7', fontSize: 13 }}>{r.name}</span><span style={{ color: '#4a3a1a', fontSize: 11, marginLeft: 10 }}>expired {r.trial_ends_at ? new Date(r.trial_ends_at).toLocaleDateString() : ''}</span></div>
@@ -172,7 +172,7 @@ export default function AppCommandCenter() {
             return (
               <div key={r.id} style={{ ...card, marginBottom: 0, opacity: r.active ? 1 : 0.55 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 10, background: r.brand_color || '#C9A84C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{ICONS[r.vertical] || '✦v'}</div>
+                  <div style={{ width: 44, height: 44, borderRadius: 10, background: r.brand_color || '#C9A84C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{ICONS[r.vertical] || '✦'}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ color: '#F5ECD7', fontSize: 15, fontWeight: 700 }}>{r.name}</div>
                     <div style={{ color: '#4a3a1a', fontSize: 12, marginTop: 2, textTransform: 'capitalize' }}>{r.vertical} · /r/{r.slug}</div>
@@ -213,8 +213,8 @@ export default function AppCommandCenter() {
                 <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Vendor Billing</div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                    <thead><tr style={{ borderBottom: '1px solid rgba(201,168,76,.15)' }}>{['Vendor', 'Plan', 'Status', 'MRR', 'Credits', 'Since'].map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: '#4a3a1a', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700 }}>{h</th>)}</tr></thead>
-                    <tbody>{(accounting.vendors || []).map((v: any) => ( <tr key={v.id} style={{ borderBottom: '1px solid rgba(201,168,76,.06)' }}><td style={{ padding: '10px', color: '#F5ECD7' }}>{v.name}</td><td style={{ padding: '10px', color: '#6a5a3a', textTransform: 'capitalize' }}>v.subscription_tier || '—'}</td><td style={{ padding: '10px' }}><span style={{ color: v.subscription_status === 'active' ? '#5ecf8a' : '#C9A84C', textTransform: 'capitalize' }}>{v.subscription_status || 'trial'}</span></td><td style={{ padding: '10px', color: v.mrr ? '#5ecf8a' : '#4a3a1a' }}>{v.mrr ? '$' + v.mrr : '—'}</td><td style={{ padding: '10px', color: '#4a3a1a' }}>{v.credit_balance ? '$' + v.credit_balance : '—'}</td><td style={{ padding: '10px', color: '#4a3a1a' }}>{v.created_at ? new Date(v.created_at).toLocaleDateString() : '—'}</td></tr> ))}</tbody>
+                    <thead><tr style={{ borderBottom: '1px solid rgba(201,168,76,.15)' }}>{['Vendor', 'Plan', 'Status', 'MRR', 'Credits', 'Since'].map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: '#4a3a1a', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700 }}>{h}</th>)}</tr></thead>
+                    <tbody>{(accounting.vendors || []).map((v: any) => ( <tr key={v.id} style={{ borderBottom: '1px solid rgba(201,168,76,.06)' }}><td style={{ padding: '10px', color: '#F5ECD7' }}>{v.name}</td><td style={{ padding: '10px', color: '#6a5a3a', textTransform: 'capitalize' }}>{v.subscription_tier || '—'}</td><td style={{ padding: '10px' }}><span style={{ color: v.subscription_status === 'active' ? '#5ecf8a' : '#C9A84C', textTransform: 'capitalize' }}>{v.subscription_status || 'trial'}</span></td><td style={{ padding: '10px', color: v.mrr ? '#5ecf8a' : '#4a3a1a' }}>{v.mrr ? '$' + v.mrr : '—'}</td><td style={{ padding: '10px', color: '#4a3a1a' }}>{v.credit_balance ? '$' + v.credit_balance : '—'}</td><td style={{ padding: '10px', color: '#4a3a1a' }}>{v.created_at ? new Date(v.created_at).toLocaleDateString() : '—'}</td></tr> ))}</tbody>
                   </table>
                 </div>
               </div>
@@ -236,7 +236,7 @@ export default function AppCommandCenter() {
               <div><label style={label}>Description</label><input value={promoForm.description} onChange={e => setPromoForm(p => ({ ...p, description: e.target.value }))} placeholder="Warm discount for new vendors" style={inp} /></div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button onClick={createPromo} disabled={promoSaving} style={{ ...btn(), opacity: promoSaving ? .6 : 1 }}>{promoSaving ? 'Creating…'� : 'Create Promo'</button>
+              <button onClick={createPromo} disabled={promoSaving} style={{ ...btn(), opacity: promoSaving ? .6 : 1 }}>{promoSaving ? 'Creating…' : 'Create Promo'}</button>
               {promoMsg && <span style={{ fontSize: 13, color: promoMsg.startsWith('Error') ? '#e07070' : '#5ecf8a' }}>{promoMsg}</span>}
             </div>
           </div>
