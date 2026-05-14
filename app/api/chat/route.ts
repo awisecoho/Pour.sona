@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@supabase/supabase-js'
 import { buildSystemPrompt } from '@/lib/prompts'
+import { dbQuery } from '@/lib/db'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -9,16 +9,13 @@ export async function POST(req: NextRequest) {
     const { sessionId, retailerSlug, messages, chipContext } = await req.json()
     if (!sessionId || !retailerSlug) return NextResponse.json({ error: 'missing fields' }, { status: 400 })
 
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } })
-    const { data: retailerRow } = await supabase.from('retailers').select('id').eq('slug', retailerSlug).single()
-    if (!retailerRow) return NextResponse.json({ error: 'retailer not found' }, { status: 404 })
-
-    const [{ data: retailer }, { data: inStockProducts }, { data: activeFlights }] = await Promise.all([
-      supabase.from('retailers').select('*').eq('slug', retailerSlug).single(),
-      supabase.from('products').select('*').eq('retailer_id', retailerRow.id).eq('in_stock', true).order('sort_order').limit(80),
-      supabase.from('flights').select('*').eq('retailer_id', retailerRow.id).eq('active', true),
-    ])
+    const retailerResult = await dbQuery(
+      'select * from retailers where slug = $1 limit 1',
+      [retailerSlug]
+    )
+    const retailer = retailerResult.rows[0]
     if (!retailer) return NextResponse.json({ error: 'retailer not found' }, { status: 404 })
+
     const now = new Date()
     const trialEnd = retailer.trial_ends_at ? new Date(retailer.trial_ends_at) : null
     const subStatus = retailer.subscription_status
@@ -26,11 +23,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'subscription_inactive' }, { status: 402 })
     }
     if (subStatus === 'trial' && trialEnd && now > trialEnd) {
-      await supabase.from('retailers').update({ subscription_status: 'expired' }).eq('id', retailer.id)
+      await dbQuery(
+        "update retailers set subscription_status = 'expired' where id = $1",
+        [retailer.id]
+      )
       return NextResponse.json({ error: 'subscription_inactive' }, { status: 402 })
     }
 
-    const systemPrompt = buildSystemPrompt(retailer, inStockProducts || [], activeFlights || [])
+    const [productsResult, flightsResult] = await Promise.all([
+      dbQuery(
+        'select * from products where retailer_id = $1 and in_stock = true order by sort_order limit 80',
+        [retailer.id]
+      ),
+      dbQuery(
+        'select * from flights where retailer_id = $1 and active = true',
+        [retailer.id]
+      ),
+    ])
+
+    const systemPrompt = buildSystemPrompt(retailer, productsResult.rows, flightsResult.rows)
 
     let apiMessages = [...messages]
     if (chipContext && apiMessages[0]?.role === 'user') {
@@ -66,13 +77,23 @@ export async function POST(req: NextRequest) {
             try { recData = JSON.parse(recMatch[1].trim().replace(/^```json\s*/i,'').replace(/```\s*$/i,'').trim()) } catch {}
           }
           controller.enqueue(encoder.encode('data: ' + JSON.stringify({ done: true, text: fullText, recData }) + '\n\n'))
-          supabase.from('sessions').update({
-            messages: apiMessages,
-            order_status: recData ? 'recommended' : 'browsing',
-            recommended_at: recData ? new Date().toISOString() : null,
-            blend_name: recData?.recommendationName || null,
-            blend_data: recData || null,
-          }).eq('id', sessionId).then(() => {})
+          dbQuery(
+            `update sessions set
+               messages = $2::jsonb,
+               order_status = $3,
+               recommended_at = $4,
+               blend_name = $5,
+               blend_data = $6::jsonb
+             where id = $1`,
+            [
+              sessionId,
+              JSON.stringify(apiMessages),
+              recData ? 'recommended' : 'browsing',
+              recData ? new Date().toISOString() : null,
+              recData?.recommendationName || null,
+              JSON.stringify(recData || null),
+            ]
+          ).catch(() => {})
           controller.close()
         } catch {
           controller.enqueue(encoder.encode('data: ' + JSON.stringify({ error: 'Stream error' }) + '\n\n'))
