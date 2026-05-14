@@ -84,6 +84,14 @@ function OrderForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Generate once per form mount. Reused on retries (component stays mounted),
+  // refreshed automatically if the guest closes and re-opens the form.
+  const idempotencyKey = useRef(
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  )
+
   const inp: React.CSSProperties = {
     width: '100%', padding: '13px 14px', background: 'rgba(255,255,255,.05)',
     border: '1px solid rgba(201,168,76,.2)', borderRadius: 10, color: '#F5ECD7',
@@ -99,7 +107,10 @@ function OrderForm({
     try {
       const res = await fetch('/api/order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Idempotency-Key': idempotencyKey.current,
+        },
         body: JSON.stringify({
           sessionId,
           retailerId: retailer.id,
