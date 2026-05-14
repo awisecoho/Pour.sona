@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
-import { sendOrderConfirmation } from '@/lib/email'
+import { sendOrderConfirmation, sendOrderAlert } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,10 +30,17 @@ export async function POST(req: NextRequest) {
       [retailerId, sessionId || null, JSON.stringify({ order_id: order.id, blend_name: blendName, subtotal })]
     )
 
+    const retailerResult = await dbQuery('select name, owner_email from retailers where id = $1 limit 1', [retailerId])
+    const retailerName = retailerResult.rows[0]?.name || 'your venue'
+    const ownerEmail = retailerResult.rows[0]?.owner_email
+
     if (customerEmail) {
-      const retailerResult = await dbQuery('select name from retailers where id = $1 limit 1', [retailerId])
-      const retailerName = retailerResult.rows[0]?.name || 'your venue'
       sendOrderConfirmation({ to: customerEmail, retailerName, blendName: blendName || 'Your Selection', items: items || [], subtotal })
+    }
+
+    if (ownerEmail) {
+      const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin/orders`
+      sendOrderAlert({ to: ownerEmail, retailerName, blendName: blendName || 'New Order', customerName: customerName || null, customerEmail: customerEmail || null, items: items || [], subtotal, orderId: order.id, dashboardUrl })
     }
 
     return NextResponse.json({ success: true, orderId: order.id, subtotal })
