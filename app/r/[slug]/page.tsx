@@ -6,7 +6,7 @@ interface Retailer {
   id: string
   name: string
   slug: string
-  vertical: 'coffee' | 'brewery' | 'winery'
+  vertical: 'coffee' | 'brewery' | 'winery' | 'distillery'
   location?: string
   tagline?: string
   logo_url?: string
@@ -46,6 +46,7 @@ const VERTICAL_ICONS: Record<string, string> = {
   coffee: '☕',
   brewery: '🍺',
   winery: '🍷',
+  distillery: '🥃',
 }
 
 const stripRec = (text: string) =>
@@ -447,8 +448,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
     await streamChat([
       {
         role: 'user',
-        content:
-          'Begin. Greet me warmly with a welcome to the retailer, introduce yourself briefly, and ask your first discovery question.',
+        content: 'START',
       },
     ])
   }
@@ -563,7 +563,9 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
             ? 'Blend'
             : retailer.vertical === 'brewery'
               ? 'Beer'
-              : 'Wine'}
+              : retailer.vertical === 'distillery'
+                ? 'Pour'
+                : 'Wine'}
         </button>
       </div>
     )

@@ -47,8 +47,8 @@ export async function POST(req: NextRequest) {
     if (chipContext && apiMessages[0]?.role === 'user') {
       apiMessages[0] = { role: 'user', content: `My mood/preference: ${chipContext}. Now help me find the perfect selection.` }
     }
-    if (apiMessages[0]?.content === 'START_SESSION') {
-      apiMessages[0] = { role: 'user', content: 'Hi, I just sat down.' }
+    if (apiMessages[0]?.content === 'START') {
+      apiMessages[0] = { role: 'user', content: 'START' }
     }
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

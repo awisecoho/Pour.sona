@@ -297,10 +297,10 @@ export async function normalizeToRetailerDraft(signals: Awaited<ReturnType<typeo
         content: `Extract product catalog from this beverage vendor website.
 
 VERTICAL DETECTION:
-- distillery/spirits/whiskey/bourbon/rye/gin/vodka/rum/moonshine â "distillery"
-- brewery/brewed/craft beer/IPA/stout/lager/ale/tap â "brewery"
-- winery/vineyard/wine/varietal/vintage â "winery"
-- coffee/roaster/espresso â "coffee"
+- distillery/spirits/whiskey/bourbon/rye/gin/vodka/rum/moonshine → "distillery"
+- brewery/brewed/craft beer/IPA/stout/lager/ale/tap → "brewery"
+- winery/vineyard/wine/varietal/vintage → "winery"
+- coffee/roaster/espresso → "coffee"
 NEVER default to brewery.
 
 COLORS: ${signals.brandColor ? `primary = ${signals.brandColor}` : 'use #C9A84C'}
