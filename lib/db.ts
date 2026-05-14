@@ -23,10 +23,26 @@ function getConnectionString() {
 function getPool() {
   if (!global.__poursonaPool) {
     const connectionString = getConnectionString()
-    global.__poursonaPool = new Pool({
+    const isLocal = process.env.NODE_ENV === 'development'
+
+    const pool = new Pool({
       connectionString,
-      ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
+      ssl: isLocal ? false : { rejectUnauthorized: false },
+      // Keep pool small — Vercel creates one pool per warm instance,
+      // so each concurrent function can hold up to max connections.
+      max: 3,
+      // Release idle connections quickly to stay under Neon's limit.
+      idleTimeoutMillis: 20000,
+      // Fail fast rather than queue indefinitely if all connections busy.
+      connectionTimeoutMillis: 8000,
     })
+
+    // Prevent unhandled 'error' events from crashing the process.
+    pool.on('error', (err) => {
+      console.error('[db] pool error:', err.message)
+    })
+
+    global.__poursonaPool = pool
   }
 
   return global.__poursonaPool
