@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'forbidden' }, { status: 403 })
     }
 
-    const url = `https://pour-sona.vercel.app/r/${slug}`
+    const url = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/r/${slug}`
     const brandColor = retailer.brand_color || '#C9A84C'
 
     const qrDataUrl = await QRCode.toDataURL(url, {
