@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { dbQuery } from '@/lib/db'
 export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   const retailerId = new URL(req.url).searchParams.get('retailerId')
   if (!retailerId) return NextResponse.json({ ok: false })
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } })
-  const { data: retailer } = await supabase.from('retailers').select('subscription_status, trial_ends_at, active').eq('id', retailerId).single()
+  const result = await dbQuery(
+    'select subscription_status, trial_ends_at, active from retailers where id = $1 limit 1',
+    [retailerId]
+  )
+  const retailer = result.rows[0]
   if (!retailer) return NextResponse.json({ ok: false })
   if (!retailer.active) return NextResponse.json({ ok: false, reason: 'inactive' })
   if (retailer.subscription_status === 'active') return NextResponse.json({ ok: true })

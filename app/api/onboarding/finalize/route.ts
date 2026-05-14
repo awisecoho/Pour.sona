@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { publishDraft } from '@/lib/onboarding'
-import { createClient } from '@supabase/supabase-js'
+import { dbQuery } from '@/lib/db'
+import { grantRetailerAccessByEmail } from '@/lib/auth'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -12,23 +13,9 @@ export async function POST(req: NextRequest) {
 
     // Auto-link all poursona team members to the new retailer (best-effort, never blocks success)
     try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-      )
-      const { data: team } = await supabase.from('poursona_team').select('email')
-      if (team?.length) {
-        const { data: users } = await supabase.auth.admin.listUsers()
-        for (const member of team) {
-          const user = users?.users?.find((u: any) => u.email === member.email)
-          if (user) {
-            await supabase.from('admin_users').upsert(
-              { user_id: user.id, retailer_id: retailer.id, role: 'owner' },
-              { onConflict: 'user_id,retailer_id' }
-            )
-          }
-        }
+      const teamResult = await dbQuery('select email from poursona_team order by created_at', [])
+      for (const member of teamResult.rows) {
+        await grantRetailerAccessByEmail(retailer.id, member.email, 'owner')
       }
     } catch {
       // team-linking is non-critical; retailer is already published
@@ -37,8 +24,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       retailer,
       links: {
-        storefront: `https://pour-sona.com/r/${retailer.slug}`,
-        admin: `https://pour-sona.com/admin`,
+        storefront: `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/r/${retailer.slug}`,
+        admin: `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin`,
       }
     })
   } catch (err: any) {
