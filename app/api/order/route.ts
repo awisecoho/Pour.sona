@@ -100,6 +100,8 @@ export async function POST(req: NextRequest) {
         blendName: blendName || 'Your Selection',
         items: items || [],
         subtotal,
+      }).then(r => {
+        if (!r.ok) console.error('[order] sendOrderConfirmation failed:', r.error)
       })
     }
 
@@ -114,6 +116,8 @@ export async function POST(req: NextRequest) {
         subtotal,
         orderId: order.id,
         dashboardUrl: ordersUrl(),
+      }).then(r => {
+        if (!r.ok) console.error('[order] sendOrderAlert failed:', r.error)
       })
     }
 

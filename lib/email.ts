@@ -5,6 +5,45 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 const FROM = 'Poursona <hello@pour-sona.com>'
 
+// ── Shared result type ────────────────────────────────────────────────────────
+
+export type EmailResult = {
+  ok: boolean
+  /** Human-readable error message when ok === false */
+  error?: string
+  /** Resend message ID when ok === true */
+  providerId?: string
+}
+
+// ── Internal send wrapper ─────────────────────────────────────────────────────
+// Handles Resend API/network errors and surfaces them as structured results
+// instead of throwing. Logs all failures to console and Sentry so they are
+// observable without crashing the caller.
+
+async function sendEmail(
+  params: Parameters<typeof resend.emails.send>[0]
+): Promise<EmailResult> {
+  try {
+    const { data, error } = await resend.emails.send(params)
+    if (error) {
+      const msg = (error as any).message || JSON.stringify(error)
+      console.error('[email] send failed:', params.subject, msg)
+      Sentry.captureException(new Error(msg), {
+        extra: { subject: params.subject, to: params.to },
+      })
+      return { ok: false, error: msg }
+    }
+    return { ok: true, providerId: data?.id }
+  } catch (err: any) {
+    const msg = err?.message || 'Unknown email error'
+    console.error('[email] send threw:', params.subject, msg)
+    Sentry.captureException(err, {
+      extra: { subject: params.subject, to: params.to },
+    })
+    return { ok: false, error: msg }
+  }
+}
+
 // ── Order confirmation to the guest ──────────────────────────────────────────
 
 export async function sendOrderConfirmation(opts: {
@@ -13,13 +52,19 @@ export async function sendOrderConfirmation(opts: {
   blendName: string
   items: Array<{ name: string; price?: number; qty?: number }>
   subtotal: number
-}) {
+}): Promise<EmailResult> {
   const { to, retailerName, blendName, items, subtotal } = opts
   const itemRows = items
-    .map(i => `<tr><td style="padding:6px 0;color:#1a1108">${i.name}</td><td style="padding:6px 0;text-align:right;color:#1a1108">${i.qty && i.qty > 1 ? `×${i.qty} ` : ''}${i.price != null ? `$${(i.price * (i.qty || 1)).toFixed(2)}` : ''}</td></tr>`)
+    .map(
+      i =>
+        `<tr><td style="padding:6px 0;color:#1a1108">${i.name}</td>` +
+        `<td style="padding:6px 0;text-align:right;color:#1a1108">` +
+        `${i.qty && i.qty > 1 ? `×${i.qty} ` : ''}` +
+        `${i.price != null ? `$${(i.price * (i.qty || 1)).toFixed(2)}` : ''}</td></tr>`
+    )
     .join('')
 
-  await resend.emails.send({
+  return sendEmail({
     from: FROM,
     to,
     subject: `Your order at ${retailerName} — ${blendName}`,
@@ -50,19 +95,19 @@ export async function sendOrderConfirmation(opts: {
 </table>
 </td></tr></table>
 </body></html>`,
-  }).catch(err => { console.error('[email] sendOrderConfirmation failed:', err?.message); Sentry.captureException(err) })
+  })
 }
 
-// ── Trial expiration warning to vendor ───────────────────────────────────────
+// ── Trial expired notice to vendor ────────────────────────────────────────────
 
 export async function sendTrialExpiredNotice(opts: {
   to: string
   retailerName: string
   upgradeUrl: string
-}) {
+}): Promise<EmailResult> {
   const { to, retailerName, upgradeUrl } = opts
 
-  await resend.emails.send({
+  return sendEmail({
     from: FROM,
     to,
     subject: `Your Poursona trial for ${retailerName} has ended`,
@@ -90,21 +135,21 @@ export async function sendTrialExpiredNotice(opts: {
 </table>
 </td></tr></table>
 </body></html>`,
-  }).catch(err => { console.error('[email] sendTrialExpiredNotice failed:', err?.message); Sentry.captureException(err) })
+  })
 }
 
-// ── Vendor invite ────────────────────────────────────────────────────────────
+// ── Vendor invite ─────────────────────────────────────────────────────────────
 
 export async function sendVendorInvite(opts: {
   to: string
   name: string | null
   retailerName: string
   adminUrl: string
-}) {
+}): Promise<EmailResult> {
   const { to, name, retailerName, adminUrl } = opts
   const greeting = name ? `Hi ${name},` : 'Hi there,'
 
-  await resend.emails.send({
+  return sendEmail({
     from: FROM,
     to,
     subject: `You've been added to ${retailerName} on Poursona`,
@@ -131,10 +176,10 @@ export async function sendVendorInvite(opts: {
 </table>
 </td></tr></table>
 </body></html>`,
-  }).catch(err => { console.error('[email] sendVendorInvite failed:', err?.message); Sentry.captureException(err) })
+  })
 }
 
-// ── New order alert to venue staff ───────────────────────────────────────────
+// ── New order alert to venue staff ────────────────────────────────────────────
 
 export async function sendOrderAlert(opts: {
   to: string
@@ -146,16 +191,23 @@ export async function sendOrderAlert(opts: {
   subtotal: number
   orderId: string
   dashboardUrl: string
-}) {
+}): Promise<EmailResult> {
   const { to, retailerName, blendName, customerName, customerEmail, items, subtotal, orderId, dashboardUrl } = opts
   const itemRows = items
-    .map(i => `<tr><td style="padding:6px 0;color:#F5ECD7">${i.name}</td><td style="padding:6px 0;text-align:right;color:#F5ECD7">${i.qty && i.qty > 1 ? `×${i.qty} ` : ''}${i.price != null ? `$${(i.price * (i.qty || 1)).toFixed(2)}` : ''}</td></tr>`)
+    .map(
+      i =>
+        `<tr><td style="padding:6px 0;color:#F5ECD7">${i.name}</td>` +
+        `<td style="padding:6px 0;text-align:right;color:#F5ECD7">` +
+        `${i.qty && i.qty > 1 ? `×${i.qty} ` : ''}` +
+        `${i.price != null ? `$${(i.price * (i.qty || 1)).toFixed(2)}` : ''}</td></tr>`
+    )
     .join('')
-  const guestLine = customerName || customerEmail
-    ? `<div style="color:#4a3a1a;font-size:13px;margin-top:16px">Guest: <strong style="color:#C9A84C">${customerName || customerEmail}</strong></div>`
-    : ''
+  const guestLine =
+    customerName || customerEmail
+      ? `<div style="color:#4a3a1a;font-size:13px;margin-top:16px">Guest: <strong style="color:#C9A84C">${customerName || customerEmail}</strong></div>`
+      : ''
 
-  await resend.emails.send({
+  return sendEmail({
     from: FROM,
     to,
     subject: `New order at ${retailerName} — ${blendName}`,
@@ -187,7 +239,7 @@ export async function sendOrderAlert(opts: {
 </table>
 </td></tr></table>
 </body></html>`,
-  }).catch(err => { console.error('[email] sendOrderAlert failed:', err?.message); Sentry.captureException(err) })
+  })
 }
 
 // ── Trial expiring soon warning ───────────────────────────────────────────────
@@ -197,10 +249,10 @@ export async function sendTrialExpiringWarning(opts: {
   retailerName: string
   daysLeft: number
   upgradeUrl: string
-}) {
+}): Promise<EmailResult> {
   const { to, retailerName, daysLeft, upgradeUrl } = opts
 
-  await resend.emails.send({
+  return sendEmail({
     from: FROM,
     to,
     subject: `Your Poursona trial ends in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`,
@@ -225,5 +277,5 @@ export async function sendTrialExpiringWarning(opts: {
 </table>
 </td></tr></table>
 </body></html>`,
-  }).catch(err => { console.error('[email] sendTrialExpiringWarning failed:', err?.message); Sentry.captureException(err) })
+  })
 }

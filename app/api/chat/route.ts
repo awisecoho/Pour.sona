@@ -40,18 +40,50 @@ export async function POST(req: NextRequest) {
         [retailer.id]
       )
       if (retailer.owner_email) {
-        sendTrialExpiredNotice({ to: retailer.owner_email, retailerName: retailer.name, upgradeUrl: billingUrl() })
+        // Non-fatal: fire and don't block the 402 response
+        sendTrialExpiredNotice({
+          to: retailer.owner_email,
+          retailerName: retailer.name,
+          upgradeUrl: billingUrl(),
+        }).then(r => {
+          if (!r.ok) console.error('[chat] sendTrialExpiredNotice failed:', r.error)
+        })
       }
       return NextResponse.json({ error: 'subscription_inactive' }, { status: 402 })
     }
 
     if (subStatus === 'trial' && trialEnd) {
       const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000)
-      const warningSentAt = retailer.trial_warning_sent_at ? new Date(retailer.trial_warning_sent_at) : null
-      const alreadySentRecently = warningSentAt && (now.getTime() - warningSentAt.getTime()) < 24 * 60 * 60 * 1000
-      if (daysLeft <= 3 && retailer.owner_email && !alreadySentRecently) {
-        sendTrialExpiringWarning({ to: retailer.owner_email, retailerName: retailer.name, daysLeft, upgradeUrl: billingUrl() })
-        dbQuery('update retailers set trial_warning_sent_at = now() where id = $1', [retailer.id]).catch(() => {})
+      if (daysLeft <= 3 && retailer.owner_email) {
+        // Atomic claim: UPDATE only succeeds when no warning has been sent in
+        // the last 24 hours.  Concurrent requests racing here will both attempt
+        // the UPDATE, but only one will receive RETURNING id — ensuring exactly
+        // one email per day regardless of concurrent chat activity.
+        const claimed = await dbQuery<{ id: string }>(
+          `UPDATE retailers
+           SET trial_warning_sent_at = now()
+           WHERE id = $1
+             AND (trial_warning_sent_at IS NULL
+                  OR trial_warning_sent_at < now() - interval '24 hours')
+           RETURNING id`,
+          [retailer.id]
+        )
+        if (claimed.rows.length > 0) {
+          const result = await sendTrialExpiringWarning({
+            to: retailer.owner_email,
+            retailerName: retailer.name,
+            daysLeft,
+            upgradeUrl: billingUrl(),
+          })
+          if (!result.ok) {
+            // Revert the claim so the warning can be retried on the next request.
+            console.error('[chat] sendTrialExpiringWarning failed:', result.error)
+            dbQuery(
+              'UPDATE retailers SET trial_warning_sent_at = NULL WHERE id = $1',
+              [retailer.id]
+            ).catch(() => {})
+          }
+        }
       }
     }
 

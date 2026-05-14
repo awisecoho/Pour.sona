@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
     }
 
     const retailer = await publishDraft(draftId, email.toLowerCase().trim())
-    sendVendorInvite({ to: email, name: name || null, retailerName: retailer.name, adminUrl: adminUrl() })
+    sendVendorInvite({ to: email, name: name || null, retailerName: retailer.name, adminUrl: adminUrl() }).then(r => {
+      if (!r.ok) console.error('[signup/finalize] sendVendorInvite failed:', r.error)
+    })
 
     return NextResponse.json({ ok: true, retailer })
   } catch (err) {
