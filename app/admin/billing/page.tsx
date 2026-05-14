@@ -8,6 +8,7 @@ function BillingContent() {
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
+  const [billingError, setBillingError] = useState('')
   const params = useSearchParams()
   const upgraded = params.get('upgraded')
   const cancelled = params.get('cancelled')
@@ -24,18 +25,26 @@ function BillingContent() {
   async function startCheckout() {
     if (!retailer) return
     setCheckoutLoading(true)
-    const res = await fetch('/api/stripe/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ retailerId: retailer.id }) })
-    const json = await res.json()
-    if (json.url) window.location.href = json.url
-    else setCheckoutLoading(false)
+    setBillingError('')
+    try {
+      const res = await fetch('/api/stripe/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ retailerId: retailer.id }) })
+      const json = await res.json()
+      if (json.url) { window.location.href = json.url; return }
+      setBillingError(json.error || 'Could not start checkout. Please try again.')
+    } catch { setBillingError('Could not connect. Please try again.') }
+    setCheckoutLoading(false)
   }
   async function openPortal() {
     if (!retailer) return
     setPortalLoading(true)
-    const res = await fetch('/api/stripe/portal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ retailerId: retailer.id }) })
-    const json = await res.json()
-    if (json.url) window.location.href = json.url
-    else setPortalLoading(false)
+    setBillingError('')
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ retailerId: retailer.id }) })
+      const json = await res.json()
+      if (json.url) { window.location.href = json.url; return }
+      setBillingError(json.error || 'Could not open billing portal. Please try again.')
+    } catch { setBillingError('Could not connect. Please try again.') }
+    setPortalLoading(false)
   }
   if (loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
   const isActive = retailer?.subscription_status === 'active'
@@ -50,7 +59,8 @@ function BillingContent() {
         <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Account</div>
         <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>Billing</div>
       </div>
-      {upgraded && <div style={{ background: 'rgba(94,207,138,.1)', border: '1px solid rgba(94,207,138,.3)', borderRadius: 12, padding: '16px 20px', marginBottom: 24, color: '#5ecf8a', fontSize: 14 }}>✓ Subscription activated — welcome to Poursona!</div>}
+      {billingError && <div style={{ background: 'rgba(224,112,112,.1)', border: '1px solid rgba(224,112,112,.3)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, color: '#e07070', fontSize: 14 }}>{billingError}</div>}
+      {upgraded &&<div style={{ background: 'rgba(94,207,138,.1)', border: '1px solid rgba(94,207,138,.3)', borderRadius: 12, padding: '16px 20px', marginBottom: 24, color: '#5ecf8a', fontSize: 14 }}>✓ Subscription activated — welcome to Poursona!</div>}
       {cancelled && <div style={{ background: 'rgba(255,100,100,.08)', border: '1px solid rgba(255,100,100,.2)', borderRadius: 12, padding: '16px 20px', marginBottom: 24, color: '#e07070', fontSize: 14 }}>Checkout cancelled — no charge was made.</div>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 800 }}>
         {/* Status card */}

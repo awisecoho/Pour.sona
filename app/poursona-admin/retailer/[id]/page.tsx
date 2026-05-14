@@ -12,6 +12,7 @@ export default function RetailerDetail() {
   const [sessions, setSessions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [tab, setTab] = useState<'overview' | 'products' | 'billing' | 'rescan' | 'invite'>('overview')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting, setInviting] = useState(false)
@@ -52,6 +53,7 @@ export default function RetailerDetail() {
 
   async function saveField(field: string, value: any) {
     setSaving(true)
+    setSaveError('')
     try {
       const res = await fetch('/api/poursona-admin/retailer/' + encodeURIComponent(id), {
         method: 'PUT',
@@ -60,7 +62,8 @@ export default function RetailerDetail() {
       })
       const json = await res.json()
       if (res.ok && json?.ok) setRetailer(json.retailer || null)
-    } catch {}
+      else setSaveError(json?.error || 'Save failed — please try again.')
+    } catch { setSaveError('Could not connect. Please try again.') }
     setSaving(false)
   }
 
@@ -243,6 +246,11 @@ export default function RetailerDetail() {
 
         {tab === 'overview' && (
           <div>
+            {saveError && (
+              <div style={{ background: 'rgba(224,112,112,.1)', border: '1px solid rgba(224,112,112,.3)', borderRadius: 10, padding: '12px 16px', color: '#e07070', fontSize: 13, marginBottom: 16 }}>
+                {saveError}
+              </div>
+            )}
             <div style={s.card}>
               <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Details</div>
               {[

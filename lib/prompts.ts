@@ -63,24 +63,34 @@ CONVERSATION STYLE: When the session starts (user says START), give a brief warm
   const voice = voices[vertical] || voices['brewery']
 
   const recFormat = `
-WHEN READY TO RECOMMEND — write 1-2 warm sentences as a handoff, then:
+WHEN READY TO RECOMMEND — write 1-2 warm sentences as a handoff, then output the block below exactly:
 
 ===REC===
 {
   "format": "single",
-  "recommendationName": "Name of the selection",
-  "tagline": "One evocative, specific line — make it feel like THIS place",
-  "selectedProducts": [{ "name": "Product name", "why": "Personal reason for this guest", "price": 0 }],
+  "recommendationName": "Short name for this selection (string)",
+  "tagline": "One evocative, specific line — make it feel like THIS place (string)",
+  "selectedProducts": [
+    { "name": "Exact product name from catalog (string)", "why": "Personal reason for this guest (string)", "price": 12.00 }
+  ],
   "flightDetails": null,
   "flavorProfile": ["flavor1", "flavor2", "flavor3"],
-  "story": "2-3 sentences — what makes this special, from the place's perspective",
-  "whyItFitsYou": "Specific to what they told you",
-  "serveNote": "How to enjoy it — temp, glassware, pairing, ritual"
+  "story": "2-3 sentences — what makes this special, from the place's perspective (string)",
+  "whyItFitsYou": "Specific to what they told you (string)",
+  "serveNote": "How to enjoy it — temp, glassware, pairing, ritual (string)"
 }
 ===END===
 
-For flight: format = "flight", flightDetails = { "flightName": "", "price": 0, "pourSize": "4oz", "count": 3 }
-The handoff before ===REC=== should feel like the best bartender in the place just walked over. Specific, confident, warm.`
+TYPE RULES — follow exactly or the app breaks:
+- "price" must be a number (e.g. 12.00) or null if unknown — NEVER a string like "$12"
+- "selectedProducts" must be an array with at least one item
+- "flavorProfile" must be an array of 2-4 short strings
+- "format" must be exactly "single" or "flight"
+- All other fields must be strings, never null
+
+For a flight recommendation: set format = "flight", flightDetails = { "flightName": "string", "price": 18.00, "pourSize": "4oz", "count": 3 }, selectedProducts = the individual pours in the flight.
+
+The handoff sentence before ===REC=== should feel like the best bartender in the place just walked over. Specific, confident, warm.`
 
   return `${voice}
 

@@ -17,40 +17,44 @@ export async function GET(req: NextRequest) {
     }
 
     const accessRows = await getRetailersForIdentity(identity.userId, identity.email)
-    const hasAccess = accessRows.some((row) => row.retailer_id === retailerId)
-    if (!hasAccess) {
+    if (!accessRows.some((row) => row.retailer_id === retailerId)) {
       return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 })
     }
 
-    const [sessionsResult, eventsResult] = await Promise.all([
+    const [scanResult, sessionStatsResult, recentResult] = await Promise.all([
+      dbQuery(
+        `select count(*) as scans from events where retailer_id = $1 and event_type = 'scan'`,
+        [retailerId]
+      ),
+      dbQuery(
+        `select
+           count(*)                                                          as convos,
+           count(*) filter (where order_status in ('recommended','ordered')) as recs,
+           count(*) filter (where order_status = 'ordered')                  as orders
+         from sessions
+         where retailer_id = $1`,
+        [retailerId]
+      ),
       dbQuery(
         `select id, order_status, created_at
          from sessions
          where retailer_id = $1
          order by created_at desc
-         limit 50`,
-        [retailerId]
-      ),
-      dbQuery(
-        `select event_type
-         from events
-         where retailer_id = $1`,
+         limit 10`,
         [retailerId]
       ),
     ])
 
-    const sessions = sessionsResult.rows
-    const events = eventsResult.rows
-
+    const s = sessionStatsResult.rows[0] ?? {}
     return NextResponse.json({
       ok: true,
       stats: {
-        scans: events.filter((x: any) => x.event_type === 'scan').length,
-        convos: sessions.length,
-        recs: sessions.filter((x: any) => ['recommended', 'ordered'].includes(x.order_status)).length,
-        orders: sessions.filter((x: any) => x.order_status === 'ordered').length,
+        scans:  Number(scanResult.rows[0]?.scans ?? 0),
+        convos: Number(s.convos ?? 0),
+        recs:   Number(s.recs   ?? 0),
+        orders: Number(s.orders ?? 0),
       },
-      recent: sessions.slice(0, 10),
+      recent: recentResult.rows,
     })
   } catch (error) {
     console.error('[api/admin/dashboard] load failed:', error)
