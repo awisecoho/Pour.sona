@@ -42,7 +42,7 @@ export default function RetailerDetail() {
       setProducts(json.products || [])
       setFlights(json.flights || [])
       setSessions(json.sessions || [])
-      if (json.retailer?.source_url) setRescanUrl(json.retailer.source_url)
+      if (json.retailer?.website_url) setRescanUrl(json.retailer.website_url)
       setLoading(false)
     } catch {
       setLoadError('Could not load retailer.')

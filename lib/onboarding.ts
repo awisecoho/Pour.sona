@@ -435,10 +435,10 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
   const retailerResult = await dbQuery<any>(
     `insert into retailers (
       name, slug, vertical, location, tagline, logo_url, brand_color, owner_email,
-      story, culture, region, active
+      story, culture, region, active, website_url
     ) values (
       $1, $2, $3, $4, $5, $6, $7, $8,
-      $9, $10, $11, $12
+      $9, $10, $11, $12, $13
     )
     returning *`,
     [
@@ -454,6 +454,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
       draft.culture || null,
       draft.region || null,
       true,
+      draft.source_url || null,
     ]
   )
   const retailer = retailerResult.rows[0] || null
@@ -598,29 +599,29 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
     }
   }
 
-  if (Object.keys(updates).filter(k => !k.startsWith('_')).length > 0) {
-    await dbQuery(
-      `update retailers
-       set brand_color = coalesce($2, brand_color),
-           logo_url = coalesce($3, logo_url),
-           story = coalesce($4, story),
-           culture = coalesce($5, culture),
-           region = coalesce($6, region),
-           tagline = coalesce($7, tagline),
-           location = coalesce($8, location)
-       where id = $1`,
-      [
-        retailerId,
-        updates.brand_color || null,
-        updates.logo_url || null,
-        updates.story || null,
-        updates.culture || null,
-        updates.region || null,
-        updates.tagline || null,
-        updates.location || null,
-      ]
-    )
-  }
+  await dbQuery(
+    `update retailers
+     set brand_color = coalesce($2, brand_color),
+         logo_url = coalesce($3, logo_url),
+         story = coalesce($4, story),
+         culture = coalesce($5, culture),
+         region = coalesce($6, region),
+         tagline = coalesce($7, tagline),
+         location = coalesce($8, location),
+         website_url = $9
+     where id = $1`,
+    [
+      retailerId,
+      updates.brand_color || null,
+      updates.logo_url || null,
+      updates.story || null,
+      updates.culture || null,
+      updates.region || null,
+      updates.tagline || null,
+      updates.location || null,
+      url,
+    ]
+  )
 
   const updatedRetailerResult = await dbQuery<any>(
     'select * from retailers where id = $1 limit 1',

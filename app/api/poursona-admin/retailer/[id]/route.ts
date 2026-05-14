@@ -74,7 +74,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     const retailerId = params.id
     const updates = await req.json()
-    const fields = ['name', 'location', 'tagline', 'brand_color', 'logo_url', 'story', 'culture', 'region'] as const
+    const fields = ['name', 'location', 'tagline', 'brand_color', 'logo_url', 'story', 'culture', 'region', 'subscription_status', 'active', 'website_url'] as const
     const assignments: string[] = []
     const values: unknown[] = []
 
