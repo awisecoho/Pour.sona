@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { Pool, QueryResultRow } from 'pg'
+export type { PoolClient } from 'pg'
 
 declare global {
   var __poursonaPool: Pool | undefined
@@ -20,7 +21,7 @@ function getConnectionString() {
   return connectionString
 }
 
-function getPool() {
+export function getPool() {
   if (!global.__poursonaPool) {
     const connectionString = getConnectionString()
     const isLocal = process.env.NODE_ENV === 'development'

@@ -1,5 +1,5 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { dbQuery } from '@/lib/db'
+import { dbQuery, type PoolClient } from '@/lib/db'
 
 const hasClerkEnv =
   Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) ||
@@ -115,23 +115,33 @@ export async function getRetailersForIdentity(userId: string, email: string | nu
   }))
 }
 
-export async function grantRetailerAccessByEmail(retailerId: string, email: string, role = 'owner') {
+export async function grantRetailerAccessByEmail(
+  retailerId: string,
+  email: string,
+  role = 'owner',
+  txClient?: PoolClient
+) {
   const normalizedEmail = normalizeEmail(email)
-  const existing = await dbQuery<{ retailer_id: string }>(
+  // Use the provided transaction client when inside a transaction, otherwise fall back to pool.
+  const run = txClient
+    ? (text: string, values: unknown[]) => txClient.query(text, values)
+    : (text: string, values: unknown[]) => dbQuery(text, values)
+
+  const existing = await run(
     `select retailer_id from admin_users
      where retailer_id = $1 and lower(email) = $2::text
      limit 1`,
     [retailerId, normalizedEmail]
   )
   if (existing.rows[0]) {
-    await dbQuery(
+    await run(
       `update admin_users set email = $3, role = $4
        where retailer_id = $1 and lower(email) = $2::text`,
       [retailerId, normalizedEmail, normalizedEmail, role]
     )
     return
   }
-  await dbQuery(
+  await run(
     `insert into admin_users (retailer_id, email, role) values ($1, $2, $3)`,
     [retailerId, normalizedEmail, role]
   )

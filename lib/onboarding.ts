@@ -4,7 +4,7 @@ import { extractBrand } from './agents/brand'
 import { extractEvents } from './agents/events'
 import { generateHostPersona } from './agents/host'
 import type { RawSignals } from './agents/research'
-import { dbQuery } from './db'
+import { dbQuery, getPool } from './db'
 import { grantRetailerAccessByEmail } from './auth'
 
 const EVENT_KEYWORDS = ['events','calendar','happenings','upcoming','whats-on','live','schedule','entertainment']
@@ -403,11 +403,29 @@ export async function createDraftFromUrl(url: string) {
   return draft
 }
 
+// Number of per-row columns in each batch insert (excludes the shared retailer_id $1)
+const PRODUCT_ROW_COLS = 10 // name, description, category, flavor_notes, price, style, abv, ibu, in_stock, sort_order
+const FLIGHT_ROW_COLS  = 7  // name, description, count, pour_size, price, active, sort_order
+
+function buildBatchInsert(rowCount: number, perRowCols: number): string {
+  return Array.from({ length: rowCount }, (_, i) => {
+    const params = Array.from({ length: perRowCols }, (_, j) => `$${2 + i * perRowCols + j}`)
+    return `($1, ${params.join(', ')})`
+  }).join(',\n')
+}
+
+/**
+ * Publish a draft retailer atomically.
+ *
+ * All DB writes (retailer row, admin access grant, products, flights, draft
+ * status update) happen inside a single PostgreSQL transaction.  If any step
+ * fails the entire transaction is rolled back and no partial data is left.
+ */
 export async function publishDraft(draftId: string, ownerEmail?: string) {
   const draft = await getRetailerDraftById(draftId)
   if (!draft) throw new Error('Draft not found')
 
-  // Check slug doesn't conflict with existing retailers only
+  // Resolve slug before entering the transaction — read-only, no lock needed.
   const existingRetailers = await getExistingRetailerSlugs()
   const existingSlugs = existingRetailers.map((r) => r.slug)
   let slug = draft.slug
@@ -416,91 +434,108 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
   }
 
   const finalOwnerEmail = ownerEmail || draft.owner_email || `owner+${slug}@poursona.app`
-  const retailerResult = await dbQuery<any>(
-    `insert into retailers (
-      name, slug, vertical, location, tagline, logo_url, brand_color, owner_email,
-      story, culture, region, active, website_url
-    ) values (
-      $1, $2, $3, $4, $5, $6, $7, $8,
-      $9, $10, $11, $12, $13
+  const products: any[] = Array.isArray(draft.menu_json) ? draft.menu_json : []
+  const flights: any[]  = Array.isArray(draft.flight_json) ? draft.flight_json : []
+
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+
+    // 1. Create retailer row
+    const retailerResult = await client.query<any>(
+      `insert into retailers (
+        name, slug, vertical, location, tagline, logo_url, brand_color, owner_email,
+        story, culture, region, active, website_url
+      ) values (
+        $1, $2, $3, $4, $5, $6, $7, $8,
+        $9, $10, $11, $12, $13
+      )
+      returning *`,
+      [
+        draft.name,
+        slug,
+        draft.vertical,
+        draft.location,
+        draft.tagline,
+        draft.logo_url,
+        draft.brand_color || '#C9A84C',
+        finalOwnerEmail,
+        draft.story   || null,
+        draft.culture || null,
+        draft.region  || null,
+        true,
+        draft.source_url || null,
+      ]
     )
-    returning *`,
-    [
-      draft.name,
-      slug,
-      draft.vertical,
-      draft.location,
-      draft.tagline,
-      draft.logo_url,
-      draft.brand_color || '#C9A84C',
-      finalOwnerEmail,
-      draft.story || null,
-      draft.culture || null,
-      draft.region || null,
-      true,
-      draft.source_url || null,
-    ]
-  )
-  const retailer = retailerResult.rows[0] || null
+    const retailer = retailerResult.rows[0]
+    if (!retailer) throw new Error('Failed to create retailer')
 
-  if (!retailer) throw new Error('Failed to create retailer')
+    // 2. Grant owner access — uses the same transaction client
+    await grantRetailerAccessByEmail(retailer.id, finalOwnerEmail, 'owner', client)
 
-  if (finalOwnerEmail) {
-    await grantRetailerAccessByEmail(retailer.id, finalOwnerEmail, 'owner')
-  }
-
-  const products = Array.isArray(draft.menu_json) ? draft.menu_json : []
-  if (products.length) {
-    for (const [i, p] of products.entries()) {
-      await dbQuery(
-        `insert into products (
-          retailer_id, name, description, category, flavor_notes, price, style, abv, ibu, in_stock, sort_order
-        ) values (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
-        )`,
-        [
-          retailer.id,
+    // 3. Batch-insert products (single round-trip instead of N queries)
+    if (products.length) {
+      const placeholders = buildBatchInsert(products.length, PRODUCT_ROW_COLS)
+      const values: unknown[] = [retailer.id]
+      for (const [i, p] of products.entries()) {
+        values.push(
           p.name,
-          p.description || null,
-          p.category || null,
+          p.description  || null,
+          p.category     || null,
           p.flavor_notes || null,
-          p.price ?? null,
-          p.style || null,
-          p.abv || null,
-          p.ibu || null,
-          p.in_stock ?? true,
-          i,
-        ]
+          p.price        ?? null,
+          p.style        || null,
+          p.abv          || null,
+          p.ibu          || null,
+          p.in_stock     ?? true,
+          i,  // sort_order
+        )
+      }
+      await client.query(
+        `insert into products
+           (retailer_id, name, description, category, flavor_notes, price, style, abv, ibu, in_stock, sort_order)
+         values ${placeholders}`,
+        values
       )
     }
-  }
 
-  const flights = Array.isArray(draft.flight_json) ? draft.flight_json : []
-  if (flights.length) {
-    for (const [i, f] of flights.entries()) {
-      await dbQuery(
-        `insert into flights (
-          retailer_id, name, description, count, pour_size, price, active, sort_order
-        ) values (
-          $1, $2, $3, $4, $5, $6, $7, $8
-        )`,
-        [
-          retailer.id,
+    // 4. Batch-insert flights
+    if (flights.length) {
+      const placeholders = buildBatchInsert(flights.length, FLIGHT_ROW_COLS)
+      const values: unknown[] = [retailer.id]
+      for (const [i, f] of flights.entries()) {
+        values.push(
           f.name,
           f.description || null,
-          f.count ?? 4,
-          f.pour_size || '4oz',
-          f.price ?? 0,
-          f.active ?? true,
-          i,
-        ]
+          f.count       ?? 4,
+          f.pour_size   || '4oz',
+          f.price       ?? 0,
+          f.active      ?? true,
+          i,  // sort_order
+        )
+      }
+      await client.query(
+        `insert into flights
+           (retailer_id, name, description, count, pour_size, price, active, sort_order)
+         values ${placeholders}`,
+        values
       )
     }
+
+    // 5. Mark draft published — keeps the draft around for audit purposes
+    await client.query(
+      'update retailer_drafts set status = $2 where id = $1',
+      [draftId, 'published']
+    )
+
+    await client.query('COMMIT')
+    return retailer
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
+  } finally {
+    client.release()
   }
-
-  await markDraftPublished(draft.id)
-
-  return retailer
 }
 
 export async function rescanRetailer(retailerId: string, url: string, mode: 'catalog' | 'branding' | 'full') {
