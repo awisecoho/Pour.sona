@@ -10,31 +10,35 @@ export async function POST(req: NextRequest) {
 
     const retailer = await publishDraft(draftId, ownerEmail)
 
-    // Auto-link all poursona team members to the new retailer
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-    const { data: team } = await supabase.from('poursona_team').select('email')
-    if (team?.length) {
-      const { data: users } = await supabase.auth.admin.listUsers()
-      for (const member of team) {
-        const user = users?.users?.find((u: any) => u.email === member.email)
-        if (user) {
-          await supabase.from('admin_users').upsert(
-            { user_id: user.id, retailer_id: retailer.id, role: 'owner' },
-            { onConflict: 'user_id,retailer_id' }
-          )
+    // Auto-link all poursona team members to the new retailer (best-effort, never blocks success)
+    try {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+      )
+      const { data: team } = await supabase.from('poursona_team').select('email')
+      if (team?.length) {
+        const { data: users } = await supabase.auth.admin.listUsers()
+        for (const member of team) {
+          const user = users?.users?.find((u: any) => u.email === member.email)
+          if (user) {
+            await supabase.from('admin_users').upsert(
+              { user_id: user.id, retailer_id: retailer.id, role: 'owner' },
+              { onConflict: 'user_id,retailer_id' }
+            )
+          }
         }
       }
+    } catch {
+      // team-linking is non-critical; retailer is already published
     }
 
     return NextResponse.json({
       retailer,
       links: {
-        storefront: `https://pour-sona.vercel.app/r/${retailer.slug}`,
-        admin: `https://pour-sona.vercel.app/admin`,
+        storefront: `https://pour-sona.com/r/${retailer.slug}`,
+        admin: `https://pour-sona.com/admin`,
       }
     })
   } catch (err: any) {
