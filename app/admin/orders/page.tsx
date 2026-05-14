@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { loadAdminAccess } from '@/lib/admin-access'
 
 type Order = {
@@ -19,6 +19,19 @@ const STATUS_COLORS: Record<string, { bg: string; color: string; border: string 
   cancelled: { bg: 'rgba(224,112,112,.1)', color: '#e07070', border: 'rgba(224,112,112,.3)' },
 }
 
+const POLL_INTERVAL = 20_000
+
+function useSecondsSince(ts: number | null) {
+  const [secs, setSecs] = useState(0)
+  useEffect(() => {
+    if (ts === null) return
+    setSecs(Math.floor((Date.now() - ts) / 1000))
+    const t = setInterval(() => setSecs(Math.floor((Date.now() - ts) / 1000)), 5000)
+    return () => clearInterval(t)
+  }, [ts])
+  return secs
+}
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [sessions, setSessions] = useState<any[]>([])
@@ -27,6 +40,39 @@ export default function OrdersPage() {
   const [tab, setTab] = useState<'orders' | 'sessions'>('orders')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [retailerId, setRetailerId] = useState<string | null>(null)
+  const [lastFetched, setLastFetched] = useState<number | null>(null)
+  const [newIds, setNewIds] = useState<Set<string>>(new Set())
+  const knownIds = useRef<Set<string>>(new Set())
+  const secsSince = useSecondsSince(lastFetched)
+
+  async function fetchOrders(rId: string, isInitial = false) {
+    try {
+      const res = await fetch(`/api/admin/orders?retailerId=${encodeURIComponent(rId)}`, { cache: 'no-store' })
+      const json = await res.json()
+      if (!res.ok || !json?.ok) throw new Error(json.error || 'Failed to load')
+      const fetched: Order[] = json.orders || []
+
+      if (!isInitial) {
+        const fresh = fetched.filter(o => !knownIds.current.has(o.id)).map(o => o.id)
+        if (fresh.length > 0) {
+          setNewIds(prev => new Set([...prev, ...fresh]))
+          setTimeout(() => setNewIds(prev => {
+            const next = new Set(prev)
+            fresh.forEach(id => next.delete(id))
+            return next
+          }), 3000)
+        }
+      }
+
+      fetched.forEach(o => knownIds.current.add(o.id))
+      setOrders(fetched)
+      setSessions(json.sessions || [])
+      setLastFetched(Date.now())
+      setError('')
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }
 
   useEffect(() => {
     ;(async () => {
@@ -37,17 +83,19 @@ export default function OrdersPage() {
         const r = retailers.find((x: any) => x.id === storedId) || retailers[0] || null
         if (!r) { setLoading(false); return }
         setRetailerId(r.id)
-        const res = await fetch(`/api/admin/orders?retailerId=${encodeURIComponent(r.id)}`, { cache: 'no-store' })
-        const json = await res.json()
-        if (!res.ok || !json?.ok) throw new Error(json.error || 'Failed to load')
-        setOrders(json.orders || [])
-        setSessions(json.sessions || [])
+        await fetchOrders(r.id, true)
       } catch (err: any) {
         setError(err.message)
       }
       setLoading(false)
     })()
   }, [])
+
+  useEffect(() => {
+    if (!retailerId || tab !== 'orders') return
+    const t = setInterval(() => fetchOrders(retailerId), POLL_INTERVAL)
+    return () => clearInterval(t)
+  }, [retailerId, tab])
 
   async function updateStatus(orderId: string, status: string) {
     if (!retailerId) return
@@ -73,11 +121,23 @@ export default function OrdersPage() {
 
   if (loading) return <div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif' }}>Loading…</div>
 
+  const lastUpdatedLabel = lastFetched === null ? null
+    : secsSince < 10 ? 'just now'
+    : `${secsSince}s ago`
+
   return (
     <div>
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Activity</div>
-        <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>Orders & Sessions</div>
+      <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Activity</div>
+          <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>Orders & Sessions</div>
+        </div>
+        {lastUpdatedLabel && (
+          <div style={{ color: '#3a2a0a', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C9A84C', opacity: 0.5, display: 'inline-block' }} />
+            Updated {lastUpdatedLabel}
+          </div>
+        )}
       </div>
 
       {error && (
@@ -105,11 +165,15 @@ export default function OrdersPage() {
                 </thead>
                 <tbody>
                   {orders.map(o => {
-                    const colors = STATUS_COLORS[o.status] || STATUS_COLORS.pending
+                    const sc = STATUS_COLORS[o.status] || STATUS_COLORS.pending
+                    const isNew = newIds.has(o.id)
                     return (
-                      <tr key={o.id}>
+                      <tr key={o.id} style={{ transition: 'background .6s', background: isNew ? 'rgba(201,168,76,.07)' : 'transparent' }}>
                         <td style={td}>
-                          <div style={{ color: '#F5ECD7', fontWeight: 600 }}>{new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          <div style={{ color: '#F5ECD7', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {isNew && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C9A84C', display: 'inline-block', flexShrink: 0 }} />}
+                            {new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
                           <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2 }}>{new Date(o.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
                         </td>
                         <td style={{ ...td, color: '#F5ECD7' }}>{o.blend_name || '—'}</td>
@@ -124,7 +188,7 @@ export default function OrdersPage() {
                         </td>
                         <td style={{ ...td, color: '#C9A84C', fontWeight: 600 }}>${(o.subtotal || 0).toFixed(2)}</td>
                         <td style={td}>
-                          <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: colors.bg, color: colors.color, border: `1px solid ${colors.border}` }}>
+                          <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
                             {o.status}
                           </span>
                         </td>
