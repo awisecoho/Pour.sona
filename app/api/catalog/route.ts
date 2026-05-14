@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
+import { apiError } from '@/lib/api'
 
 async function ensureRetailerAccess(retailerId: string) {
   const identity = await getAuthenticatedIdentity()
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, products: result.rows })
   } catch (error: any) {
     console.error('[api/catalog] get failed:', error)
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+    return apiError(error, 'Catalog operation failed')
   }
 }
 
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result.rows[0])
   } catch (error: any) {
     console.error('[api/catalog] create failed:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return apiError(error, 'Catalog operation failed')
   }
 }
 
@@ -156,7 +157,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(result.rows[0])
   } catch (error: any) {
     console.error('[api/catalog] update failed:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return apiError(error, 'Catalog operation failed')
   }
 }
 
@@ -186,6 +187,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error('[api/catalog] delete failed:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return apiError(error, 'Catalog operation failed')
   }
 }

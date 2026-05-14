@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import * as Sentry from '@sentry/nextjs'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -49,7 +50,7 @@ export async function sendOrderConfirmation(opts: {
 </table>
 </td></tr></table>
 </body></html>`,
-  }).catch(err => console.error('[email] sendOrderConfirmation failed:', err?.message))
+  }).catch(err => { console.error('[email] sendOrderConfirmation failed:', err?.message); Sentry.captureException(err) })
 }
 
 // ── Trial expiration warning to vendor ───────────────────────────────────────
@@ -89,7 +90,7 @@ export async function sendTrialExpiredNotice(opts: {
 </table>
 </td></tr></table>
 </body></html>`,
-  }).catch(err => console.error('[email] sendTrialExpiredNotice failed:', err?.message))
+  }).catch(err => { console.error('[email] sendTrialExpiredNotice failed:', err?.message); Sentry.captureException(err) })
 }
 
 // ── Vendor invite ────────────────────────────────────────────────────────────
@@ -130,7 +131,7 @@ export async function sendVendorInvite(opts: {
 </table>
 </td></tr></table>
 </body></html>`,
-  }).catch(err => console.error('[email] sendVendorInvite failed:', err?.message))
+  }).catch(err => { console.error('[email] sendVendorInvite failed:', err?.message); Sentry.captureException(err) })
 }
 
 // ── New order alert to venue staff ───────────────────────────────────────────
@@ -186,7 +187,7 @@ export async function sendOrderAlert(opts: {
 </table>
 </td></tr></table>
 </body></html>`,
-  }).catch(err => console.error('[email] sendOrderAlert failed:', err?.message))
+  }).catch(err => { console.error('[email] sendOrderAlert failed:', err?.message); Sentry.captureException(err) })
 }
 
 // ── Trial expiring soon warning ───────────────────────────────────────────────
@@ -224,5 +225,5 @@ export async function sendTrialExpiringWarning(opts: {
 </table>
 </td></tr></table>
 </body></html>`,
-  }).catch(err => console.error('[email] sendTrialExpiringWarning failed:', err?.message))
+  }).catch(err => { console.error('[email] sendTrialExpiringWarning failed:', err?.message); Sentry.captureException(err) })
 }

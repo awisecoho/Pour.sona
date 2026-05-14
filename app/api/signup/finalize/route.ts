@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { publishDraft } from '@/lib/onboarding'
 import { sendVendorInvite } from '@/lib/email'
 import { onboardLimiter, getIp } from '@/lib/rate-limit'
+import { adminUrl } from '@/lib/urls'
+import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -18,12 +20,10 @@ export async function POST(req: NextRequest) {
     }
 
     const retailer = await publishDraft(draftId, email.toLowerCase().trim())
-
-    const adminUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin`
-    sendVendorInvite({ to: email, name: name || null, retailerName: retailer.name, adminUrl })
+    sendVendorInvite({ to: email, name: name || null, retailerName: retailer.name, adminUrl: adminUrl() })
 
     return NextResponse.json({ ok: true, retailer })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Failed to create your account.' }, { status: 500 })
+  } catch (err) {
+    return apiError(err, 'Account creation failed')
   }
 }

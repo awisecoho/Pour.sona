@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 import { sendOrderConfirmation, sendOrderAlert } from '@/lib/email'
+import { ordersUrl } from '@/lib/urls'
+import { apiError } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,12 +41,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (ownerEmail) {
-      const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin/orders`
-      sendOrderAlert({ to: ownerEmail, retailerName, blendName: blendName || 'New Order', customerName: customerName || null, customerEmail: customerEmail || null, items: items || [], subtotal, orderId: order.id, dashboardUrl })
+      sendOrderAlert({ to: ownerEmail, retailerName, blendName: blendName || 'New Order', customerName: customerName || null, customerEmail: customerEmail || null, items: items || [], subtotal, orderId: order.id, dashboardUrl: ordersUrl() })
     }
 
     return NextResponse.json({ success: true, orderId: order.id, subtotal })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    return apiError(err, 'Order creation failed')
   }
 }

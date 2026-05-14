@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
+import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
     )
     if (!result.rows[0]) return NextResponse.json({ error: 'Retailer not found' }, { status: 404 })
     return NextResponse.json({ ok: true, retailer: result.rows[0] })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    return apiError(err, 'Trial extension failed')
   }
 }

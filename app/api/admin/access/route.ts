@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
+import { apiError } from '@/lib/api'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,12 +26,6 @@ export async function GET() {
       retailers,
     })
   } catch (err) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: err instanceof Error ? err.message : 'access lookup failed',
-      },
-      { status: 500 }
-    )
+    return apiError(err, 'Access lookup failed')
   }
 }

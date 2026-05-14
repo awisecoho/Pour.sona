@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { publishDraft } from '@/lib/onboarding'
 import { dbQuery } from '@/lib/db'
 import { grantRetailerAccessByEmail } from '@/lib/auth'
+import { storefrontUrl, adminUrl } from '@/lib/urls'
+import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -29,11 +31,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       retailer,
       links: {
-        storefront: `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/r/${retailer.slug}`,
-        admin: `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin`,
+        storefront: storefrontUrl(retailer.slug),
+        admin: adminUrl(),
       }
     })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    return apiError(err, 'Onboarding finalize failed')
   }
 }

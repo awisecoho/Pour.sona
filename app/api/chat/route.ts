@@ -3,6 +3,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { buildSystemPrompt } from '@/lib/prompts'
 import { dbQuery } from '@/lib/db'
 import { sendTrialExpiredNotice, sendTrialExpiringWarning } from '@/lib/email'
+import { billingUrl } from '@/lib/urls'
+import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -38,8 +40,7 @@ export async function POST(req: NextRequest) {
         [retailer.id]
       )
       if (retailer.owner_email) {
-        const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin/billing`
-        sendTrialExpiredNotice({ to: retailer.owner_email, retailerName: retailer.name, upgradeUrl })
+        sendTrialExpiredNotice({ to: retailer.owner_email, retailerName: retailer.name, upgradeUrl: billingUrl() })
       }
       return NextResponse.json({ error: 'subscription_inactive' }, { status: 402 })
     }
@@ -49,8 +50,7 @@ export async function POST(req: NextRequest) {
       const warningSentAt = retailer.trial_warning_sent_at ? new Date(retailer.trial_warning_sent_at) : null
       const alreadySentRecently = warningSentAt && (now.getTime() - warningSentAt.getTime()) < 24 * 60 * 60 * 1000
       if (daysLeft <= 3 && retailer.owner_email && !alreadySentRecently) {
-        const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin/billing`
-        sendTrialExpiringWarning({ to: retailer.owner_email, retailerName: retailer.name, daysLeft, upgradeUrl })
+        sendTrialExpiringWarning({ to: retailer.owner_email, retailerName: retailer.name, daysLeft, upgradeUrl: billingUrl() })
         dbQuery('update retailers set trial_warning_sent_at = now() where id = $1', [retailer.id]).catch(() => {})
       }
     }
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     return new Response(readable, {
       headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' }
     })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    return apiError(err, 'Chat request failed')
   }
 }

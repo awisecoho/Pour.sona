@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { dbQuery } from '@/lib/db'
+import { billingUrl } from '@/lib/urls'
+import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -10,10 +12,9 @@ export async function POST(req: NextRequest) {
     const result = await dbQuery('select stripe_customer_id from retailers where id = $1 limit 1', [retailerId])
     const retailer = result.rows[0]
     if (!retailer?.stripe_customer_id) return NextResponse.json({ error: 'No billing account' }, { status: 404 })
-    const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin/billing`
-    const session = await stripe.billingPortal.sessions.create({ customer: retailer.stripe_customer_id, return_url: returnUrl })
+    const session = await stripe.billingPortal.sessions.create({ customer: retailer.stripe_customer_id, return_url: billingUrl() })
     return NextResponse.json({ url: session.url })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    return apiError(err, 'Billing portal session failed')
   }
 }

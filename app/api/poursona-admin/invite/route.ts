@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { grantRetailerAccessByEmail } from '@/lib/auth'
 import { sendVendorInvite } from '@/lib/email'
+import { adminUrl } from '@/lib/urls'
+import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -9,12 +11,10 @@ export async function POST(req: NextRequest) {
     if (!retailerId || !email) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
     await grantRetailerAccessByEmail(retailerId, email, 'owner')
-
-    const adminUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin`
-    sendVendorInvite({ to: email, name: name || null, retailerName: retailerName || 'your venue', adminUrl })
+    sendVendorInvite({ to: email, name: name || null, retailerName: retailerName || 'your venue', adminUrl: adminUrl() })
 
     return NextResponse.json({ ok: true })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    return apiError(err, 'Invite failed')
   }
 }

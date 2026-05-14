@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { dbQuery } from '@/lib/db'
+import { adminUrl, billingUrl } from '@/lib/urls'
+import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,14 +31,14 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: process.env.STRIPE_PRICE_ID!, quantity: 1 }],
-      success_url: APP_URL + '/admin?upgraded=1',
-      cancel_url: APP_URL + '/admin/billing?cancelled=1',
+      success_url: adminUrl('?upgraded=1'),
+      cancel_url: billingUrl() + '?cancelled=1',
       metadata: { retailer_id: retailerId },
       subscription_data: { metadata: { retailer_id: retailerId } },
     })
 
     return NextResponse.json({ url: session.url })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    return apiError(err, 'Checkout session creation failed')
   }
 }

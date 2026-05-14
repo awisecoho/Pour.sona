@@ -9,28 +9,42 @@ const LIMITS: Record<string, { max: number; window: string }> = {
   '/api/retailer':  { max: 120, window: '1 h' },
 }
 
-let limiters: Record<string, Ratelimit> | null = null
+// Prefix-based limits applied to authenticated admin routes
+const PREFIX_LIMITS: Array<{ prefix: string; max: number; window: string }> = [
+  { prefix: '/api/admin',           max: 120, window: '1 h' },
+  { prefix: '/api/poursona-admin',  max: 60,  window: '1 h' },
+  { prefix: '/api/catalog',         max: 120, window: '1 h' },
+]
 
-function getLimiters() {
-  if (limiters) return limiters
+type LimiterMap = Record<string, Ratelimit>
+let exactLimiters: LimiterMap | null = null
+let prefixLimiters: Array<{ prefix: string; limiter: Ratelimit }> | null = null
+
+function getRedis() {
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return null
-  const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
-  })
-  limiters = Object.fromEntries(
+  return new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+}
+
+function getLimiters(): { exact: LimiterMap; prefix: Array<{ prefix: string; limiter: Ratelimit }> } | null {
+  if (exactLimiters && prefixLimiters) return { exact: exactLimiters, prefix: prefixLimiters }
+  const redis = getRedis()
+  if (!redis) return null
+
+  exactLimiters = Object.fromEntries(
     Object.entries(LIMITS).map(([path, { max, window: w }]) => [
       path,
       new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(max, w as any), prefix: `rl:${path}` }),
     ])
   )
-  return limiters
+  prefixLimiters = PREFIX_LIMITS.map(({ prefix, max, window: w }) => ({
+    prefix,
+    limiter: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(max, w as any), prefix: `rl:${prefix}` }),
+  }))
+  return { exact: exactLimiters, prefix: prefixLimiters }
 }
 
 async function applyRateLimit(req: NextRequest) {
   const path = req.nextUrl.pathname
-  if (!LIMITS[path]) return NextResponse.next()
-
   const rl = getLimiters()
   if (!rl) return NextResponse.next() // no Redis configured — pass through
 
@@ -38,7 +52,13 @@ async function applyRateLimit(req: NextRequest) {
     || req.headers.get('x-real-ip')
     || 'unknown'
 
-  const { success, limit, remaining, reset } = await rl[path].limit(ip)
+  let limiter: Ratelimit | undefined = rl.exact[path]
+  if (!limiter) {
+    limiter = rl.prefix.find(p => path.startsWith(p.prefix))?.limiter
+  }
+  if (!limiter) return NextResponse.next()
+
+  const { success, limit, remaining, reset } = await limiter.limit(ip)
   if (!success) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
