@@ -6,6 +6,11 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    const secret = req.headers.get('x-onboard-secret')
+    if (!secret || secret !== process.env.POURSONA_ONBOARD_SECRET) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { draftId, ownerEmail } = await req.json()
     if (!draftId) return NextResponse.json({ error: 'Missing draftId' }, { status: 400 })
 

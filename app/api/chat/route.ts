@@ -17,6 +17,15 @@ export async function POST(req: NextRequest) {
     const retailer = retailerResult.rows[0]
     if (!retailer) return NextResponse.json({ error: 'retailer not found' }, { status: 404 })
 
+    // Validate session belongs to this retailer (prevents cross-retailer session writes)
+    const sessionCheck = await dbQuery(
+      'select retailer_id from sessions where id = $1 limit 1',
+      [sessionId]
+    )
+    if (sessionCheck.rows[0] && sessionCheck.rows[0].retailer_id !== retailer.id) {
+      return NextResponse.json({ error: 'invalid session' }, { status: 403 })
+    }
+
     const now = new Date()
     const trialEnd = retailer.trial_ends_at ? new Date(retailer.trial_ends_at) : null
     const subStatus = retailer.subscription_status

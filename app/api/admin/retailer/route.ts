@@ -28,7 +28,14 @@ export async function GET(req: NextRequest) {
     }
 
     const result = await dbQuery('select * from retailers where id = $1 limit 1', [retailerId])
-    return NextResponse.json({ ok: true, retailer: result.rows[0] || null })
+    const retailer = result.rows[0] || null
+    if (retailer && authz.access.role !== 'owner') {
+      delete retailer.owner_email
+      delete retailer.stripe_customer_id
+      delete retailer.subscription_status
+      delete retailer.trial_ends_at
+    }
+    return NextResponse.json({ ok: true, retailer })
   } catch (error) {
     console.error('[api/admin/retailer] get failed:', error)
     return NextResponse.json({ ok: false, error: 'retailer lookup failed' }, { status: 500 })

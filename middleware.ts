@@ -1,72 +1,65 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
 
-// Simple in-memory rate limiter (resets on cold start — acceptable for MVP)
-// For production: replace with Vercel KV or Upstash Redis
-const rateMap = new Map<string, { count: number; reset: number }>()
-
-const LIMITS: Record<string, { max: number; windowMs: number }> = {
-  '/api/chat':        { max: 20,  windowMs: 60 * 60 * 1000 }, // 20/hr — protect Anthropic budget
-  '/api/menu-scan':   { max: 10,  windowMs: 60 * 60 * 1000 }, // 10/hr — vision is expensive
-  '/api/retailer':    { max: 120, windowMs: 60 * 60 * 1000 }, // 120/hr — page loads
+const LIMITS: Record<string, { max: number; window: string }> = {
+  '/api/chat':      { max: 20,  window: '1 h' },
+  '/api/menu-scan': { max: 10,  window: '1 h' },
+  '/api/retailer':  { max: 120, window: '1 h' },
 }
 
-function applyRateLimit(req: NextRequest) {
+let limiters: Record<string, Ratelimit> | null = null
+
+function getLimiters() {
+  if (limiters) return limiters
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return null
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  })
+  limiters = Object.fromEntries(
+    Object.entries(LIMITS).map(([path, { max, window: w }]) => [
+      path,
+      new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(max, w as any), prefix: `rl:${path}` }),
+    ])
+  )
+  return limiters
+}
+
+async function applyRateLimit(req: NextRequest) {
   const path = req.nextUrl.pathname
-  const limit = LIMITS[path]
-  if (!limit) return NextResponse.next()
+  if (!LIMITS[path]) return NextResponse.next()
+
+  const rl = getLimiters()
+  if (!rl) return NextResponse.next() // no Redis configured — pass through
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || req.headers.get('x-real-ip')
     || 'unknown'
 
-  const key = `${path}:${ip}`
-  const now = Date.now()
-  const entry = rateMap.get(key)
-
-  if (!entry || now > entry.reset) {
-    rateMap.set(key, { count: 1, reset: now + limit.windowMs })
-    return NextResponse.next()
-  }
-
-  if (entry.count >= limit.max) {
+  const { success, limit, remaining, reset } = await rl[path].limit(ip)
+  if (!success) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
       {
         status: 429,
         headers: {
-          'Retry-After': String(Math.ceil((entry.reset - now) / 1000)),
-          'X-RateLimit-Limit': String(limit.max),
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': String(entry.reset),
-        }
+          'Retry-After': String(Math.ceil((reset - Date.now()) / 1000)),
+          'X-RateLimit-Limit': String(limit),
+          'X-RateLimit-Remaining': String(remaining),
+          'X-RateLimit-Reset': String(reset),
+        },
       }
     )
   }
-
-  entry.count++
   return NextResponse.next()
 }
 
-const isVendorAdminPage = createRouteMatcher([
-  '/admin',
-  '/admin/(.*)',
-])
-
-const isVendorAdminPublicPage = createRouteMatcher([
-  '/admin/login(.*)',
-  '/admin/auth(.*)',
-])
-
-const isInternalAdminPage = createRouteMatcher([
-  '/poursona-admin',
-  '/poursona-admin/(.*)',
-])
-
-const isInternalAdminPublicPage = createRouteMatcher([
-  '/poursona-admin/login(.*)',
-])
-
+const isVendorAdminPage = createRouteMatcher(['/admin', '/admin/(.*)'])
+const isVendorAdminPublicPage = createRouteMatcher(['/admin/login(.*)', '/admin/auth(.*)'])
+const isInternalAdminPage = createRouteMatcher(['/poursona-admin', '/poursona-admin/(.*)'])
+const isInternalAdminPublicPage = createRouteMatcher(['/poursona-admin/login(.*)'])
 const isProtectedApiRoute = createRouteMatcher([
   '/api/admin/access',
   '/api/poursona-admin/invite',
@@ -80,19 +73,13 @@ const hasClerkEnv =
 
 const protectedMiddleware = clerkMiddleware(async (auth, req) => {
   const { userId } = await auth()
-  const path = req.nextUrl.pathname
 
-  const needsVendorLogin = isVendorAdminPage(req) && !isVendorAdminPublicPage(req)
-  const needsInternalLogin = isInternalAdminPage(req) && !isInternalAdminPublicPage(req)
-
-  if (needsVendorLogin && !userId) {
+  if (isVendorAdminPage(req) && !isVendorAdminPublicPage(req) && !userId) {
     return NextResponse.redirect(new URL('/admin/login', req.url))
   }
-
-  if (needsInternalLogin && !userId) {
+  if (isInternalAdminPage(req) && !isInternalAdminPublicPage(req) && !userId) {
     return NextResponse.redirect(new URL('/poursona-admin/login', req.url))
   }
-
   if (isProtectedApiRoute(req) && !userId) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
   }
@@ -103,21 +90,15 @@ const protectedMiddleware = clerkMiddleware(async (auth, req) => {
 export default function middleware(req: NextRequest, evt: any) {
   const needsVendorLogin = isVendorAdminPage(req) && !isVendorAdminPublicPage(req)
   const needsInternalLogin = isInternalAdminPage(req) && !isInternalAdminPublicPage(req)
-  const protectedPage = needsVendorLogin || needsInternalLogin
 
   if (!hasClerkEnv) {
-    if (protectedPage || isProtectedApiRoute(req)) {
+    if (needsVendorLogin || needsInternalLogin || isProtectedApiRoute(req)) {
       if (req.nextUrl.pathname.startsWith('/api/')) {
-        return NextResponse.json(
-          { ok: false, error: 'Admin authentication is not configured.' },
-          { status: 503 }
-        )
+        return NextResponse.json({ ok: false, error: 'Admin authentication is not configured.' }, { status: 503 })
       }
-
       const loginPath = needsInternalLogin ? '/poursona-admin/login' : '/admin/login'
       return NextResponse.redirect(new URL(loginPath, req.url))
     }
-
     return applyRateLimit(req)
   }
 

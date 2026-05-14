@@ -142,10 +142,12 @@ function RecommendationCard({
 }) {
   const [ordering, setOrdering] = useState(false)
   const [ordered, setOrdered] = useState(false)
+  const [orderError, setOrderError] = useState<string | null>(null)
   const products = rec.selectedProducts || []
 
   const handleOrder = async () => {
     setOrdering(true)
+    setOrderError(null)
     const items = products.map((product: { name: string }) => ({
       name: product.name,
       size: 'Standard',
@@ -153,16 +155,28 @@ function RecommendationCard({
       qty: 1,
     }))
 
-    await fetch('/api/order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId,
-        retailerId: retailer.id,
-        items,
-        blendName: rec.recommendationName,
-      }),
-    })
+    try {
+      const res = await fetch('/api/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          retailerId: retailer.id,
+          items,
+          blendName: rec.recommendationName,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        setOrderError(json.error || 'Something went wrong. Please ask staff for help.')
+        setOrdering(false)
+        return
+      }
+    } catch {
+      setOrderError('Could not place order. Please ask staff for help.')
+      setOrdering(false)
+      return
+    }
 
     setOrdering(false)
     setOrdered(true)
@@ -276,6 +290,12 @@ function RecommendationCard({
         </div>
         <div style={{ color: '#F5ECD7', fontSize: 14, lineHeight: 1.7 }}>{rec.whyItFitsYou}</div>
       </div>
+
+      {orderError && (
+        <div style={{ background: 'rgba(224,112,112,.1)', border: '1px solid rgba(224,112,112,.3)', borderRadius: 12, padding: '14px 16px', marginBottom: 12, color: '#e07070', fontSize: 14, textAlign: 'center' }}>
+          {orderError}
+        </div>
+      )}
 
       {ordered ? (
         <div
