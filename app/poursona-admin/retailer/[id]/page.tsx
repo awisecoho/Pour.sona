@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { storefrontUrl } from '@/lib/urls'
 
 export default function RetailerDetail() {
   const { id } = useParams<{ id: string }>()
@@ -467,7 +468,7 @@ export default function RetailerDetail() {
             {inviteResult && <div style={{ color: inviteResult.startsWith('Error') ? '#e07070' : '#5ecf8a', fontSize: 13, marginTop: 12 }}>{inviteResult}</div>}
             <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(201,168,76,.1)' }}>
               <div style={{ color: '#4a3a1a', fontSize: 11, marginBottom: 6 }}>Customer link</div>
-              <div style={{ color: '#C9A84C', fontSize: 13 }}>pour-sona.vercel.app/r/{retailer.slug}</div>
+              <div style={{ color: '#C9A84C', fontSize: 13 }}>{storefrontUrl(retailer.slug)}</div>
             </div>
           </div>
         )}

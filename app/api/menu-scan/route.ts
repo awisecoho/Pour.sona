@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -54,6 +55,6 @@ Rules:
 
     return NextResponse.json({ ok: true, products, count: products.length })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return apiError(err, 'menu scan failed')
   }
 }

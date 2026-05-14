@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { loadAdminAccess } from '@/lib/admin-access'
+import { storefrontUrl } from '@/lib/urls'
 export default function SettingsPage() {
   const [retailer,setRetailer]=useState<any>(null)
   const [form,setForm]=useState<any>(null)
@@ -50,7 +51,7 @@ export default function SettingsPage() {
           <div style={{background:'linear-gradient(145deg,#0e0b06,#0a0805)',border:'1px solid rgba(201,168,76,.15)',borderRadius:14,padding:'28px 24px'}}>
             <div style={{color:'#F5ECD7',fontSize:15,fontWeight:700,marginBottom:16}}>Your QR Code</div>
             <div style={{textAlign:'center',padding:'20px 0'}}><img src={'/api/qr?slug='+retailer?.slug} alt="QR" style={{width:160,height:160,borderRadius:8}}/></div>
-            <div style={{color:'#4a3a1a',fontSize:12,textAlign:'center',marginBottom:16}}>pour-sona.vercel.app/r/{retailer?.slug}</div>
+            <div style={{color:'#4a3a1a',fontSize:12,textAlign:'center',marginBottom:16}}>{retailer?.slug ? storefrontUrl(retailer.slug) : ''}</div>
             <a href={'/api/qr?slug='+retailer?.slug+'&format=png'} download style={{display:'block',textAlign:'center',padding:'10px',background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.2)',borderRadius:8,color:'#C9A84C',textDecoration:'none',fontSize:12}}>↓ Download PNG</a>
           </div>
           <div style={{background:'linear-gradient(145deg,#0e0b06,#0a0805)',border:'1px solid rgba(201,168,76,.15)',borderRadius:14,padding:'24px'}}>

@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { dbQuery } from "@/lib/db";
+import { apiError } from "@/lib/api";
 
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get("slug");
@@ -52,11 +53,7 @@ export async function GET(req: NextRequest) {
       flights: flightsResult.rows,
       sessionId,
     });
-  } catch (error) {
-    console.error(
-      "[api/retailer] Neon query failed:",
-      error instanceof Error ? error.message : String(error)
-    );
-    return NextResponse.json({ error: "Retailer lookup failed" }, { status: 500 });
+  } catch (err) {
+    return apiError(err, 'Retailer lookup failed')
   }
 }

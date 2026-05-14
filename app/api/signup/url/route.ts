@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDraftFromUrl } from '@/lib/onboarding'
 import { onboardLimiter, getIp } from '@/lib/rate-limit'
+import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -31,6 +32,6 @@ export async function POST(req: NextRequest) {
     const draft = await createDraftFromUrl(url)
     return NextResponse.json({ ok: true, draft })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Failed to analyze your website. Please try again.' }, { status: 500 })
+    return apiError(err, 'Failed to analyze your website. Please try again.')
   }
 }
