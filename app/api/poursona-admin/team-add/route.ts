@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { dbQuery } from '@/lib/db'
 export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   try {
     const { email, name, role } = await req.json()
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } })
-    await supabase.from('poursona_team').upsert({ email: email.toLowerCase().trim(), name, role: role || 'staff' }, { onConflict: 'email' })
+    await dbQuery(
+      `insert into poursona_team (email, name, role)
+       values ($1, $2, $3)
+       on conflict (email) do update set name = excluded.name, role = excluded.role`,
+      [email.toLowerCase().trim(), name || null, role || 'staff']
+    )
     return NextResponse.json({ ok: true })
   } catch (err: any) { return NextResponse.json({ error: err.message }, { status: 500 }) }
 }

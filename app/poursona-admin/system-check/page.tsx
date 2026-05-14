@@ -1,47 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
 
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-
-type Check = {
-  key: string
-  label: string
-  ready: boolean
-  error: string | null
-}
-
-type SystemCheckResponse = {
-  ok: boolean
-  ready?: boolean
-  checkedAt?: string
-  checks?: Check[]
-  error?: string
-}
+type Check = { key: string; label: string; ready: boolean; error: string | null }
+type SystemCheckResponse = { ok: boolean; ready?: boolean; checkedAt?: string; checks?: Check[]; error?: string }
 
 export default function SystemCheckPage() {
   const [result, setResult] = useState<SystemCheckResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      const { data: { session } } = await sb.auth.getSession()
-      if (!session) {
-        setResult({ ok: false, error: 'Not signed in.' })
-        setLoading(false)
-        return
-      }
-
-      const res = await fetch('/api/poursona-admin/system-check', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      const json = await res.json()
-      setResult(json)
-      setLoading(false)
-    }
-
-    load()
+    fetch('/api/poursona-admin/system-check')
+      .then(r => r.json())
+      .then(json => { setResult(json); setLoading(false) })
+      .catch(() => { setResult({ ok: false, error: 'Request failed.' }); setLoading(false) })
   }, [])
 
   if (loading) return <div style={{ color: '#C9A84C' }}>Checking schema...</div>
@@ -52,19 +24,17 @@ export default function SystemCheckPage() {
     <div>
       <div style={{ marginBottom: 28 }}>
         <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Poursona Internal</div>
-        <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>Phase 1 System Check</div>
-        <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 4 }}>
-          Read-only verification for vendor intelligence schema.
-        </div>
+        <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>System Check</div>
+        <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 4 }}>Live Neon DB schema verification.</div>
       </div>
 
       <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.12)', borderRadius: 14, overflow: 'hidden' }}>
         <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(201,168,76,.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div style={{ color: '#F5ECD7', fontSize: 16, fontWeight: 700 }}>
-            {result?.ready ? 'Live DB schema is ready' : 'Live DB schema is not ready'}
+            {result?.ready ? 'DB schema is ready' : 'DB schema has issues'}
           </div>
           <span style={{ padding: '5px 12px', borderRadius: 20, fontSize: 11, background: result?.ready ? 'rgba(94,207,138,.12)' : 'rgba(224,112,112,.12)', color: result?.ready ? '#5ecf8a' : '#e07070', border: '1px solid ' + (result?.ready ? 'rgba(94,207,138,.3)' : 'rgba(224,112,112,.3)') }}>
-            {result?.ready ? 'READY' : 'MISSING'}
+            {result?.ready ? 'READY' : 'ISSUES'}
           </span>
         </div>
 
@@ -77,8 +47,8 @@ export default function SystemCheckPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(201,168,76,.1)' }}>
-              {['Check', 'Status', 'Message'].map(header => (
-                <th key={header} style={{ padding: '12px 20px', textAlign: 'left', color: '#4a3a1a', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{header}</th>
+              {['Check', 'Status', 'Message'].map(h => (
+                <th key={h} style={{ padding: '12px 20px', textAlign: 'left', color: '#4a3a1a', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>
               ))}
             </tr>
           </thead>

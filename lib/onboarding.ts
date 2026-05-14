@@ -20,38 +20,23 @@ async function fetchPage(url: string): Promise<string> {
   } catch { return '' }
 }
 
-function getSupabaseBrandExtractionConfig() {
-  return {
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    functionPath: '/functions/v1/extract-brand-colors',
+function extractColorsFromHtml(html: string, baseUrl: string): { primary: string | null; logoUrl: string | null } {
+  const themeColor =
+    html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']theme-color["']/i)?.[1] ||
+    null
+
+  const ogImage =
+    html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1] ||
+    null
+
+  let logoUrl = ogImage
+  if (logoUrl && !logoUrl.startsWith('http')) {
+    try { logoUrl = new URL(logoUrl, baseUrl).toString() } catch { logoUrl = null }
   }
-}
 
-async function extractBrandColorsWithSupabase(url: string) {
-  const { supabaseUrl, serviceRoleKey, functionPath } = getSupabaseBrandExtractionConfig()
-  const baseUrl = new URL(supabaseUrl)
-  const functionUrl = `https://${baseUrl.hostname}${functionPath}`
-
-  return fetch(functionUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${serviceRoleKey}`,
-    },
-    body: JSON.stringify({ url }),
-    signal: AbortSignal.timeout(30000),
-  })
-}
-
-async function extractColorsViaScreenshot(url: string): Promise<{ primary: string; logoUrl: string } | null> {
-  try {
-    const res = await extractBrandColorsWithSupabase(url)
-    if (!res.ok) return null
-    const data = await res.json()
-    if (!data.ok) return null
-    return { primary: data.colors.primary || '#C9A84C', logoUrl: data.colors.logoUrl || '' }
-  } catch { return null }
+  return { primary: themeColor, logoUrl }
 }
 
 async function insertIngestionJob(url: string, signals: RawSignals) {
@@ -239,17 +224,16 @@ export async function extractSignals(rootUrl: string): Promise<RawSignals> {
   const metaDesc = rootHtml.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] || ''
   const links = extractLinks(rootHtml, rootUrl)
 
-  // Run screenshot + page crawl in parallel
-  const [screenshotColors, crawlResults] = await Promise.all([
-    extractColorsViaScreenshot(rootUrl),
-    Promise.allSettled(
+  const screenshotColors = extractColorsFromHtml(rootHtml, rootUrl)
+
+  // Crawl sub-pages
+  const crawlResults = await Promise.allSettled(
       links.map(async (link) => {
         const html = await fetchPage(link.url)
         if (!html) return null
         return { url: link.url, type: link.type, text: stripHtml(html).slice(0, 5000) }
       })
     )
-  ])
 
   const menuPages: string[] = []
   const storyPages: string[] = []

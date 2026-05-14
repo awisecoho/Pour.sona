@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { dbQuery } from '@/lib/db'
 export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json()
     if (!email) return NextResponse.json({ ok: false })
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } })
-    const { data } = await supabase.from('poursona_team').select('email, name, role').eq('email', email.toLowerCase().trim()).single()
-    return NextResponse.json({ ok: !!data, member: data || null })
+    const result = await dbQuery(
+      'select email, name, role from poursona_team where lower(email) = $1 limit 1',
+      [email.toLowerCase().trim()]
+    )
+    const member = result.rows[0] || null
+    return NextResponse.json({ ok: !!member, member })
   } catch {
     return NextResponse.json({ ok: false })
   }

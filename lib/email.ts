@@ -92,6 +92,47 @@ export async function sendTrialExpiredNotice(opts: {
   }).catch(err => console.error('[email] sendTrialExpiredNotice failed:', err?.message))
 }
 
+// ── Vendor invite ────────────────────────────────────────────────────────────
+
+export async function sendVendorInvite(opts: {
+  to: string
+  name: string | null
+  retailerName: string
+  adminUrl: string
+}) {
+  const { to, name, retailerName, adminUrl } = opts
+  const greeting = name ? `Hi ${name},` : 'Hi there,'
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `You've been added to ${retailerName} on Poursona`,
+    html: `
+<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f9f5ec;font-family:Georgia,serif">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px">
+<table width="540" cellpadding="0" cellspacing="0" style="background:#0a0603;border-radius:16px;overflow:hidden">
+  <tr><td style="padding:32px 40px;border-bottom:1px solid rgba(201,168,76,.15)">
+    <div style="color:#C9A84C;font-size:11px;letter-spacing:.25em;text-transform:uppercase;margin-bottom:8px">You're invited</div>
+    <div style="color:#F5ECD7;font-size:24px;font-weight:700">${retailerName}</div>
+  </td></tr>
+  <tr><td style="padding:32px 40px">
+    <div style="color:#F5ECD7;font-size:15px;line-height:1.7;margin-bottom:24px">
+      ${greeting}<br><br>
+      You've been added as an owner of <strong style="color:#C9A84C">${retailerName}</strong> on Poursona.
+      Log in with your email to access the vendor portal.
+    </div>
+    <a href="${adminUrl}" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#C9A84C,#a07830);border-radius:8px;color:#060403;font-weight:700;text-decoration:none;font-size:14px">Go to Vendor Portal →</a>
+  </td></tr>
+  <tr><td style="padding:24px 40px;border-top:1px solid rgba(201,168,76,.08)">
+    <div style="color:#3a2a0a;font-size:11px;text-align:center">Powered by <a href="https://pour-sona.com" style="color:#C9A84C;text-decoration:none">Poursona</a></div>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`,
+  }).catch(err => console.error('[email] sendVendorInvite failed:', err?.message))
+}
+
 // ── Trial expiring soon warning ───────────────────────────────────────────────
 
 export async function sendTrialExpiringWarning(opts: {
