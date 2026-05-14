@@ -46,7 +46,7 @@ export default function HomePage() {
         </p>
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
           <a
-            href="mailto:hello@pour-sona.com?subject=I'd like to try Poursona"
+            href="/signup"
             style={{ padding: '16px 32px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', borderRadius: 10, color: '#060403', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}
           >
             Get Early Access →
@@ -134,10 +134,10 @@ export default function HomePage() {
           Ready to guide every guest<br />to their perfect pour?
         </h2>
         <p style={{ color: '#4a3a1a', fontSize: 15, lineHeight: 1.7, marginBottom: 36 }}>
-          We onboard new venues personally. Send us your website and we'll have your guide live within 24 hours.
+          Paste your venue website and we'll extract your menu, branding, and story automatically — live in minutes.
         </p>
         <a
-          href="mailto:hello@pour-sona.com?subject=I'd like to try Poursona"
+          href="/signup"
           style={{ display: 'inline-block', padding: '18px 40px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', borderRadius: 10, color: '#060403', fontWeight: 700, fontSize: 16, textDecoration: 'none' }}
         >
           Get Early Access →
