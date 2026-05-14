@@ -228,7 +228,8 @@ export default function SignupPage() {
                   {step === 'finalizing' ? 'Creating your account…' : 'Create My Guide — Free Trial →'}
                 </button>
                 <div style={{ textAlign: 'center', color: '#3a2a0a', fontSize: 12, marginTop: 14 }}>
-                  14-day free trial · No credit card required
+                  14-day free trial · then $49/mo · No credit card required ·{' '}
+                  <a href="/pricing" target="_blank" style={{ color: '#4a3a1a', textDecoration: 'underline' }}>See what&apos;s included</a>
                 </div>
               </div>
             </div>

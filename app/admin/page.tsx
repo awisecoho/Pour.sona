@@ -1,6 +1,61 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useActiveRetailer } from '@/lib/useActiveRetailer'
+
+const CHECKLIST = [
+  { id: 'catalog', label: 'Review your catalog', desc: 'Confirm the AI extracted your products correctly.', href: '/admin/catalog', cta: 'Go to Catalog →' },
+  { id: 'preview', label: 'Preview your guest guide', desc: 'See exactly what your guests experience when they scan.', href: null, cta: null },
+  { id: 'qr', label: 'Download your QR code', desc: 'Print it and place it on your menus and tables.', href: '/admin/qr', cta: 'Download QR →' },
+]
+
+function OnboardingChecklist({ retailerSlug, onDismiss }: { retailerSlug: string; onDismiss: () => void }) {
+  const done: Record<string, boolean> = {}
+  const completedCount = CHECKLIST.filter(s => done[s.id]).length
+
+  return (
+    <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.25)', borderRadius: 14, padding: '28px 28px 20px', marginBottom: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+        <div>
+          <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', marginBottom: 4 }}>Getting started</div>
+          <div style={{ color: '#F5ECD7', fontSize: 18, fontWeight: 700 }}>You&apos;re almost live</div>
+          <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 4 }}>3 quick steps to start guiding guests.</div>
+        </div>
+        <button onClick={onDismiss} style={{ background: 'none', border: 'none', color: '#3a2a0a', cursor: 'pointer', fontSize: 18, padding: '0 4px', lineHeight: 1 }} title="Dismiss">×</button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+        {CHECKLIST.map((step, i) => (
+          <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: 'rgba(255,255,255,.03)', borderRadius: 10, border: '1px solid rgba(201,168,76,.08)' }}>
+            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A84C', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+              {i + 1}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: '#F5ECD7', fontSize: 13, fontWeight: 700 }}>{step.label}</div>
+              <div style={{ color: '#4a3a1a', fontSize: 12, marginTop: 2 }}>{step.desc}</div>
+            </div>
+            {step.href ? (
+              <Link href={step.href} style={{ padding: '6px 14px', background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#C9A84C', fontSize: 11, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                {step.cta}
+              </Link>
+            ) : (
+              <a href={`/r/${retailerSlug}`} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 14px', background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#C9A84C', fontSize: 11, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                Preview Guide →
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flex: 1, height: 3, background: 'rgba(201,168,76,.1)', borderRadius: 2 }}>
+          <div style={{ width: `${(completedCount / CHECKLIST.length) * 100}%`, height: '100%', background: '#C9A84C', borderRadius: 2, transition: 'width .3s' }} />
+        </div>
+        <div style={{ color: '#4a3a1a', fontSize: 11, whiteSpace: 'nowrap' }}>{completedCount}/{CHECKLIST.length} done</div>
+      </div>
+    </div>
+  )
+}
 
 const ICONS: Record<string, string> = { brewery: '🍺', winery: '🍷', distillery: '🥃', coffee: '☕' }
 
@@ -20,6 +75,18 @@ export default function Dashboard() {
   const [recent, setRecent] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
+  const [showChecklist, setShowChecklist] = useState(false)
+
+  useEffect(() => {
+    if (!retailerId) return
+    const dismissed = localStorage.getItem(`poursona_checklist_dismissed_${retailerId}`)
+    if (!dismissed) setShowChecklist(true)
+  }, [retailerId])
+
+  function dismissChecklist() {
+    if (retailerId) localStorage.setItem(`poursona_checklist_dismissed_${retailerId}`, '1')
+    setShowChecklist(false)
+  }
 
   useEffect(() => {
     if (retailerLoading) return
@@ -78,6 +145,10 @@ export default function Dashboard() {
           <a href={'/r/' + retailer?.slug} target="_blank" style={{ color: '#C9A84C', textDecoration: 'none' }}>↗ /r/{retailer?.slug}</a>
         </div>
       </div>
+
+      {showChecklist && stats.scans === 0 && retailer?.slug && (
+        <OnboardingChecklist retailerSlug={retailer.slug} onDismiss={dismissChecklist} />
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 32 }}>
         <Stat label="QR Scans" value={stats.scans} sub="Total visits" />

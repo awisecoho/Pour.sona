@@ -28,6 +28,7 @@ export default function HomePage() {
         <div style={{ color: '#C9A84C', fontSize: 18, fontWeight: 700, letterSpacing: '.05em' }}>✦ Poursona</div>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           <a href="#how-it-works" style={{ color: '#4a3a1a', fontSize: 13, textDecoration: 'none' }}>How it works</a>
+          <Link href="/pricing" style={{ color: '#4a3a1a', fontSize: 13, textDecoration: 'none' }}>Pricing</Link>
           <Link href="/admin/login" style={{ color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>Vendor login</Link>
         </div>
       </nav>
@@ -149,6 +150,7 @@ export default function HomePage() {
       <footer style={{ borderTop: '1px solid rgba(201,168,76,.08)', padding: '32px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ color: '#C9A84C', fontWeight: 700 }}>✦ Poursona</div>
         <div style={{ display: 'flex', gap: 24 }}>
+          <Link href="/pricing" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Pricing</Link>
           <Link href="/admin/login" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Vendor Login</Link>
           <a href="mailto:hello@pour-sona.com" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Contact</a>
         </div>
