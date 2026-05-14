@@ -87,15 +87,15 @@ export default function CatalogPage() {
       const res = await fetch(`/api/catalog?retailerId=${encodeURIComponent(retailerData.id)}`, {
         cache: 'no-store',
       })
-      const prods = await res.json()
-      if (!res.ok) {
-        console.error('[admin/catalog] products lookup failed:', prods)
+      const json = await res.json()
+      if (!res.ok || !json.ok) {
+        console.error('[admin/catalog] products lookup failed:', json)
         setLoadMessage('Products could not be loaded right now.')
         setLoading(false)
         return
       }
 
-      setProducts(prods || [])
+      setProducts(json.products || [])
       setLoading(false)
     } catch (error) {
       console.error('[admin/catalog] load failed:', error)

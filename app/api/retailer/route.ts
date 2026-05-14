@@ -28,6 +28,11 @@ export async function GET(req: NextRequest) {
 
     const sessionId = sessionResult.rows[0]?.id ?? null;
 
+    if (!sessionId) {
+      console.error('[api/retailer] session insert returned no id — aborting')
+      return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
+    }
+
     if (sessionId) {
       try {
         await dbQuery(

@@ -29,10 +29,10 @@ export async function GET(req: NextRequest) {
       'select * from products where retailer_id = $1 order by sort_order',
       [retailerId]
     )
-    return NextResponse.json(result.rows)
+    return NextResponse.json({ ok: true, products: result.rows })
   } catch (error: any) {
     console.error('[api/catalog] get failed:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
   }
 }
 

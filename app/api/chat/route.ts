@@ -46,9 +46,12 @@ export async function POST(req: NextRequest) {
 
     if (subStatus === 'trial' && trialEnd) {
       const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000)
-      if (daysLeft <= 3 && retailer.owner_email) {
+      const warningSentAt = retailer.trial_warning_sent_at ? new Date(retailer.trial_warning_sent_at) : null
+      const alreadySentRecently = warningSentAt && (now.getTime() - warningSentAt.getTime()) < 24 * 60 * 60 * 1000
+      if (daysLeft <= 3 && retailer.owner_email && !alreadySentRecently) {
         const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin/billing`
         sendTrialExpiringWarning({ to: retailer.owner_email, retailerName: retailer.name, daysLeft, upgradeUrl })
+        dbQuery('update retailers set trial_warning_sent_at = now() where id = $1', [retailer.id]).catch(() => {})
       }
     }
 
