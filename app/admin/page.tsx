@@ -2,6 +2,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useActiveRetailer } from '@/lib/useActiveRetailer'
+import type { Session } from '@/lib/types'
+
+type Stats = { scans: number; convos: number; recs: number; orders: number }
 
 const CHECKLIST = [
   { id: 'catalog', label: 'Review your catalog', desc: 'Confirm the AI extracted your products correctly.', href: '/admin/catalog', cta: 'Go to Catalog →' },
@@ -71,8 +74,8 @@ function Stat({ label, value, sub, color = '#C9A84C' }: any) {
 
 export default function Dashboard() {
   const { retailer, retailerId, loading: retailerLoading } = useActiveRetailer()
-  const [stats, setStats] = useState({ scans: 0, convos: 0, recs: 0, orders: 0 })
-  const [recent, setRecent] = useState<any[]>([])
+  const [stats, setStats] = useState<Stats>({ scans: 0, convos: 0, recs: 0, orders: 0 })
+  const [recent, setRecent] = useState<Pick<Session, 'id' | 'order_status' | 'created_at'>[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [showChecklist, setShowChecklist] = useState(false)

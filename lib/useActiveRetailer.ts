@@ -1,21 +1,21 @@
-// lib/useActiveRetailer.ts
 import { useEffect, useState } from 'react'
 import { loadAdminAccess } from '@/lib/admin-access'
+import type { Retailer } from '@/lib/types'
 
 export function useActiveRetailer() {
-  const [retailer, setRetailer] = useState<any>(null)
+  const [retailer, setRetailer] = useState<Retailer | null>(null)
   const [retailerId, setRetailerId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       const access = await loadAdminAccess()
-      const retailers = access.retailers || []
+      const retailers: Retailer[] = access.retailers || []
       if (!access.ok || retailers.length === 0) { setLoading(false); return }
 
       const storedRetailerId = typeof window !== 'undefined' ? localStorage.getItem('poursona_active_retailer') : null
       if (storedRetailerId) {
-        const matchedRetailer = retailers.find((r: any) => r.id === storedRetailerId)
+        const matchedRetailer = retailers.find(r => r.id === storedRetailerId)
         if (matchedRetailer) {
           setRetailer(matchedRetailer)
           setRetailerId(matchedRetailer.id)
@@ -31,7 +31,7 @@ export function useActiveRetailer() {
       if (storedRetailer) {
         try {
           const parsedRetailer = JSON.parse(storedRetailer)
-          const matchedRetailer = retailers.find((r: any) => r.id === parsedRetailer?.id)
+          const matchedRetailer = retailers.find(r => r.id === parsedRetailer?.id)
           if (matchedRetailer) {
             setRetailer(matchedRetailer)
             setRetailerId(matchedRetailer.id)

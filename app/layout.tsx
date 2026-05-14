@@ -1,6 +1,7 @@
 // app/layout.tsx
 import type { Metadata } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
+import { cssVars } from '@/lib/theme'
 
 export const metadata: Metadata = {
   title: 'Poursona — Guided Discovery',
@@ -14,7 +15,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <body style={{ margin: 0, padding: 0, background: '#0a0806' }}>
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: cssVars }} />
+      </head>
+      <body style={{ margin: 0, padding: 0, background: 'var(--black-soft)' }}>
         {hasClerkEnv ? <ClerkProvider>{children}</ClerkProvider> : children}
       </body>
     </html>

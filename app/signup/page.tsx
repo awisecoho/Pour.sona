@@ -1,8 +1,19 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import type { Retailer, Product } from '@/lib/types'
 
 type Step = 'url' | 'extracting' | 'preview' | 'finalizing' | 'done'
+
+interface RetailerDraft {
+  id: string
+  name: string
+  slug: string
+  vertical?: string
+  location?: string
+  tagline?: string
+  menu_json?: Product[]
+}
 
 const EXTRACTING_MESSAGES = [
   'Fetching your menu…',
@@ -24,8 +35,8 @@ export default function SignupPage() {
   const [url, setUrl] = useState('')
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
-  const [draft, setDraft] = useState<any>(null)
-  const [retailer, setRetailer] = useState<any>(null)
+  const [draft, setDraft] = useState<RetailerDraft | null>(null)
+  const [retailer, setRetailer] = useState<Pick<Retailer, 'name' | 'owner_email'> | null>(null)
   const [error, setError] = useState('')
   const [extractMsg, setExtractMsg] = useState(EXTRACTING_MESSAGES[0])
 
@@ -93,7 +104,7 @@ export default function SignupPage() {
     cursor: 'pointer', letterSpacing: '.05em',
   }
 
-  const products: any[] = Array.isArray(draft?.menu_json) ? draft.menu_json : []
+  const products: Product[] = Array.isArray(draft?.menu_json) ? draft.menu_json : []
   const stepNum = step === 'url' || step === 'extracting' ? 1 : step === 'preview' || step === 'finalizing' ? 2 : 3
 
   return (
