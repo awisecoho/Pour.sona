@@ -12,7 +12,39 @@ export default function CatalogPage() {
   const [scanning, setScanning] = useState(false)
   const [scanResult, setScanResult] = useState<any[]>([])
   const [newProduct, setNewProduct] = useState({ name: '', category: '', description: '', price: '', abv: '', flavor_notes: '' })
+  const [editingProduct, setEditingProduct] = useState<any | null>(null)
+  const [editForm, setEditForm] = useState<any>({})
+  const [editSaving, setEditSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  function openEdit(p: any) {
+    setEditingProduct(p)
+    setEditForm({ name: p.name || '', category: p.category || '', description: p.description || '', price: p.price ?? '', abv: p.abv || '', flavor_notes: p.flavor_notes || '' })
+  }
+
+  async function saveEdit() {
+    if (!editingProduct) return
+    setEditSaving(true)
+    const res = await fetch('/api/catalog', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editingProduct.id,
+        name: editForm.name || editingProduct.name,
+        category: editForm.category || null,
+        description: editForm.description || null,
+        price: editForm.price !== '' ? parseFloat(editForm.price) : null,
+        abv: editForm.abv || null,
+        flavor_notes: editForm.flavor_notes || null,
+      }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...updated } : p))
+      setEditingProduct(null)
+    }
+    setEditSaving(false)
+  }
 
   useEffect(() => { load() }, [])
 
@@ -227,9 +259,12 @@ export default function CatalogPage() {
               <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 500 }}>{p.name}</div>
               <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2 }}>{[p.category, p.abv, p.price ? '$'+p.price : null].filter(Boolean).join(' · ')}</div>
             </div>
-            <button onClick={() => toggleStock(p.id, p.in_stock)} disabled={saving === p.id} style={{ marginLeft: 12, padding: '7px 14px', background: 'rgba(255,100,100,.08)', border: '1px solid rgba(255,100,100,.2)', borderRadius: 8, color: '#e07070', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif', flexShrink: 0, opacity: saving === p.id ? .5 : 1 }}>
-              {saving === p.id ? '...' : 'Mark Off-Menu'}
-            </button>
+            <div style={{ display: 'flex', gap: 8, marginLeft: 12, flexShrink: 0 }}>
+              <button onClick={() => openEdit(p)} style={{ padding: '7px 14px', background: 'rgba(201,168,76,.08)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#C9A84C', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>Edit</button>
+              <button onClick={() => toggleStock(p.id, p.in_stock)} disabled={saving === p.id} style={{ padding: '7px 14px', background: 'rgba(255,100,100,.08)', border: '1px solid rgba(255,100,100,.2)', borderRadius: 8, color: '#e07070', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif', opacity: saving === p.id ? .5 : 1 }}>
+                {saving === p.id ? '...' : 'Off-Menu'}
+              </button>
+            </div>
           </div>
         ))}
         {inStock.length === 0 && <div style={{ color: '#4a3a1a', fontSize: 13 }}>No available items.</div>}
@@ -244,11 +279,56 @@ export default function CatalogPage() {
                 <div style={{ color: '#4a3a1a', fontSize: 14 }}>{p.name}</div>
                 <div style={{ color: '#3a2a0a', fontSize: 11, marginTop: 2 }}>{[p.category, p.price ? '$'+p.price : null].filter(Boolean).join(' · ')}</div>
               </div>
-              <button onClick={() => toggleStock(p.id, p.in_stock)} disabled={saving === p.id} style={{ marginLeft: 12, padding: '7px 14px', background: 'rgba(94,207,138,.08)', border: '1px solid rgba(94,207,138,.2)', borderRadius: 8, color: '#5ecf8a', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif', flexShrink: 0, opacity: saving === p.id ? .5 : 1 }}>
-                {saving === p.id ? '...' : 'Back on Menu'}
-              </button>
+              <div style={{ display: 'flex', gap: 8, marginLeft: 12, flexShrink: 0 }}>
+                <button onClick={() => openEdit(p)} style={{ padding: '7px 14px', background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 8, color: '#6a5a3a', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>Edit</button>
+                <button onClick={() => toggleStock(p.id, p.in_stock)} disabled={saving === p.id} style={{ padding: '7px 14px', background: 'rgba(94,207,138,.08)', border: '1px solid rgba(94,207,138,.2)', borderRadius: 8, color: '#5ecf8a', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif', opacity: saving === p.id ? .5 : 1 }}>
+                  {saving === p.id ? '...' : 'Back on Menu'}
+                </button>
+              </div>
             </div>
           ))}
+        </div>
+      )}
+      {/* Edit modal */}
+      {editingProduct && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => { if (e.target === e.currentTarget) setEditingProduct(null) }}>
+          <div style={{ background: 'linear-gradient(145deg,#0f0c07,#0a0805)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 16, padding: '28px 28px', width: '100%', maxWidth: 480 }}>
+            <div style={{ color: '#F5ECD7', fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Edit Product</div>
+            {[
+              { k: 'name', l: 'Name *', type: 'text' },
+              { k: 'category', l: 'Category', type: 'text' },
+              { k: 'price', l: 'Price ($)', type: 'number' },
+              { k: 'abv', l: 'ABV / Vintage / Origin', type: 'text' },
+              { k: 'flavor_notes', l: 'Flavor Notes', type: 'text' },
+            ].map(({ k, l, type }) => (
+              <div key={k} style={{ marginBottom: 14 }}>
+                <label style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>{l}</label>
+                <input
+                  type={type}
+                  value={editForm[k] ?? ''}
+                  onChange={e => setEditForm((f: any) => ({ ...f, [k]: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+            ))}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Description</label>
+              <textarea
+                value={editForm.description ?? ''}
+                onChange={e => setEditForm((f: any) => ({ ...f, description: e.target.value }))}
+                rows={3}
+                style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 14, outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={saveEdit} disabled={editSaving} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: editSaving ? .6 : 1 }}>
+                {editSaving ? 'Saving…' : 'Save Changes'}
+              </button>
+              <button onClick={() => setEditingProduct(null)} style={{ padding: '12px 18px', background: 'transparent', border: '1px solid rgba(201,168,76,.15)', borderRadius: 8, color: '#4a3a1a', fontFamily: 'Georgia, serif', fontSize: 13, cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

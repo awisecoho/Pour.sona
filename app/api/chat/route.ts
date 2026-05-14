@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildSystemPrompt } from '@/lib/prompts'
 import { dbQuery } from '@/lib/db'
+import { sendTrialExpiredNotice, sendTrialExpiringWarning } from '@/lib/email'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
@@ -27,7 +28,19 @@ export async function POST(req: NextRequest) {
         "update retailers set subscription_status = 'expired' where id = $1",
         [retailer.id]
       )
+      if (retailer.owner_email) {
+        const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin/billing`
+        sendTrialExpiredNotice({ to: retailer.owner_email, retailerName: retailer.name, upgradeUrl })
+      }
       return NextResponse.json({ error: 'subscription_inactive' }, { status: 402 })
+    }
+
+    if (subStatus === 'trial' && trialEnd) {
+      const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000)
+      if (daysLeft <= 3 && retailer.owner_email) {
+        const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'}/admin/billing`
+        sendTrialExpiringWarning({ to: retailer.owner_email, retailerName: retailer.name, daysLeft, upgradeUrl })
+      }
     }
 
     const [productsResult, flightsResult] = await Promise.all([

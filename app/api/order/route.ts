@@ -1,22 +1,43 @@
-export const dynamic = "force-dynamic";
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-function getAdmin() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } });
-}
+export const dynamic = 'force-dynamic'
+import { NextRequest, NextResponse } from 'next/server'
+import { dbQuery } from '@/lib/db'
+import { sendOrderConfirmation } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   try {
-    const admin = getAdmin();
-    const { sessionId, retailerId, items, customerEmail, customerName, blendName } = await req.json();
-    const subtotal = (items || []).reduce((s: number, i: any) => s + (i.price || 0) * (i.qty || 1), 0);
-    const { data: order, error } = await admin.from("orders").insert({ session_id: sessionId, retailer_id: retailerId, customer_email: customerEmail, customer_name: customerName, blend_name: blendName, items, subtotal, status: "pending" }).select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    if (sessionId) await admin.from("sessions").update({ order_status: "ordered", order_id: order.id, order_total: subtotal, ordered_at: new Date().toISOString() }).eq("id", sessionId);
-    await admin.from("events").insert({ retailer_id: retailerId, session_id: sessionId, event_type: "order", payload: { order_id: order.id, blend_name: blendName, subtotal } });
-    return NextResponse.json({ success: true, orderId: order.id, subtotal });
+    const { sessionId, retailerId, items, customerEmail, customerName, blendName } = await req.json()
+    const subtotal = (items || []).reduce((s: number, i: any) => s + (i.price || 0) * (i.qty || 1), 0)
+
+    const orderResult = await dbQuery(
+      `insert into orders (session_id, retailer_id, customer_email, customer_name, blend_name, items, subtotal, status)
+       values ($1, $2, $3, $4, $5, $6::jsonb, $7, 'pending')
+       returning id`,
+      [sessionId || null, retailerId, customerEmail || null, customerName || null, blendName || null, JSON.stringify(items || []), subtotal]
+    )
+    const order = orderResult.rows[0]
+    if (!order) return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
+
+    if (sessionId) {
+      await dbQuery(
+        `update sessions set order_status = 'ordered', order_id = $2, order_total = $3, ordered_at = now() where id = $1`,
+        [sessionId, order.id, subtotal]
+      )
+    }
+
+    await dbQuery(
+      `insert into events (retailer_id, session_id, event_type, payload)
+       values ($1, $2, 'order', $3::jsonb)`,
+      [retailerId, sessionId || null, JSON.stringify({ order_id: order.id, blend_name: blendName, subtotal })]
+    )
+
+    if (customerEmail) {
+      const retailerResult = await dbQuery('select name from retailers where id = $1 limit 1', [retailerId])
+      const retailerName = retailerResult.rows[0]?.name || 'your venue'
+      sendOrderConfirmation({ to: customerEmail, retailerName, blendName: blendName || 'Your Selection', items: items || [], subtotal })
+    }
+
+    return NextResponse.json({ success: true, orderId: order.id, subtotal })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

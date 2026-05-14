@@ -55,12 +55,7 @@ export async function getAuthenticatedIdentity() {
     null
   )
   if (!userId && !email) {
-    console.warn('[auth] Clerk identity missing --- using fallback for debug')
-    return {
-      userId: `clerk_fallback_${Date.now()}`,
-      email: 'awise873@gmail.com',
-      sessionClaims: null,
-    }
+    throw new Error('Clerk identity unavailable — check CLERK env vars')
   }
   if (!userId) return null
   return { userId, email }

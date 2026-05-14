@@ -1,23 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { createClient } from '@supabase/supabase-js'
+import { dbQuery } from '@/lib/db'
 export const dynamic = 'force-dynamic'
-const APP_URL = 'https://pour-sona.vercel.app'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'
+
 export async function POST(req: NextRequest) {
   try {
     const { retailerId } = await req.json()
     if (!retailerId) return NextResponse.json({ error: 'Missing retailerId' }, { status: 400 })
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } })
-    const { data: retailer } = await supabase.from('retailers').select('*').eq('id', retailerId).single()
+
+    const result = await dbQuery('select * from retailers where id = $1 limit 1', [retailerId])
+    const retailer = result.rows[0]
     if (!retailer) return NextResponse.json({ error: 'Retailer not found' }, { status: 404 })
-    // Create or reuse Stripe customer
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
+
     let customerId = retailer.stripe_customer_id
     if (!customerId) {
-      const customer = await stripe.customers.create({ email: retailer.owner_email, name: retailer.name, metadata: { retailer_id: retailerId } })
+      const customer = await stripe.customers.create({
+        email: retailer.owner_email,
+        name: retailer.name,
+        metadata: { retailer_id: retailerId },
+      })
       customerId = customer.id
-      await supabase.from('retailers').update({ stripe_customer_id: customerId }).eq('id', retailerId)
+      await dbQuery('update retailers set stripe_customer_id = $2 where id = $1', [retailerId, customerId])
     }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
@@ -27,6 +36,7 @@ export async function POST(req: NextRequest) {
       metadata: { retailer_id: retailerId },
       subscription_data: { metadata: { retailer_id: retailerId } },
     })
+
     return NextResponse.json({ url: session.url })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
