@@ -1,28 +1,38 @@
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-})
+// Lazy-init so missing env vars crash at call time (→ catchable 429)
+// rather than at module load time (→ uncatchable 503).
+let _redis: Redis | null = null
+function getRedis(): Redis {
+  if (!_redis) {
+    _redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    })
+  }
+  return _redis
+}
 
-export const chatLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(20, '1 h'),
-  prefix: 'rl:chat',
-})
+function makeLimiter(prefix: string, limit: number, window: string) {
+  let _limiter: Ratelimit | null = null
+  return {
+    limit: (id: string) => {
+      if (!_limiter) {
+        _limiter = new Ratelimit({
+          redis: getRedis(),
+          limiter: Ratelimit.slidingWindow(limit, window as Parameters<typeof Ratelimit.slidingWindow>[1]),
+          prefix,
+        })
+      }
+      return _limiter.limit(id)
+    },
+  }
+}
 
-export const onboardLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(5, '1 h'),
-  prefix: 'rl:onboard',
-})
-
-export const retailerLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(120, '1 h'),
-  prefix: 'rl:retailer',
-})
+export const chatLimiter = makeLimiter('rl:chat', 20, '1 h')
+export const onboardLimiter = makeLimiter('rl:onboard', 5, '1 h')
+export const retailerLimiter = makeLimiter('rl:retailer', 120, '1 h')
 
 export function getIp(req: Request): string {
   const fwd = (req as any).headers?.get?.('x-forwarded-for')
