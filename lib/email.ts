@@ -1,7 +1,11 @@
 import { Resend } from 'resend'
 import * as Sentry from '@sentry/nextjs'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+let _resend: Resend | null = null
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
+  return _resend
+}
 
 const FROM = 'Poursona <hello@pour-sona.com>'
 
@@ -21,10 +25,10 @@ export type EmailResult = {
 // observable without crashing the caller.
 
 async function sendEmail(
-  params: Parameters<typeof resend.emails.send>[0]
+  params: Parameters<Resend['emails']['send']>[0]
 ): Promise<EmailResult> {
   try {
-    const { data, error } = await resend.emails.send(params)
+    const { data, error } = await getResend().emails.send(params)
     if (error) {
       const msg = (error as any).message || JSON.stringify(error)
       console.error('[email] send failed:', params.subject, msg)
