@@ -16,9 +16,63 @@ function StatCard({ label, value, sub, color }: { label: string; value: string |
 
 type Tab = 'dashboard' | 'vendors' | 'accounting' | 'promos' | 'customers'
 
+interface Pagination { page: number; limit: number; total: number; totalPages: number }
+interface ExpiredRetailer { id: string; name: string; trial_ends_at: string | null }
+interface Summary {
+  totalRetailers: number; activeCount: number; paidCount: number; trialCount: number
+  expiredCount: number; totalSessions: number; totalOrders: number
+  expiredRetailers: ExpiredRetailer[]
+}
+interface AdminDailyPoint { day: string; sessions: number; orders: number; newRetailers: number }
+interface AdminAnalytics {
+  summary: { totalRetailers: number; activeRetailers: number; paidRetailers: number; trialRetailers: number; expiredTrials: number; totalSessions: number; totalOrders: number; conversionRate: number }
+  daily: AdminDailyPoint[]
+  range: { from: string | null; to: string | null; chartFrom: string; chartTo: string }
+}
+
+function AdminChart({ data }: { data: AdminDailyPoint[] }) {
+  if (!data.length) return null
+  const maxSessions = Math.max(...data.map(d => d.sessions), 1)
+  const barW = Math.max(3, Math.min(20, Math.floor(580 / data.length) - 2))
+  const svgW = data.length * (barW + 2)
+  return (
+    <div>
+      <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+        <svg width={svgW} height={72} style={{ display: 'block', overflow: 'visible' }}>
+          {data.map((d, i) => {
+            const sH = Math.max(d.sessions > 0 ? 2 : 0, Math.round((d.sessions / maxSessions) * 64))
+            const oH = Math.max(d.orders   > 0 ? 2 : 0, Math.round((d.orders   / maxSessions) * 64))
+            const x  = i * (barW + 2)
+            return (
+              <g key={d.day}>
+                <rect x={x} y={72 - sH} width={barW} height={sH} fill="rgba(255,255,255,0.08)" rx={1} />
+                {d.orders > 0 && <rect x={x} y={72 - oH} width={barW} height={oH} fill="rgba(201,168,76,0.65)" rx={1} />}
+                {d.newRetailers > 0 && <circle cx={x + barW / 2} cy={72 - sH - 4} r={3} fill="#5ecf8a" />}
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+        <span style={{ color: '#3a2a0a', fontSize: 9 }}>{data[0]?.day.slice(5)}</span>
+        <span style={{ color: '#3a2a0a', fontSize: 9 }}>{data[data.length - 1]?.day.slice(5)}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#4a3a1a', fontSize: 10 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(255,255,255,0.08)', display: 'inline-block' }} />Sessions</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#C9A84C', fontSize: 10 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(201,168,76,0.65)', display: 'inline-block' }} />Orders</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#5ecf8a', fontSize: 10 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#5ecf8a', display: 'inline-block' }} />New retailer</span>
+      </div>
+    </div>
+  )
+}
+
 export default function AppCommandCenter() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [retailers, setRetailers] = useState<any[]>([])
+  const [pagination, setPagination] = useState<Pagination | null>(null)
+  const [summary, setSummary] = useState<Summary | null>(null)
+  const [retailerSearch, setRetailerSearch] = useState('')
+  const [retailerPage, setRetailerPage] = useState(1)
   const [accounting, setAccounting] = useState<any>(null)
   const [promos, setPromos] = useState<any[]>([])
   const [customers, setCustomers] = useState<any[]>([])
@@ -28,19 +82,52 @@ export default function AppCommandCenter() {
   const [promoForm, setPromoForm] = useState({ code: '', type: 'percent', value: '', description: '', applies_to: 'all', max_uses: '' })
   const [promoSaving, setPromoSaving] = useState(false)
   const [promoMsg, setPromoMsg] = useState('')
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsFrom, setAnalyticsFrom] = useState('')
+  const [analyticsTo, setAnalyticsTo]   = useState('')
 
-  useEffect(() => { loadRetailers() }, [])
+  useEffect(() => { loadRetailers(1, ''); loadAnalytics('', '') }, [])
   useEffect(() => {
     if (tab === 'accounting' && !accounting) loadAccounting()
     if (tab === 'promos' && !promos.length) loadPromos()
     if (tab === 'customers') loadCustomers()
   }, [tab])
 
-  async function loadRetailers() {
-    const res = await fetch('/api/poursona-admin/retailers')
+  async function loadRetailers(page = 1, search = '') {
+    const params = new URLSearchParams({ page: String(page), limit: '20' })
+    if (search) params.set('search', search)
+    const res = await fetch('/api/poursona-admin/retailers?' + params)
     const json = await res.json()
     setRetailers(json.retailers || [])
+    setPagination(json.pagination || null)
+    setSummary(json.summary || null)
+    setRetailerPage(page)
     setLoading(false)
+  }
+
+  function handleRetailerSearch() {
+    loadRetailers(1, retailerSearch)
+  }
+
+  async function loadAnalytics(from: string, to: string) {
+    setAnalyticsLoading(true)
+    const p = new URLSearchParams()
+    if (from) p.set('from', from)
+    if (to)   p.set('to',   to)
+    const res = await fetch('/api/poursona-admin/analytics?' + p).catch(() => null)
+    if (res?.ok) {
+      const json = await res.json()
+      if (json.ok) setAnalytics(json as AdminAnalytics)
+    }
+    setAnalyticsLoading(false)
+  }
+
+  function exportAnalyticsCsv() {
+    const p = new URLSearchParams({ format: 'csv' })
+    if (analyticsFrom) p.set('from', analyticsFrom)
+    if (analyticsTo)   p.set('to',   analyticsTo)
+    window.location.href = '/api/poursona-admin/analytics?' + p
   }
 
   async function loadAccounting() {
@@ -98,13 +185,16 @@ export default function AppCommandCenter() {
 
   if (loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
 
-  const now = new Date()
-  const paid = retailers.filter(r => r.subscription_status === 'active')
-  const trials = retailers.filter(r => r.subscription_status === 'trial')
-  const expired = retailers.filter(r => r.subscription_status === 'trial' && r.trial_ends_at && new Date(r.trial_ends_at) < now)
-  const totalSessions = retailers.reduce((s, r) => s + (r.stats?.total || 0), 0)
-  const totalOrders = retailers.reduce((s, r) => s + (r.stats?.ordered || 0), 0)
-  const convRate = totalSessions > 0 ? Math.round(totalOrders / totalSessions * 100) + '%' : '—'
+  const totalVendors   = summary?.totalRetailers ?? retailers.length
+  const activeCount    = summary?.activeCount    ?? retailers.filter(r => r.active).length
+  const paidCount      = summary?.paidCount      ?? 0
+  const trialCount     = summary?.trialCount     ?? 0
+  const expiredCount   = summary?.expiredCount   ?? 0
+  const expiredList    = summary?.expiredRetailers ?? []
+  const totalSessions  = summary?.totalSessions  ?? retailers.reduce((s, r) => s + (r.stats?.total || 0), 0)
+  const totalOrders    = summary?.totalOrders    ?? retailers.reduce((s, r) => s + (r.stats?.ordered || 0), 0)
+  const convRate       = totalSessions > 0 ? Math.round(totalOrders / totalSessions * 100) + '%' : '—'
+  const now            = new Date()
 
   const card: React.CSSProperties = { background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px', marginBottom: 16 }
   const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }
@@ -118,7 +208,7 @@ export default function AppCommandCenter() {
         <div>
           <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Poursona Internal</div>
           <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>App Command Center</div>
-          <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 4 }}>{retailers.length} retailers · {totalSessions} sessions · {convRate} conversion</div>
+          <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 4 }}>{totalVendors} retailers · {totalSessions} sessions · {convRate} conversion</div>
         </div>
         <Link href="/poursona-admin/onboard" style={{ display: 'inline-block', padding: '11px 22px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', borderRadius: 10, color: '#060403', textDecoration: 'none', fontSize: 13, fontWeight: 700 }}>
           + Onboard Retailer
@@ -127,7 +217,7 @@ export default function AppCommandCenter() {
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 20, borderBottom: '1px solid rgba(201,168,76,.1)', flexWrap: 'wrap' }}>
         <button style={tabBtn('dashboard')} onClick={() => setTab('dashboard')}>Dashboard</button>
-        <button style={tabBtn('vendors')} onClick={() => setTab('vendors')}>Vendors ({retailers.length})</button>
+        <button style={tabBtn('vendors')} onClick={() => setTab('vendors')}>Vendors ({totalVendors})</button>
         <button style={tabBtn('accounting')} onClick={() => setTab('accounting')}>Accounting</button>
         <button style={tabBtn('promos')} onClick={() => setTab('promos')}>Promos</button>
         <button style={tabBtn('customers')} onClick={() => setTab('customers')}>Customers</button>
@@ -136,17 +226,17 @@ export default function AppCommandCenter() {
       {tab === 'dashboard' && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))', gap: 12, marginBottom: 24 }}>
-            <StatCard label="Total Vendors" value={retailers.length} sub={retailers.filter(r => r.active).length + ' active'} />
-            <StatCard label="Paid" value={paid.length} color="#5ecf8a" sub="live subscriptions" />
-            <StatCard label="On Trial" value={trials.length} color="#C9A84C" sub={expired.length > 0 ? expired.length + ' expired' : 'all current'} />
+            <StatCard label="Total Vendors" value={totalVendors} sub={activeCount + ' active'} />
+            <StatCard label="Paid" value={paidCount} color="#5ecf8a" sub="live subscriptions" />
+            <StatCard label="On Trial" value={trialCount} color="#C9A84C" sub={expiredCount > 0 ? expiredCount + ' expired' : 'all current'} />
             <StatCard label="Total Sessions" value={totalSessions.toLocaleString()} sub={totalOrders + ' orders'} />
-            <StatCard label="Expired Trials" value={expired.length} color={expired.length > 0 ? '#e07070' : '#4a3a1a'} sub="need follow-up" />
+            <StatCard label="Expired Trials" value={expiredCount} color={expiredCount > 0 ? '#e07070' : '#4a3a1a'} sub="need follow-up" />
             <StatCard label="Conversion" value={convRate} sub="session → order" />
           </div>
-          {expired.length > 0 && (
+          {expiredCount > 0 && (
             <div style={{ background: 'rgba(255,100,100,.06)', border: '1px solid rgba(255,100,100,.2)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-              <div style={{ color: '#e07070', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>⚠ {expired.length} expired trial{expired.length !== 1 ? 's' : ''} need attention</div>
-              {expired.map(r => (
+              <div style={{ color: '#e07070', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>⚠ {expiredCount} expired trial{expiredCount !== 1 ? 's' : ''} need attention</div>
+              {expiredList.map(r => (
                 <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,100,100,.1)' }}>
                   <div><span style={{ color: '#F5ECD7', fontSize: 13 }}>{r.name}</span><span style={{ color: '#4a3a1a', fontSize: 11, marginLeft: 10 }}>expired {r.trial_ends_at ? new Date(r.trial_ends_at).toLocaleDateString() : ''}</span></div>
                   <Link href={'/poursona-admin/retailer/' + r.id} style={{ color: '#C9A84C', fontSize: 12, textDecoration: 'none' }}>Extend →</Link>
@@ -154,6 +244,77 @@ export default function AppCommandCenter() {
               ))}
             </div>
           )}
+          <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px 24px', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700 }}>System Analytics</div>
+              {analytics?.range && (
+                <div style={{ color: '#3a2a0a', fontSize: 10 }}>{analytics.range.chartFrom} → {analytics.range.chartTo}</div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="date"
+                value={analyticsFrom}
+                onChange={e => setAnalyticsFrom(e.target.value)}
+                style={{ background: '#0a0805', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#F5ECD7', padding: '6px 10px', fontSize: 12 }}
+              />
+              <span style={{ color: '#4a3a1a', fontSize: 11 }}>to</span>
+              <input
+                type="date"
+                value={analyticsTo}
+                onChange={e => setAnalyticsTo(e.target.value)}
+                style={{ background: '#0a0805', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#F5ECD7', padding: '6px 10px', fontSize: 12 }}
+              />
+              <button
+                onClick={() => loadAnalytics(analyticsFrom, analyticsTo)}
+                disabled={analyticsLoading}
+                style={{ padding: '6px 14px', background: '#C9A84C', color: '#0a0805', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              >
+                {analyticsLoading ? '…' : 'Apply'}
+              </button>
+              {(analyticsFrom || analyticsTo) && (
+                <button
+                  onClick={() => { setAnalyticsFrom(''); setAnalyticsTo(''); loadAnalytics('', '') }}
+                  style={{ padding: '6px 14px', background: 'transparent', color: '#4a3a1a', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                onClick={exportAnalyticsCsv}
+                style={{ padding: '6px 14px', background: 'transparent', color: '#C9A84C', border: '1px solid rgba(201,168,76,.3)', borderRadius: 8, fontSize: 12, cursor: 'pointer', marginLeft: 'auto' }}
+              >
+                ↓ Export CSV
+              </button>
+            </div>
+            {analytics && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}>
+                <div style={{ background: '#060402', borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ color: '#4a3a1a', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 4 }}>Sessions</div>
+                  <div style={{ color: '#F5ECD7', fontSize: 22, fontWeight: 700 }}>{analytics.summary.totalSessions.toLocaleString()}</div>
+                </div>
+                <div style={{ background: '#060402', borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ color: '#4a3a1a', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 4 }}>Orders</div>
+                  <div style={{ color: '#C9A84C', fontSize: 22, fontWeight: 700 }}>{analytics.summary.totalOrders.toLocaleString()}</div>
+                </div>
+                <div style={{ background: '#060402', borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ color: '#4a3a1a', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 4 }}>Conversion</div>
+                  <div style={{ color: '#F5ECD7', fontSize: 22, fontWeight: 700 }}>{analytics.summary.conversionRate}%</div>
+                </div>
+                <div style={{ background: '#060402', borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ color: '#4a3a1a', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 4 }}>Active Vendors</div>
+                  <div style={{ color: '#5ecf8a', fontSize: 22, fontWeight: 700 }}>{analytics.summary.activeRetailers}</div>
+                </div>
+              </div>
+            )}
+            {analytics?.daily && analytics.daily.length > 1 && (
+              <AdminChart data={analytics.daily} />
+            )}
+            {analyticsLoading && !analytics && (
+              <div style={{ color: '#4a3a1a', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>Loading analytics…</div>
+            )}
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             {[{ label: 'Onboard', href: '/poursona-admin/onboard', icon: '+' }, { label: 'Team', href: '/poursona-admin/team', icon: '👥' }, { label: 'System Check', href: '/poursona-admin/system-check', icon: '⚙' }].map(({ label, href, icon }) => (
               <Link key={href} href={href} style={{ padding: '16px 12px', background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 12, color: '#C9A84C', textDecoration: 'none', textAlign: 'center', display: 'block' }}>
@@ -166,7 +327,25 @@ export default function AppCommandCenter() {
       )}
 
       {tab === 'vendors' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
+            <input
+              value={retailerSearch}
+              onChange={e => setRetailerSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleRetailerSearch()}
+              placeholder="Search by name, slug, or email…"
+              style={{ ...inp, flex: 1 }}
+            />
+            <button onClick={handleRetailerSearch} style={btn()}>Search</button>
+          </div>
+          {pagination && (
+            <div style={{ color: '#4a3a1a', fontSize: 12, marginBottom: 12 }}>
+              {pagination.total} retailer{pagination.total !== 1 ? 's' : ''}
+              {retailerSearch ? ` matching "${retailerSearch}"` : ''}
+              {pagination.totalPages > 1 ? ` · page ${pagination.page} of ${pagination.totalPages}` : ''}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {retailers.map(r => {
             const tExp = r.trial_ends_at && new Date(r.trial_ends_at) < now
             return (
@@ -191,6 +370,26 @@ export default function AppCommandCenter() {
               </div>
             )
           })}
+          </div>
+          {pagination && pagination.totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 20, justifyContent: 'center' }}>
+              <button
+                onClick={() => loadRetailers(retailerPage - 1, retailerSearch)}
+                disabled={retailerPage <= 1}
+                style={{ ...btn('outline'), opacity: retailerPage <= 1 ? 0.4 : 1 }}
+              >
+                ← Prev
+              </button>
+              <span style={{ color: '#4a3a1a', fontSize: 12 }}>{retailerPage} / {pagination.totalPages}</span>
+              <button
+                onClick={() => loadRetailers(retailerPage + 1, retailerSearch)}
+                disabled={retailerPage >= pagination.totalPages}
+                style={{ ...btn('outline'), opacity: retailerPage >= pagination.totalPages ? 0.4 : 1 }}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       )}
 

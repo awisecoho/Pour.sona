@@ -13,6 +13,18 @@ type Order = {
   status: string
 }
 
+type Session = {
+  id: string
+  created_at: string
+  order_status: string
+  blend_name: string | null
+  messages: unknown[]
+  customer_name: string | null
+  customer_email: string | null
+}
+
+type Pagination = { page: number; limit: number; total: number; totalPages: number }
+
 const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
   pending:   { bg: 'rgba(201,168,76,.12)', color: '#C9A84C', border: 'rgba(201,168,76,.3)' },
   fulfilled: { bg: 'rgba(94,207,138,.12)', color: '#5ecf8a', border: 'rgba(94,207,138,.3)' },
@@ -34,7 +46,11 @@ function useSecondsSince(ts: number | null) {
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
-  const [sessions, setSessions] = useState<any[]>([])
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [orderPagination, setOrderPagination] = useState<Pagination | null>(null)
+  const [sessionPagination, setSessionPagination] = useState<Pagination | null>(null)
+  const [sessionCount, setSessionCount] = useState<number | null>(null)
+  const [orderCount, setOrderCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'orders' | 'sessions'>('orders')
@@ -45,9 +61,43 @@ export default function OrdersPage() {
   const knownIds = useRef<Set<string>>(new Set())
   const secsSince = useSecondsSince(lastFetched)
 
-  async function fetchOrders(rId: string, isInitial = false) {
+  // Filter state
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterSearch, setFilterSearch] = useState('')
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo] = useState('')
+  const [orderPage, setOrderPage] = useState(1)
+  const [sessionPage, setSessionPage] = useState(1)
+  const [sessionDateFrom, setSessionDateFrom] = useState('')
+  const [sessionDateTo, setSessionDateTo] = useState('')
+
+  // Refs so the polling closure always sees current values
+  const filterRef = useRef({ status: '', search: '', from: '', to: '' })
+  const orderPageRef = useRef(1)
+  useEffect(() => {
+    filterRef.current = { status: filterStatus, search: filterSearch, from: filterFrom, to: filterTo }
+  }, [filterStatus, filterSearch, filterFrom, filterTo])
+  useEffect(() => { orderPageRef.current = orderPage }, [orderPage])
+
+  function buildOrdersUrl(rId: string, page: number, f: typeof filterRef.current) {
+    const p = new URLSearchParams({ retailerId: rId, tab: 'orders', page: String(page), limit: '25' })
+    if (f.status) p.set('status', f.status)
+    if (f.search) p.set('search', f.search)
+    if (f.from)   p.set('from', f.from)
+    if (f.to)     p.set('to', f.to)
+    return '/api/admin/orders?' + p
+  }
+
+  function buildSessionsUrl(rId: string, page: number, from: string, to: string) {
+    const p = new URLSearchParams({ retailerId: rId, tab: 'sessions', page: String(page), limit: '25' })
+    if (from) p.set('from', from)
+    if (to)   p.set('to', to)
+    return '/api/admin/orders?' + p
+  }
+
+  async function fetchOrders(rId: string, page: number, filters: typeof filterRef.current, isInitial = false) {
     try {
-      const res = await fetch(`/api/admin/orders?retailerId=${encodeURIComponent(rId)}`, { cache: 'no-store' })
+      const res = await fetch(buildOrdersUrl(rId, page, filters), { cache: 'no-store' })
       const json = await res.json()
       if (!res.ok || !json?.ok) throw new Error(json.error || 'Failed to load')
       const fetched: Order[] = json.orders || []
@@ -66,11 +116,28 @@ export default function OrdersPage() {
 
       fetched.forEach(o => knownIds.current.add(o.id))
       setOrders(fetched)
-      setSessions(json.sessions || [])
+      setOrderPagination(json.pagination || null)
+      setOrderPage(page)
+      if (json.sessionCount != null) setSessionCount(json.sessionCount)
       setLastFetched(Date.now())
       setError('')
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed')
+    }
+  }
+
+  async function fetchSessions(rId: string, page: number, from: string, to: string) {
+    try {
+      const res = await fetch(buildSessionsUrl(rId, page, from, to), { cache: 'no-store' })
+      const json = await res.json()
+      if (!res.ok || !json?.ok) throw new Error(json.error || 'Failed to load')
+      setSessions(json.sessions || [])
+      setSessionPagination(json.pagination || null)
+      setSessionPage(page)
+      if (json.orderCount != null) setOrderCount(json.orderCount)
+      setError('')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed')
     }
   }
 
@@ -80,21 +147,35 @@ export default function OrdersPage() {
         const access = await loadAdminAccess()
         const retailers = access.retailers || []
         const storedId = typeof window !== 'undefined' ? localStorage.getItem('poursona_active_retailer') : null
-        const r = retailers.find((x: any) => x.id === storedId) || retailers[0] || null
+        const r = retailers.find((x: { id: string }) => x.id === storedId) || retailers[0] || null
         if (!r) { setLoading(false); return }
         setRetailerId(r.id)
-        await fetchOrders(r.id, true)
-      } catch (err: any) {
-        setError(err.message)
+        await fetchOrders(r.id, 1, filterRef.current, true)
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed')
       }
       setLoading(false)
     })()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Lazy-load sessions when first switching to that tab
+  useEffect(() => {
+    if (tab === 'sessions' && retailerId && sessions.length === 0) {
+      fetchSessions(retailerId, 1, sessionDateFrom, sessionDateTo)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, retailerId])
+
+  // Polling — always fetches page 1 with current filters to catch new orders
   useEffect(() => {
     if (!retailerId || tab !== 'orders') return
-    const t = setInterval(() => fetchOrders(retailerId), POLL_INTERVAL)
+    const t = setInterval(
+      () => fetchOrders(retailerId, orderPageRef.current, filterRef.current),
+      POLL_INTERVAL
+    )
     return () => clearInterval(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retailerId, tab])
 
   async function updateStatus(orderId: string, status: string) {
@@ -110,14 +191,44 @@ export default function OrdersPage() {
       const json = await res.json()
       if (!res.ok || !json?.ok) throw new Error(json.error || 'Update failed')
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o))
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Update failed')
     }
     setUpdatingId(null)
   }
 
+  function applyOrderFilters() {
+    if (!retailerId) return
+    fetchOrders(retailerId, 1, filterRef.current)
+  }
+
+  function applySessionFilters() {
+    if (!retailerId) return
+    fetchSessions(retailerId, 1, sessionDateFrom, sessionDateTo)
+  }
+
+  function exportCsv(csvTab: 'orders' | 'sessions') {
+    if (!retailerId) return
+    const base = csvTab === 'orders'
+      ? buildOrdersUrl(retailerId, 1, filterRef.current)
+      : buildSessionsUrl(retailerId, 1, sessionDateFrom, sessionDateTo)
+    window.location.href = base + '&format=csv'
+  }
+
+  // Counts for tab labels
+  const totalOrders   = orderCount   ?? orderPagination?.total   ?? orders.length
+  const totalSessions = sessionCount ?? sessionPagination?.total ?? sessions.length
+
   const th: React.CSSProperties = { padding: '12px 20px', textAlign: 'left', color: '#4a3a1a', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400, borderBottom: '1px solid rgba(201,168,76,.1)' }
   const td: React.CSSProperties = { padding: '14px 20px', fontSize: 13, borderBottom: '1px solid rgba(201,168,76,.05)', verticalAlign: 'top' }
+  const inp: React.CSSProperties = { padding: '7px 10px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 7, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 12, outline: 'none' }
+  const btn = (v?: 'gold' | 'outline'): React.CSSProperties => ({
+    padding: '7px 14px', border: 'none', borderRadius: 7, cursor: 'pointer',
+    fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700,
+    background: v === 'outline' ? 'transparent' : 'linear-gradient(135deg,#C9A84C,#a07830)',
+    color: v === 'outline' ? '#C9A84C' : '#060403',
+    ...(v === 'outline' ? { border: '1px solid rgba(201,168,76,.25)' } : {}),
+  })
 
   if (loading) return <div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif' }}>Loading…</div>
 
@@ -149,15 +260,62 @@ export default function OrdersPage() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
         {(['orders', 'sessions'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: tab === t ? 'rgba(201,168,76,.15)' : 'transparent', color: tab === t ? '#C9A84C' : '#4a3a1a', fontFamily: 'Georgia, serif', fontSize: 12, cursor: 'pointer', textTransform: 'capitalize' }}>
-            {t} ({t === 'orders' ? orders.length : sessions.length})
+            {t} ({t === 'orders' ? totalOrders : totalSessions})
           </button>
         ))}
       </div>
 
+      {/* Orders filter bar */}
+      {tab === 'orders' && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            value={filterSearch}
+            onChange={e => setFilterSearch(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && applyOrderFilters()}
+            placeholder="Search guest, selection…"
+            style={{ ...inp, minWidth: 180 }}
+          />
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            style={{ ...inp, cursor: 'pointer' }}
+          >
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="fulfilled">Fulfilled</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} style={inp} title="From date" />
+          <input type="date" value={filterTo}   onChange={e => setFilterTo(e.target.value)}   style={inp} title="To date" />
+          <button onClick={applyOrderFilters} style={btn()}>Apply</button>
+          {(filterSearch || filterStatus || filterFrom || filterTo) && (
+            <button onClick={() => { setFilterSearch(''); setFilterStatus(''); setFilterFrom(''); setFilterTo(''); if (retailerId) fetchOrders(retailerId, 1, { status: '', search: '', from: '', to: '' }) }} style={btn('outline')}>Clear</button>
+          )}
+          <div style={{ marginLeft: 'auto' }}>
+            <button onClick={() => exportCsv('orders')} style={btn('outline')}>↓ Export CSV</button>
+          </div>
+        </div>
+      )}
+
+      {/* Sessions filter bar */}
+      {tab === 'sessions' && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input type="date" value={sessionDateFrom} onChange={e => setSessionDateFrom(e.target.value)} style={inp} title="From date" />
+          <input type="date" value={sessionDateTo}   onChange={e => setSessionDateTo(e.target.value)}   style={inp} title="To date" />
+          <button onClick={applySessionFilters} style={btn()}>Apply</button>
+          {(sessionDateFrom || sessionDateTo) && (
+            <button onClick={() => { setSessionDateFrom(''); setSessionDateTo(''); if (retailerId) fetchSessions(retailerId, 1, '', '') }} style={btn('outline')}>Clear</button>
+          )}
+          <div style={{ marginLeft: 'auto' }}>
+            <button onClick={() => exportCsv('sessions')} style={btn('outline')}>↓ Export CSV</button>
+          </div>
+        </div>
+      )}
+
       <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, overflow: 'hidden' }}>
         {tab === 'orders' && (
           orders.length === 0
-            ? <div style={{ padding: '48px 24px', textAlign: 'center', color: '#4a3a1a', fontSize: 13 }}>No orders yet. They'll appear here when guests place them.</div>
+            ? <div style={{ padding: '48px 24px', textAlign: 'center', color: '#4a3a1a', fontSize: 13 }}>No orders yet. They&apos;ll appear here when guests place them.</div>
             : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -182,7 +340,7 @@ export default function OrdersPage() {
                           {o.customer_email && <div style={{ color: '#4a3a1a', fontSize: 11, marginTop: 2 }}>{o.customer_email}</div>}
                         </td>
                         <td style={{ ...td, color: '#6a5a3a' }}>
-                          {(o.items || []).map((item: any, i: number) => (
+                          {(o.items || []).map((item, i) => (
                             <div key={i} style={{ fontSize: 12 }}>{item.qty && item.qty > 1 ? `×${item.qty} ` : ''}{item.name}</div>
                           ))}
                         </td>
@@ -240,6 +398,44 @@ export default function OrdersPage() {
             )
         )}
       </div>
+
+      {/* Orders pagination */}
+      {tab === 'orders' && orderPagination && orderPagination.totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, justifyContent: 'center' }}>
+          <button
+            onClick={() => retailerId && fetchOrders(retailerId, orderPage - 1, filterRef.current)}
+            disabled={orderPage <= 1}
+            style={{ ...btn('outline'), opacity: orderPage <= 1 ? 0.4 : 1 }}
+          >← Prev</button>
+          <span style={{ color: '#4a3a1a', fontSize: 12 }}>
+            {orderPage} / {orderPagination.totalPages} &nbsp;·&nbsp; {orderPagination.total} orders
+          </span>
+          <button
+            onClick={() => retailerId && fetchOrders(retailerId, orderPage + 1, filterRef.current)}
+            disabled={orderPage >= orderPagination.totalPages}
+            style={{ ...btn('outline'), opacity: orderPage >= orderPagination.totalPages ? 0.4 : 1 }}
+          >Next →</button>
+        </div>
+      )}
+
+      {/* Sessions pagination */}
+      {tab === 'sessions' && sessionPagination && sessionPagination.totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, justifyContent: 'center' }}>
+          <button
+            onClick={() => retailerId && fetchSessions(retailerId, sessionPage - 1, sessionDateFrom, sessionDateTo)}
+            disabled={sessionPage <= 1}
+            style={{ ...btn('outline'), opacity: sessionPage <= 1 ? 0.4 : 1 }}
+          >← Prev</button>
+          <span style={{ color: '#4a3a1a', fontSize: 12 }}>
+            {sessionPage} / {sessionPagination.totalPages} &nbsp;·&nbsp; {sessionPagination.total} sessions
+          </span>
+          <button
+            onClick={() => retailerId && fetchSessions(retailerId, sessionPage + 1, sessionDateFrom, sessionDateTo)}
+            disabled={sessionPage >= sessionPagination.totalPages}
+            style={{ ...btn('outline'), opacity: sessionPage >= sessionPagination.totalPages ? 0.4 : 1 }}
+          >Next →</button>
+        </div>
+      )}
     </div>
   )
 }

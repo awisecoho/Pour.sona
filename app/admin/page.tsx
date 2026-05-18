@@ -5,6 +5,51 @@ import { useActiveRetailer } from '@/lib/useActiveRetailer'
 import type { Session } from '@/lib/types'
 
 type Stats = { scans: number; convos: number; recs: number; orders: number }
+type DailyPoint = { day: string; scans: number; convos: number; recs: number; orders: number }
+type Range = { from: string | null; to: string | null; chartFrom: string; chartTo: string }
+
+function DailyChart({ data }: { data: DailyPoint[] }) {
+  if (!data.length) return null
+  const maxVal = Math.max(...data.map(d => d.convos), 1)
+  const barW = Math.max(3, Math.min(20, Math.floor(580 / data.length) - 2))
+  const svgW = data.length * (barW + 2)
+  const labelEvery = data.length <= 14 ? 1 : data.length <= 31 ? 3 : 7
+
+  return (
+    <div>
+      <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+        <svg width={svgW} height={72} style={{ display: 'block', overflow: 'visible' }}>
+          {data.map((d, i) => {
+            const convH = Math.max(d.convos > 0 ? 2 : 0, Math.round((d.convos / maxVal) * 64))
+            const ordH  = Math.max(d.orders > 0 ? 2 : 0, Math.round((d.orders  / maxVal) * 64))
+            const x = i * (barW + 2)
+            return (
+              <g key={d.day}>
+                <rect x={x} y={72 - convH} width={barW} height={convH} fill="rgba(255,255,255,0.08)" rx={1} />
+                {d.orders > 0 && (
+                  <rect x={x} y={72 - ordH} width={barW} height={ordH} fill="rgba(201,168,76,0.65)" rx={1} />
+                )}
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+        {data.filter((_, i) => i === 0 || i === data.length - 1 || i % labelEvery === 0).map(d => (
+          <span key={d.day} style={{ color: '#3a2a0a', fontSize: 9 }}>{d.day.slice(5)}</span>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#4a3a1a', fontSize: 10 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(255,255,255,0.08)', display: 'inline-block' }} />Sessions
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#C9A84C', fontSize: 10 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(201,168,76,0.65)', display: 'inline-block' }} />Orders
+        </span>
+      </div>
+    </div>
+  )
+}
 
 const CHECKLIST = [
   { id: 'catalog', label: 'Review your catalog', desc: 'Confirm the AI extracted your products correctly.', href: '/admin/catalog', cta: 'Go to Catalog →' },
@@ -75,10 +120,14 @@ function Stat({ label, value, sub, color = '#C9A84C' }: any) {
 export default function Dashboard() {
   const { retailer, retailerId, loading: retailerLoading } = useActiveRetailer()
   const [stats, setStats] = useState<Stats>({ scans: 0, convos: 0, recs: 0, orders: 0 })
+  const [daily, setDaily] = useState<DailyPoint[]>([])
+  const [range, setRange] = useState<Range | null>(null)
   const [recent, setRecent] = useState<Pick<Session, 'id' | 'order_status' | 'created_at'>[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [showChecklist, setShowChecklist] = useState(false)
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate]   = useState('')
 
   useEffect(() => {
     if (!retailerId) return
@@ -91,6 +140,32 @@ export default function Dashboard() {
     setShowChecklist(false)
   }
 
+  async function loadDashboard(rId: string, from: string, to: string) {
+    setLoading(true)
+    try {
+      const p = new URLSearchParams({ retailerId: rId })
+      if (from) p.set('from', from)
+      if (to)   p.set('to',   to)
+      const res = await fetch('/api/admin/dashboard?' + p, { cache: 'no-store' })
+      const json = await res.json()
+      if (!res.ok || !json?.ok) {
+        console.error('[admin/dashboard] load failed:', json)
+        setMessage('Dashboard data could not be loaded right now.')
+        setLoading(false)
+        return
+      }
+      setStats(json.stats  || { scans: 0, convos: 0, recs: 0, orders: 0 })
+      setDaily(json.daily  || [])
+      setRange(json.range  || null)
+      setRecent(json.recent || [])
+      setMessage(null)
+    } catch (error) {
+      console.error('[admin/dashboard] load failed:', error)
+      setMessage('Dashboard data could not be loaded right now.')
+    }
+    setLoading(false)
+  }
+
   useEffect(() => {
     if (retailerLoading) return
     if (!retailerId) {
@@ -98,39 +173,39 @@ export default function Dashboard() {
       setLoading(false)
       return
     }
-    const activeRetailerId = retailerId
-    setLoading(true)
-    async function load() {
-      try {
-        const res = await fetch(`/api/admin/dashboard?retailerId=${encodeURIComponent(activeRetailerId)}`, {
-          cache: 'no-store',
-        })
-        const json = await res.json()
-        if (!res.ok || !json?.ok) {
-          console.error('[admin/dashboard] load failed:', json)
-          setMessage('Dashboard data could not be loaded right now.')
-          setLoading(false)
-          return
-        }
-        const sessions = json.recent || []
-        setStats(json.stats || { scans: 0, convos: 0, recs: 0, orders: 0 })
-        setRecent(sessions)
-        setMessage(null)
-        setLoading(false)
-      } catch (error) {
-        console.error('[admin/dashboard] load failed:', error)
-        setMessage('Dashboard data could not be loaded right now.')
-        setLoading(false)
-      }
-    }
-    load()
+    loadDashboard(retailerId, '', '')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retailerId, retailerLoading])
+
+  function applyDateRange() {
+    if (retailerId) loadDashboard(retailerId, fromDate, toDate)
+  }
+
+  function clearDateRange() {
+    setFromDate(''); setToDate('')
+    if (retailerId) loadDashboard(retailerId, '', '')
+  }
+
+  function exportCsv() {
+    if (!retailerId) return
+    const p = new URLSearchParams({ retailerId, format: 'csv' })
+    if (fromDate) p.set('from', fromDate)
+    if (toDate)   p.set('to',   toDate)
+    window.location.href = '/api/admin/dashboard?' + p
+  }
 
   if (retailerLoading || loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
   if (message) return <div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif' }}>{message}</div>
 
-  const rate = stats.convos > 0 ? Math.round((stats.recs / stats.convos) * 100) : 0
-  const icon = ICONS[retailer?.vertical] || '✦'
+  const rate     = stats.convos > 0 ? Math.round((stats.recs   / stats.convos) * 100) : 0
+  const ordRate  = stats.convos > 0 ? Math.round((stats.orders / stats.convos) * 100) : 0
+  const icon     = ICONS[retailer?.vertical ?? ''] || '✦'
+  const hasRange = !!(fromDate || toDate)
+  const rangeLabel = hasRange
+    ? `${fromDate || '…'} → ${toDate || 'today'}`
+    : 'All time'
+  const inp: React.CSSProperties = { padding: '7px 10px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 7, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 12, outline: 'none' }
+  const btn = (v?: 'outline'): React.CSSProperties => ({ padding: '7px 14px', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, background: v === 'outline' ? 'transparent' : 'linear-gradient(135deg,#C9A84C,#a07830)', color: v === 'outline' ? '#C9A84C' : '#060403', ...(v === 'outline' ? { border: '1px solid rgba(201,168,76,.25)' } : {}) })
 
   return (
     <div>
@@ -153,12 +228,37 @@ export default function Dashboard() {
         <OnboardingChecklist retailerSlug={retailer.slug} onDismiss={dismissChecklist} />
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 32 }}>
+      {/* Date range controls */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span style={{ color: '#4a3a1a', fontSize: 11 }}>{rangeLabel}</span>
+        <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} onKeyDown={e => e.key === 'Enter' && applyDateRange()} style={inp} title="From" />
+        <input type="date" value={toDate}   onChange={e => setToDate(e.target.value)}   onKeyDown={e => e.key === 'Enter' && applyDateRange()} style={inp} title="To" />
+        <button onClick={applyDateRange} style={btn()}>Apply</button>
+        {hasRange && <button onClick={clearDateRange} style={btn('outline')}>Clear</button>}
+        <div style={{ marginLeft: 'auto' }}>
+          <button onClick={exportCsv} style={btn('outline')}>↓ Export CSV</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
         <Stat label="QR Scans" value={stats.scans} sub="Total visits" />
         <Stat label="Conversations" value={stats.convos} sub="Sessions started" />
-        <Stat label="Recommendations" value={stats.recs} sub={rate + '% conversion'} color="#5ecf8a" />
-        <Stat label="Orders" value={stats.orders} sub="Placed" color="#7ec8e3" />
+        <Stat label="Recommendations" value={stats.recs} sub={rate + '% rec rate'} color="#5ecf8a" />
+        <Stat label="Orders" value={stats.orders} sub={ordRate + '% conv rate'} color="#7ec8e3" />
       </div>
+
+      {/* Daily trend chart */}
+      {daily.length > 1 && (
+        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px 24px', marginBottom: 32 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ color: '#F5ECD7', fontSize: 13, fontWeight: 700 }}>Daily Activity</div>
+            <div style={{ color: '#3a2a0a', fontSize: 10 }}>
+              {range?.chartFrom} → {range?.chartTo}
+            </div>
+          </div>
+          <DailyChart data={daily} />
+        </div>
+      )}
 
       <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, overflow: 'hidden' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(201,168,76,.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

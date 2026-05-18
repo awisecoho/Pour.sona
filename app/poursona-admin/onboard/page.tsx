@@ -18,7 +18,7 @@ export default function OnboardPage() {
     try {
       const res = await fetch('/api/onboarding/url', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-onboard-secret': process.env.NEXT_PUBLIC_POURSONA_ONBOARD_SECRET || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: url.trim() }),
       })
       const json = await res.json()
@@ -34,7 +34,7 @@ export default function OnboardPage() {
     try {
       const res = await fetch('/api/onboarding/finalize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-onboard-secret': process.env.NEXT_PUBLIC_POURSONA_ONBOARD_SECRET || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ draftId: draft.id, ownerEmail: ownerEmail || undefined }),
       })
       const json = await res.json()

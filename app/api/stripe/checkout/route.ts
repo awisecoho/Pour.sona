@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { dbQuery } from '@/lib/db'
+import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
 import { adminUrl, billingUrl } from '@/lib/urls'
 import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    const identity = await getAuthenticatedIdentity()
+    if (!identity) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
     const { retailerId } = await req.json()
     if (!retailerId) return NextResponse.json({ error: 'Missing retailerId' }, { status: 400 })
+
+    const accessRows = await getRetailersForIdentity(identity.userId, identity.email)
+    if (!accessRows.some(r => r.retailer_id === retailerId)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
 
     const result = await dbQuery('select * from retailers where id = $1 limit 1', [retailerId])
     const retailer = result.rows[0]

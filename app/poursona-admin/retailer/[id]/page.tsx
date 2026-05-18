@@ -100,7 +100,11 @@ export default function RetailerDetail() {
       body: JSON.stringify({ retailerId: id, email: inviteEmail, name: '' }),
     })
     const json = await res.json()
-    setInviteResult(json.ok ? 'Invite sent to ' + inviteEmail : 'Error: ' + json.error)
+    setInviteResult(
+      !json.ok ? 'Error: ' + json.error :
+      json.inviteEmailSent === false ? '⚠ Access granted but invite email failed to send — ask vendor to log in at /admin/login' :
+      '✓ Invite sent to ' + inviteEmail
+    )
     setInviting(false)
   }
 

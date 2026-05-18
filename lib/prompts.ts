@@ -1,3 +1,5 @@
+import { sanitizePromptInput } from '@/lib/security'
+
 export function buildSystemPrompt(retailer: any, products: any[], flights: any[] = []) {
   const vertical = retailer.vertical || 'brewery'
 
@@ -16,8 +18,14 @@ export function buildSystemPrompt(retailer: any, products: any[], flights: any[]
   for (const [cat, items] of Object.entries(byCategory)) {
     catalogLines.push('\n[' + cat.toUpperCase() + ']')
     for (const p of items) {
-      const details = [p.style, p.abv ? p.abv + ' ABV' : null, p.ibu ? p.ibu + ' IBU' : null, p.flavor_notes, p.description].filter(Boolean).join(' | ')
-      catalogLines.push('• ' + p.name + (p.price ? ' — $' + p.price : '') + (details ? ': ' + details : ''))
+      const details = [
+        sanitizePromptInput(p.style),
+        p.abv ? sanitizePromptInput(p.abv) + ' ABV' : null,
+        p.ibu ? p.ibu + ' IBU' : null,
+        sanitizePromptInput(p.flavor_notes),
+        sanitizePromptInput(p.description),
+      ].filter(Boolean).join(' | ')
+      catalogLines.push('• ' + sanitizePromptInput(p.name) + (p.price ? ' — $' + p.price : '') + (details ? ': ' + details : ''))
     }
   }
 
@@ -29,12 +37,12 @@ export function buildSystemPrompt(retailer: any, products: any[], flights: any[]
     }
   }
 
-  // Rich context section
+  // Rich context section — sanitized to strip ===WORD=== sentinel injection attempts
   const storySection = [
-    retailer.story ? 'OUR STORY: ' + retailer.story : null,
-    retailer.culture ? 'THE VIBE: ' + retailer.culture : null,
-    retailer.region ? 'THE REGION: ' + retailer.region : null,
-    retailer.tagline ? 'TAGLINE: ' + retailer.tagline : null,
+    retailer.story ? 'OUR STORY: ' + sanitizePromptInput(retailer.story) : null,
+    retailer.culture ? 'THE VIBE: ' + sanitizePromptInput(retailer.culture) : null,
+    retailer.region ? 'THE REGION: ' + sanitizePromptInput(retailer.region) : null,
+    retailer.tagline ? 'TAGLINE: ' + sanitizePromptInput(retailer.tagline) : null,
   ].filter(Boolean).join('\n')
 
   const distilleryIntro = hasCocktails && hasSpirits

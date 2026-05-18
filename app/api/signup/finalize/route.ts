@@ -20,11 +20,17 @@ export async function POST(req: NextRequest) {
     }
 
     const retailer = await publishDraft(draftId, email.toLowerCase().trim())
-    sendVendorInvite({ to: email, name: name || null, retailerName: retailer.name, adminUrl: adminUrl() }).then(r => {
-      if (!r.ok) console.error('[signup/finalize] sendVendorInvite failed:', r.error)
-    })
 
-    return NextResponse.json({ ok: true, retailer })
+    // Await the invite so we can report delivery status to the caller.
+    // Retailer is already created — email failure is non-fatal but logged and surfaced.
+    const inviteResult = await sendVendorInvite({
+      to: email, name: name || null, retailerName: retailer.name, adminUrl: adminUrl(),
+    })
+    if (!inviteResult.ok) {
+      console.error('[signup/finalize] sendVendorInvite failed:', inviteResult.error)
+    }
+
+    return NextResponse.json({ ok: true, retailer, inviteEmailSent: inviteResult.ok })
   } catch (err) {
     return apiError(err, 'Account creation failed')
   }

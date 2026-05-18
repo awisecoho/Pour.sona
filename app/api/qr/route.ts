@@ -73,10 +73,29 @@ export async function GET(req: NextRequest) {
 
     if (retailer.logo_url) {
       try {
-        const logoResp = await fetch(retailer.logo_url, { signal: AbortSignal.timeout(5000) })
-        if (logoResp.ok) {
-          const logoArrayBuffer = await logoResp.arrayBuffer()
-          const logoInput = Buffer.from(logoArrayBuffer)
+        const { validateLogoUrl } = await import('@/lib/security')
+        const logoCheck = validateLogoUrl(retailer.logo_url)
+        if (logoCheck.ok) {
+          const MAX_LOGO_BYTES = 2 * 1024 * 1024 // 2 MB
+          const logoResp = await fetch(logoCheck.url.toString(), { signal: AbortSignal.timeout(5000) })
+          const contentType = logoResp.headers.get('content-type') || ''
+          const contentLength = Number(logoResp.headers.get('content-length') || '0')
+          if (!logoResp.ok || !contentType.startsWith('image/') || contentLength > MAX_LOGO_BYTES) {
+            throw new Error('logo rejected')
+          }
+          // Stream with hard cap — don't trust Content-Length alone
+          const reader = logoResp.body?.getReader()
+          if (!reader) throw new Error('no body')
+          const chunks: Uint8Array[] = []
+          let total = 0
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            total += value.byteLength
+            if (total > MAX_LOGO_BYTES) { reader.cancel(); throw new Error('logo too large') }
+            chunks.push(value)
+          }
+          const logoInput = Buffer.concat(chunks.map(c => Buffer.from(c)))
 
           // Logo takes up ~22% of QR width, centered
           const logoSize = Math.round(SIZE * 0.22)
@@ -115,7 +134,7 @@ export async function GET(req: NextRequest) {
       finalBuffer = qrBuffer
     }
 
-    return new NextResponse(finalBuffer, {
+    return new NextResponse(new Uint8Array(finalBuffer), {
       headers: {
         'Content-Type': 'image/png',
         'Content-Disposition': `attachment; filename="${slug}-qr.png"`,

@@ -3,10 +3,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 import { sendOrderConfirmation, sendOrderAlert } from '@/lib/email'
 import { ordersUrl } from '@/lib/urls'
+import { checkOrigin } from '@/lib/security'
 import { apiError } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
   try {
+    if (!checkOrigin(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+
     // ── Idempotency key ────────────────────────────────────────────────────────
     // Clients must supply a stable key per order attempt so retries are safe.
     // The key is scoped to (session_id, idempotency_key) at the DB level via a

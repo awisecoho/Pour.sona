@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDraftFromUrl } from '@/lib/onboarding'
+import { getAuthenticatedIdentity } from '@/lib/auth'
+import { verifyOnboardSecret } from '@/lib/security'
+import { dbQuery } from '@/lib/db'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
-    const secret = req.headers.get('x-onboard-secret')
-    if (!secret || secret !== process.env.POURSONA_ONBOARD_SECRET) {
+    // Accept either a Clerk-authenticated team member or the server-side onboard secret
+    const identity = await getAuthenticatedIdentity()
+    if (identity) {
+      const teamCheck = await dbQuery('select 1 from poursona_team where email = $1 limit 1', [identity.email])
+      if (teamCheck.rows.length === 0) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+    } else if (!verifyOnboardSecret(req)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

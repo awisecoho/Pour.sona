@@ -87,7 +87,7 @@ export default function SetupPage() {
                     {(draft.flight_json||[]).map((f:any,i:number)=>(
                       <div key={i} style={{background:'rgba(201,168,76,.07)',border:'1px solid rgba(201,168,76,.15)',borderRadius:10,padding:'12px 16px'}}>
                         <div style={{color:'#C9A84C',fontSize:13,fontWeight:700}}>{f.name}</div>
-                        <div style={{color:'#4a3a1a',fontSize:11,marginTop:2}}>{f.count} × {f.pour_size} · undefined</div>
+                        <div style={{color:'#4a3a1a',fontSize:11,marginTop:2}}>{f.count} × {f.pour_size}{f.price != null ? ' · $' + Number(f.price).toFixed(2) : ''}</div>
                       </div>
                     ))}
                   </div>

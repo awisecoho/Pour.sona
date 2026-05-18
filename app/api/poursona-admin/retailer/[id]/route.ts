@@ -19,9 +19,7 @@ async function requireInternalMember() {
 }
 
 type RouteContext = {
-  params: {
-    id: string
-  }
+  params: Promise<{ id: string }>
 }
 
 export async function GET(_: NextRequest, { params }: RouteContext) {
@@ -31,7 +29,7 @@ export async function GET(_: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ ok: false, error: authz.error }, { status: authz.status })
     }
 
-    const retailerId = params.id
+    const { id: retailerId } = await params
 
     const [retailerResult, productsResult, flightsResult, sessionsResult] = await Promise.all([
       dbQuery('select * from retailers where id = $1 limit 1', [retailerId]),
@@ -72,7 +70,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ ok: false, error: authz.error }, { status: authz.status })
     }
 
-    const retailerId = params.id
+    const { id: retailerId } = await params
     const updates = await req.json()
     const fields = ['name', 'location', 'tagline', 'brand_color', 'logo_url', 'story', 'culture', 'region', 'subscription_status', 'active', 'website_url'] as const
     const assignments: string[] = []

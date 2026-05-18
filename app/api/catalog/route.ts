@@ -17,7 +17,8 @@ async function ensureRetailerAccess(retailerId: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const retailerId = req.nextUrl.searchParams.get('retailerId')
+  const sp = req.nextUrl.searchParams
+  const retailerId = sp.get('retailerId')
   if (!retailerId) return NextResponse.json({ error: 'Missing retailerId' }, { status: 400 })
 
   try {
@@ -26,12 +27,37 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: authz.error }, { status: authz.status })
     }
 
-    const result = await dbQuery(
-      'select * from products where retailer_id = $1 order by sort_order',
-      [retailerId]
+    const search = sp.get('search')?.trim() || ''
+    const pat    = search ? `%${search}%` : ''
+    // Default limit is intentionally large to preserve existing behaviour
+    // (in-stock / off-menu split happens client-side on the returned page).
+    const page   = Math.max(1, parseInt(sp.get('page') || '1', 10) || 1)
+    const limit  = Math.min(Math.max(1, parseInt(sp.get('limit') || '200', 10) || 200), 200)
+    const offset = (page - 1) * limit
+
+    const result = await dbQuery<Record<string, unknown>>(
+      `SELECT *, COUNT(*) OVER() AS total_count
+       FROM products
+       WHERE retailer_id = $1
+         AND ($2::text = '' OR name        ILIKE $3
+                            OR category    ILIKE $3
+                            OR style       ILIKE $3
+                            OR flavor_notes ILIKE $3
+                            OR description ILIKE $3)
+       ORDER BY sort_order, name
+       LIMIT $4 OFFSET $5`,
+      [retailerId, search, pat, limit, offset]
     )
-    return NextResponse.json({ ok: true, products: result.rows })
-  } catch (error: any) {
+
+    const totalCount = result.rows[0] ? parseInt(String(result.rows[0].total_count), 10) : 0
+    const products = result.rows.map(({ total_count, ...p }) => p)
+
+    return NextResponse.json({
+      ok: true,
+      products,
+      pagination: { page, limit, total: totalCount, totalPages: Math.ceil(totalCount / limit) },
+    })
+  } catch (error: unknown) {
     console.error('[api/catalog] get failed:', error)
     return apiError(error, 'Catalog operation failed')
   }

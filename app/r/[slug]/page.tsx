@@ -323,7 +323,9 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
 
       if (!response.ok) {
         const msg = response.status === 402
-          ? 'This guide is currently inactive. Please contact the venue.'
+          ? 'This Poursona experience is not currently active. Please check back later or contact the venue.'
+          : response.status === 429
+          ? 'You\'ve sent a lot of messages — please wait a moment before continuing.'
           : 'Something went wrong. Please try again.'
         setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: msg, streaming: false }; return u })
         setStreaming(false)

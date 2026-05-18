@@ -4,11 +4,24 @@ import { buildSystemPrompt } from '@/lib/prompts'
 import { dbQuery } from '@/lib/db'
 import { sendTrialExpiredNotice, sendTrialExpiringWarning } from '@/lib/email'
 import { billingUrl } from '@/lib/urls'
+import { checkOrigin } from '@/lib/security'
+import { chatLimiter, getIp } from '@/lib/rate-limit'
 import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    if (!checkOrigin(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+
+    // Rate-limit by IP — fail closed: if Redis is unavailable, block rather than
+    // allow unlimited Claude API calls that could exhaust credits.
+    try {
+      const { success } = await chatLimiter.limit(getIp(req))
+      if (!success) return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+    } catch {
+      return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+    }
+
     const { sessionId, retailerSlug, messages, chipContext } = await req.json()
     if (!sessionId || !retailerSlug) return NextResponse.json({ error: 'missing fields' }, { status: 400 })
 

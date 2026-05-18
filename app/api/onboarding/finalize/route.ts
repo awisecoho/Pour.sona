@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { publishDraft } from '@/lib/onboarding'
 import { dbQuery } from '@/lib/db'
-import { grantRetailerAccessByEmail } from '@/lib/auth'
+import { grantRetailerAccessByEmail, getAuthenticatedIdentity } from '@/lib/auth'
 import { storefrontUrl, adminUrl } from '@/lib/urls'
+import { verifyOnboardSecret } from '@/lib/security'
 import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
-    const secret = req.headers.get('x-onboard-secret')
-    if (!secret || secret !== process.env.POURSONA_ONBOARD_SECRET) {
+    const identity = await getAuthenticatedIdentity()
+    if (identity) {
+      const teamCheck = await dbQuery('select 1 from poursona_team where email = $1 limit 1', [identity.email])
+      if (teamCheck.rows.length === 0) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+    } else if (!verifyOnboardSecret(req)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

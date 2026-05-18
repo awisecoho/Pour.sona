@@ -2,12 +2,16 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
+import * as Sentry from '@sentry/nextjs'
 
 const LIMITS: Record<string, { max: number; window: string }> = {
   '/api/chat':      { max: 20,  window: '1 h' },
   '/api/menu-scan': { max: 10,  window: '1 h' },
   '/api/retailer':  { max: 120, window: '1 h' },
 }
+
+// Routes that must fail-closed if Redis is unavailable (expensive AI calls)
+const FAIL_CLOSED_PATHS = new Set(['/api/chat', '/api/menu-scan'])
 
 // Prefix-based limits applied to authenticated admin routes
 const PREFIX_LIMITS: Array<{ prefix: string; max: number; window: string }> = [
@@ -46,7 +50,13 @@ function getLimiters(): { exact: LimiterMap; prefix: Array<{ prefix: string; lim
 async function applyRateLimit(req: NextRequest) {
   const path = req.nextUrl.pathname
   const rl = getLimiters()
-  if (!rl) return NextResponse.next() // no Redis configured — pass through
+  if (!rl) {
+    // Redis not configured — fail-closed for expensive routes, pass-through otherwise
+    if (FAIL_CLOSED_PATHS.has(path)) {
+      return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503 })
+    }
+    return NextResponse.next()
+  }
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || req.headers.get('x-real-ip')
@@ -58,7 +68,17 @@ async function applyRateLimit(req: NextRequest) {
   }
   if (!limiter) return NextResponse.next()
 
-  const { success, limit, remaining, reset } = await limiter.limit(ip)
+  let success: boolean, limit: number, remaining: number, reset: number
+  try {
+    ;({ success, limit, remaining, reset } = await limiter.limit(ip))
+  } catch (err) {
+    Sentry.captureException(err, { extra: { path, context: 'rate-limit' } })
+    if (FAIL_CLOSED_PATHS.has(path)) {
+      return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503 })
+    }
+    return NextResponse.next()
+  }
+
   if (!success) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },

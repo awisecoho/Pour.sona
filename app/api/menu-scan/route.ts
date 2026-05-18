@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { getAuthenticatedIdentity } from '@/lib/auth'
 import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    const identity = await getAuthenticatedIdentity()
+    if (!identity) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
     const { image, retailerId } = await req.json()
     if (!image) return NextResponse.json({ error: 'image required' }, { status: 400 })
 

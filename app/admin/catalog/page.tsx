@@ -15,6 +15,8 @@ export default function CatalogPage() {
   const [editingProduct, setEditingProduct] = useState<any | null>(null)
   const [editForm, setEditForm] = useState<any>({})
   const [editSaving, setEditSaving] = useState(false)
+  const [catalogSearch, setCatalogSearch] = useState('')
+  const [activeRetailerId, setActiveRetailerId] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function openEdit(p: any) {
@@ -81,26 +83,33 @@ export default function CatalogPage() {
       }
 
       setRetailer(retailerData)
+      setActiveRetailerId(retailerData.id)
       localStorage.setItem('poursona_active_retailer', retailerData.id)
       sessionStorage.setItem('active_retailer', JSON.stringify(retailerData))
 
-      const res = await fetch(`/api/catalog?retailerId=${encodeURIComponent(retailerData.id)}`, {
-        cache: 'no-store',
-      })
-      const json = await res.json()
-      if (!res.ok || !json.ok) {
-        console.error('[admin/catalog] products lookup failed:', json)
-        setLoadMessage('Products could not be loaded right now.')
-        setLoading(false)
-        return
-      }
-
-      setProducts(json.products || [])
+      await fetchProducts(retailerData.id, '')
       setLoading(false)
     } catch (error) {
       console.error('[admin/catalog] load failed:', error)
       setLoading(false)
     }
+  }
+
+  async function fetchProducts(rId: string, search: string) {
+    const p = new URLSearchParams({ retailerId: rId })
+    if (search) p.set('search', search)
+    const res = await fetch('/api/catalog?' + p, { cache: 'no-store' })
+    const json = await res.json()
+    if (!res.ok || !json.ok) {
+      console.error('[admin/catalog] products lookup failed:', json)
+      setLoadMessage('Products could not be loaded right now.')
+      return
+    }
+    setProducts(json.products || [])
+  }
+
+  function handleCatalogSearch() {
+    if (activeRetailerId) fetchProducts(activeRetailerId, catalogSearch)
   }
 
   async function toggleStock(id: string, current: boolean) {
@@ -250,6 +259,20 @@ export default function CatalogPage() {
           </div>
         </div>
       )}
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+        <input
+          value={catalogSearch}
+          onChange={e => setCatalogSearch(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleCatalogSearch()}
+          placeholder="Search products…"
+          style={{ ...inp, flex: 1 }}
+        />
+        <button onClick={handleCatalogSearch} style={{ padding: '10px 16px', background: 'rgba(201,168,76,.08)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#C9A84C', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>Search</button>
+        {catalogSearch && (
+          <button onClick={() => { setCatalogSearch(''); if (activeRetailerId) fetchProducts(activeRetailerId, '') }} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid rgba(201,168,76,.15)', borderRadius: 8, color: '#4a3a1a', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>Clear</button>
+        )}
+      </div>
 
       <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px', marginBottom: 12 }}>
         <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Available Now ({inStock.length})</div>

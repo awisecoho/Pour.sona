@@ -43,7 +43,7 @@ export default function FlightsPage() {
         {flights.map(f=>(
           <div key={f.id} style={{background:'linear-gradient(145deg,#0e0b06,#0a0805)',border:'1px solid '+(f.active?'rgba(201,168,76,.2)':'rgba(255,255,255,.06)'),borderRadius:14,padding:'20px'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
-              <div><div style={{color:'#F5ECD7',fontSize:15,fontWeight:700}}>{f.name}</div><div style={{color:'#C9A84C',fontSize:12,marginTop:2}}>undefined · {f.count} × {f.pour_size}</div></div>
+              <div><div style={{color:'#F5ECD7',fontSize:15,fontWeight:700}}>{f.name}</div><div style={{color:'#C9A84C',fontSize:12,marginTop:2}}>{f.price != null ? '$' + Number(f.price).toFixed(2) : '—'} · {f.count} × {f.pour_size}</div></div>
               <button onClick={()=>toggle(f.id,f.active)} style={{padding:'3px 10px',borderRadius:20,border:'none',cursor:'pointer',background:f.active?'rgba(94,207,138,.15)':'rgba(255,100,100,.1)',color:f.active?'#5ecf8a':'#e07070',fontSize:11,fontFamily:'Georgia, serif'}}>{f.active?'● Active':'○ Off'}</button>
             </div>
             {f.description&&<div style={{color:'#6a5a3a',fontSize:12,lineHeight:1.6,marginBottom:14}}>{f.description}</div>}

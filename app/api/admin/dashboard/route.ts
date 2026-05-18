@@ -4,9 +4,36 @@ import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
+// RFC 4180 CSV helpers (reused from Task 6 pattern)
+function escCsv(val: unknown): string {
+  const s = val == null ? '' : String(val)
+  if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'
+  return s
+}
+function csvRow(cells: unknown[]): string { return cells.map(escCsv).join(',') }
+
+// Cap chart range to 90 days to bound generate_series output
+const MAX_CHART_DAYS = 90
+
+function clampRange(from: string, to: string): { chartFrom: string; chartTo: string } {
+  const now = new Date()
+  const toDate  = to   ? new Date(to)   : now
+  const fromDate = from ? new Date(from) : new Date(Date.now() - 29 * 86_400_000)
+  const msRange = toDate.getTime() - fromDate.getTime()
+  const maxMs   = MAX_CHART_DAYS * 86_400_000
+  const adjustedFrom = msRange > maxMs
+    ? new Date(toDate.getTime() - maxMs)
+    : fromDate
+  return {
+    chartFrom: adjustedFrom.toISOString().slice(0, 10),
+    chartTo:   toDate.toISOString().slice(0, 10),
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
-    const retailerId = req.nextUrl.searchParams.get('retailerId')
+    const sp = req.nextUrl.searchParams
+    const retailerId = sp.get('retailerId')
     if (!retailerId) {
       return NextResponse.json({ ok: false, error: 'Missing retailerId' }, { status: 400 })
     }
@@ -15,46 +42,122 @@ export async function GET(req: NextRequest) {
     if (!identity) {
       return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
     }
-
     const accessRows = await getRetailersForIdentity(identity.userId, identity.email)
     if (!accessRows.some((row) => row.retailer_id === retailerId)) {
       return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 })
     }
 
-    const [scanResult, sessionStatsResult, recentResult] = await Promise.all([
-      dbQuery(
-        `select count(*) as scans from events where retailer_id = $1 and event_type = 'scan'`,
-        [retailerId]
+    const from   = sp.get('from')?.trim() || ''
+    const to     = sp.get('to')?.trim()   || ''
+    const format = sp.get('format') === 'csv' ? 'csv' : 'json'
+
+    // Chart always covers a concrete date range; summary respects empty = all-time
+    const { chartFrom, chartTo } = clampRange(from, to)
+
+    // ── Summary stats (all-time when no from/to, filtered otherwise) ──────────
+    const [summaryResult, dailyResult, recentResult] = await Promise.all([
+      dbQuery<Record<string, string>>(
+        `SELECT
+           (SELECT COUNT(*)::int FROM events
+            WHERE retailer_id = $1 AND event_type = 'scan'
+              AND ($2::text = '' OR created_at >= $2::timestamptz)
+              AND ($3::text = '' OR created_at <  ($3::timestamptz + interval '1 day'))
+           ) AS scans,
+           COUNT(*)::int                                                          AS convos,
+           COUNT(*) FILTER (WHERE order_status IN ('recommended','ordered'))::int AS recs,
+           COUNT(*) FILTER (WHERE order_status = 'ordered')::int                  AS orders
+         FROM sessions
+         WHERE retailer_id = $1
+           AND ($2::text = '' OR created_at >= $2::timestamptz)
+           AND ($3::text = '' OR created_at <  ($3::timestamptz + interval '1 day'))`,
+        [retailerId, from, to]
       ),
-      dbQuery(
-        `select
-           count(*)                                                          as convos,
-           count(*) filter (where order_status in ('recommended','ordered')) as recs,
-           count(*) filter (where order_status = 'ordered')                  as orders
-         from sessions
-         where retailer_id = $1`,
-        [retailerId]
+
+      // ── Daily breakdown — uses generate_series so every day appears ──────────
+      dbQuery<Record<string, unknown>>(
+        `WITH day_series AS (
+           SELECT generate_series($2::date, $3::date, '1 day'::interval)::date AS day
+         ),
+         daily_sessions AS (
+           SELECT DATE(created_at) AS day,
+             COUNT(*)::int                                                          AS convos,
+             COUNT(*) FILTER (WHERE order_status IN ('recommended','ordered'))::int AS recs,
+             COUNT(*) FILTER (WHERE order_status = 'ordered')::int                  AS orders
+           FROM sessions
+           WHERE retailer_id = $1
+             AND created_at >= $2::timestamptz
+             AND created_at <  ($3::timestamptz + interval '1 day')
+           GROUP BY DATE(created_at)
+         ),
+         daily_scans AS (
+           SELECT DATE(created_at) AS day, COUNT(*)::int AS scans
+           FROM events
+           WHERE retailer_id = $1 AND event_type = 'scan'
+             AND created_at >= $2::timestamptz
+             AND created_at <  ($3::timestamptz + interval '1 day')
+           GROUP BY DATE(created_at)
+         )
+         SELECT
+           ds_series.day::text                    AS day,
+           COALESCE(de.scans,   0)                AS scans,
+           COALESCE(ds.convos,  0)                AS convos,
+           COALESCE(ds.recs,    0)                AS recs,
+           COALESCE(ds.orders,  0)                AS orders
+         FROM day_series ds_series
+         LEFT JOIN daily_sessions ds ON ds.day  = ds_series.day
+         LEFT JOIN daily_scans    de ON de.day  = ds_series.day
+         ORDER BY ds_series.day`,
+        [retailerId, chartFrom, chartTo]
       ),
-      dbQuery(
-        `select id, order_status, created_at
-         from sessions
-         where retailer_id = $1
-         order by created_at desc
-         limit 10`,
-        [retailerId]
+
+      // ── Recent sessions (respect date filter) ────────────────────────────────
+      dbQuery<Record<string, unknown>>(
+        `SELECT id, order_status, created_at
+         FROM sessions
+         WHERE retailer_id = $1
+           AND ($2::text = '' OR created_at >= $2::timestamptz)
+           AND ($3::text = '' OR created_at <  ($3::timestamptz + interval '1 day'))
+         ORDER BY created_at DESC LIMIT 10`,
+        [retailerId, from, to]
       ),
     ])
 
-    const s = sessionStatsResult.rows[0] ?? {}
+    if (format === 'csv') {
+      const header = csvRow(['Date', 'Scans', 'Conversations', 'Recommendations', 'Orders'])
+      const rows = dailyResult.rows.map(r =>
+        csvRow([r.day, r.scans, r.convos, r.recs, r.orders])
+      )
+      return new NextResponse([header, ...rows].join('\r\n'), {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="analytics.csv"',
+        },
+      })
+    }
+
+    const s = summaryResult.rows[0] ?? {}
     return NextResponse.json({
       ok: true,
       stats: {
-        scans:  Number(scanResult.rows[0]?.scans ?? 0),
+        scans:  Number(s.scans  ?? 0),
         convos: Number(s.convos ?? 0),
         recs:   Number(s.recs   ?? 0),
         orders: Number(s.orders ?? 0),
       },
+      daily: dailyResult.rows.map(r => ({
+        day:    String(r.day).slice(0, 10),
+        scans:  Number(r.scans),
+        convos: Number(r.convos),
+        recs:   Number(r.recs),
+        orders: Number(r.orders),
+      })),
       recent: recentResult.rows,
+      range: {
+        from: from || null,
+        to:   to   || null,
+        chartFrom,
+        chartTo,
+      },
     })
   } catch (error) {
     console.error('[api/admin/dashboard] load failed:', error)

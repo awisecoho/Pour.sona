@@ -71,7 +71,7 @@ export default function HomePage() {
       {/* Verticals */}
       <section style={{ maxWidth: 960, margin: '0 auto', padding: '80px 40px' }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <div style={{ color: '#C9A84C', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12 }}>Who it's for</div>
+          <div style={{ color: '#C9A84C', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12 }}>Who it&apos;s for</div>
           <h2 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>Built for every type of beverage venue</h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16 }}>
@@ -115,7 +115,7 @@ export default function HomePage() {
               { icon: '🤖', title: 'AI catalog extraction', body: 'Paste your website URL. We read your menu, extract products, brand colors, and story automatically.' },
               { icon: '📊', title: 'Analytics dashboard', body: 'See scan counts, recommendation conversions, and top-selling items in real time.' },
               { icon: '📱', title: 'QR-native experience', body: 'No app download. No friction. One scan and guests are in.' },
-              { icon: '🎨', title: 'Fully branded', body: 'Your colors, your logo, your voice. Guests never feel like they've left your venue.' },
+              { icon: '🎨', title: 'Fully branded', body: "Your colors, your logo, your voice. Guests never feel like they've left your venue." },
               { icon: '🛒', title: 'Order flow built in', body: 'Recommendations connect directly to orders. The AI closes the loop.' },
               { icon: '✏️', title: 'Easy catalog management', body: 'Toggle items in and out of stock, add new products, manage tasting flights.' },
             ].map(f => (
@@ -135,7 +135,7 @@ export default function HomePage() {
           Ready to guide every guest<br />to their perfect pour?
         </h2>
         <p style={{ color: '#4a3a1a', fontSize: 15, lineHeight: 1.7, marginBottom: 36 }}>
-          Paste your venue website and we'll extract your menu, branding, and story automatically — live in minutes.
+          Paste your venue website and we&apos;ll extract your menu, branding, and story automatically — live in minutes.
         </p>
         <a
           href="/signup"
