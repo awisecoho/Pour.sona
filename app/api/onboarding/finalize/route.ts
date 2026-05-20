@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
         admin: adminUrl(),
       }
     })
-  } catch (err) {
-    return apiError(err, 'Onboarding finalize failed')
+  } catch (err: any) {
+    console.error('[finalize] Full error:', err?.message, err?.stack)
+    return NextResponse.json({ error: 'Onboarding finalize failed: ' + (err?.message || String(err)) }, { status: 500 })
   }
 }
