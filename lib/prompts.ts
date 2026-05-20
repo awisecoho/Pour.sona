@@ -68,7 +68,30 @@ CONVERSATION STYLE: When the session starts (user says START), welcome them warm
 CONVERSATION STYLE: When the session starts (user says START), give a brief warm welcome, then ask whether they want something they know they love or they're open to trying something different today — keep it casual, like a barista who knows the regulars. If they want familiar, ask what that looks like. If adventurous, ask what they usually go for so you know where to take them. Surface hot/iced and espresso/filter naturally, not as a quiz. Max 2-3 exchanges.`
   }
 
-  const voice = voices[vertical] || voices['brewery']
+  // Prefer the vendor-builder generated system prompt if available.
+  // It is venue-specific, tone-matched, and may reference real items.
+  // We still inject the live catalog and rec format below it.
+  const vendorSystemPrompt = retailer.chat_system_prompt
+    ? sanitizePromptInput(retailer.chat_system_prompt)
+    : null
+
+  const voice = vendorSystemPrompt || voices[vertical] || voices['brewery']
+
+  // Featured / take-home context to append to the catalog section
+  const featuredItems: Array<{ name: string; reason: string }> =
+    Array.isArray(retailer.featured_items_json) ? retailer.featured_items_json : []
+  const takeHomeItems: Array<{ name: string; description: string; category: string; price: number | null }> =
+    Array.isArray(retailer.take_home_json) ? retailer.take_home_json : []
+
+  const featuredSection = featuredItems.length > 0
+    ? '\n[FEATURED / SEASONAL RIGHT NOW]\n' + featuredItems.map(f => `• ${f.name} — ${f.reason}`).join('\n')
+    : ''
+
+  const takeHomeSection = takeHomeItems.length > 0 && retailer.has_take_home
+    ? '\n[AVAILABLE TO TAKE HOME]\n' + takeHomeItems.map(t =>
+        `• ${t.name}${t.price ? ` — $${t.price}` : ''}: ${t.description}`
+      ).join('\n') + '\n\nWhen it feels natural (after your initial recommendation), ask: "Are you planning to take anything home today? We have a great selection to go."'
+    : ''
 
   const recFormat = `
 WHEN READY TO RECOMMEND — write 1-2 warm sentences as a handoff, then output the block below exactly:
@@ -105,7 +128,7 @@ The handoff sentence before ===REC=== should feel like the best bartender in the
 ${storySection ? 'ABOUT THIS PLACE:\n' + storySection + '\n' : ''}
 YOUR CATALOG AT ${retailer.name.toUpperCase()}:
 Location: ${retailer.location || ''}
-${catalogLines.join('\n')}${flightLines.join('\n')}
+${catalogLines.join('\n')}${flightLines.join('\n')}${featuredSection}${takeHomeSection}
 
 ${recFormat}`
 }

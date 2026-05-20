@@ -3,6 +3,7 @@ import { ensureUniqueSlug } from './slug'
 import { extractBrand } from './agents/brand'
 import { extractEvents } from './agents/events'
 import { generateHostPersona } from './agents/host'
+import { runVendorBuilder } from './agents/vendor-builder'
 import type { RawSignals } from './agents/research'
 import { dbQuery, getPool } from './db'
 import { grantRetailerAccessByEmail } from './auth'
@@ -354,22 +355,42 @@ export async function createDraftFromUrl(url: string) {
   const job = await insertIngestionJob(url, signals)
 
   const normalized = await normalizeToRetailerDraft(signals)
-  const hostOutput = await generateHostPersona({
-    retailerName: normalized.retailer.name,
-    vertical: normalized.retailer.vertical,
-    location: normalized.retailer.location || null,
-    tagline: normalized.retailer.tagline || null,
-    story: normalized.storyData?.story || null,
-    culture: normalized.storyData?.culture || null,
-    brand_personality: normalized.brandData?.brand_personality || [],
-    brand_voice_tone: normalized.brandData?.brand_voice_tone || '',
-    signature_items: normalized.brandData?.signature_items || [],
-    topProducts: Array.isArray(normalized.products) ? normalized.products.slice(0, 5).map((p: any) => p.name).filter(Boolean) : [],
-    hasFlights: Array.isArray(normalized.flights) && normalized.flights.length > 0,
-  })
+  const [hostOutput, vendorBuilder] = await Promise.all([
+    generateHostPersona({
+      retailerName: normalized.retailer.name,
+      vertical: normalized.retailer.vertical,
+      location: normalized.retailer.location || null,
+      tagline: normalized.retailer.tagline || null,
+      story: normalized.storyData?.story || null,
+      culture: normalized.storyData?.culture || null,
+      brand_personality: normalized.brandData?.brand_personality || [],
+      brand_voice_tone: normalized.brandData?.brand_voice_tone || '',
+      signature_items: normalized.brandData?.signature_items || [],
+      topProducts: Array.isArray(normalized.products) ? normalized.products.slice(0, 5).map((p: any) => p.name).filter(Boolean) : [],
+      hasFlights: Array.isArray(normalized.flights) && normalized.flights.length > 0,
+    }),
+    runVendorBuilder({
+      name: normalized.retailer.name,
+      vertical: normalized.retailer.vertical,
+      location: normalized.retailer.location || null,
+      tagline: normalized.retailer.tagline || null,
+      menuText: signals.menuText,
+      storyText: signals.storyText,
+      rootText: signals.rootText,
+      sourceUrl: signals.sourceUrl,
+      products: Array.isArray(normalized.products) ? normalized.products : [],
+      brandColor: signals.brandColor || normalized.retailer.brand_color || null,
+      story: normalized.storyData?.story || null,
+      culture: normalized.storyData?.culture || null,
+      voice: normalized.storyData?.voice || null,
+      brand_personality: normalized.brandData?.brand_personality || [],
+      brand_voice_tone: normalized.brandData?.brand_voice_tone || '',
+    }),
+  ])
   const intelligenceJson = {
     ...(normalized.brandData || {}),
     ...hostOutput,
+    vendorBuilder,
   }
   const [existingRetailers, existingDrafts] = await Promise.all([
     getExistingRetailerSlugs(),
@@ -441,14 +462,25 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
   try {
     await client.query('BEGIN')
 
+    // Extract vendor builder data from intelligence_json if available
+    const vb = draft.intelligence_json?.vendorBuilder || {}
+
     // 1. Create retailer row
     const retailerResult = await client.query<any>(
       `insert into retailers (
         name, slug, vertical, location, tagline, logo_url, brand_color, owner_email,
-        story, culture, region, active, website_url
+        story, culture, region, active, website_url,
+        chat_system_prompt, brand_secondary_color, brand_accent_color,
+        brand_font_family, brand_font_url,
+        take_home_json, has_take_home, featured_items_json,
+        scan_confidence, personality_preview, vendor_builder_ran_at
       ) values (
         $1, $2, $3, $4, $5, $6, $7, $8,
-        $9, $10, $11, $12, $13
+        $9, $10, $11, $12, $13,
+        $14, $15, $16,
+        $17, $18,
+        $19, $20, $21,
+        $22, $23, now()
       )
       returning *`,
       [
@@ -465,6 +497,16 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
         draft.region  || null,
         true,
         draft.source_url || null,
+        vb.chat_system_prompt   || null,
+        vb.brand_secondary_color || null,
+        vb.brand_accent_color    || null,
+        vb.brand_font_family     || null,
+        vb.brand_font_url        || null,
+        JSON.stringify(vb.take_home_items  || []),
+        Boolean(vb.has_take_home),
+        JSON.stringify(vb.featured_items   || []),
+        vb.scan_confidence ?? 0,
+        vb.personality_preview || null,
       ]
     )
     const retailer = retailerResult.rows[0]
@@ -543,6 +585,28 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
   const normalized = await normalizeToRetailerDraft(signals)
   const updates: any = {}
 
+  // Run vendor builder on branding or full rescan (not catalog-only)
+  let vb: Awaited<ReturnType<typeof runVendorBuilder>> | null = null
+  if (mode === 'branding' || mode === 'full') {
+    vb = await runVendorBuilder({
+      name: normalized.retailer.name,
+      vertical: normalized.retailer.vertical,
+      location: normalized.retailer.location || null,
+      tagline: normalized.retailer.tagline || null,
+      menuText: signals.menuText,
+      storyText: signals.storyText,
+      rootText: signals.rootText,
+      sourceUrl: signals.sourceUrl,
+      products: Array.isArray(normalized.products) ? normalized.products : [],
+      brandColor: signals.brandColor || normalized.retailer.brand_color || null,
+      story: normalized.storyData?.story || null,
+      culture: normalized.storyData?.culture || null,
+      voice: normalized.storyData?.voice || null,
+      brand_personality: normalized.brandData?.brand_personality || [],
+      brand_voice_tone: normalized.brandData?.brand_voice_tone || '',
+    })
+  }
+
   if (mode === 'branding' || mode === 'full') {
     if (signals.brandColor) updates.brand_color = signals.brandColor
     if (signals.logoUrl) updates.logo_url = signals.logoUrl
@@ -620,14 +684,24 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
 
   await dbQuery(
     `update retailers
-     set brand_color = coalesce($2, brand_color),
-         logo_url = coalesce($3, logo_url),
-         story = coalesce($4, story),
-         culture = coalesce($5, culture),
-         region = coalesce($6, region),
-         tagline = coalesce($7, tagline),
-         location = coalesce($8, location),
-         website_url = $9
+     set brand_color          = coalesce($2, brand_color),
+         logo_url             = coalesce($3, logo_url),
+         story                = coalesce($4, story),
+         culture              = coalesce($5, culture),
+         region               = coalesce($6, region),
+         tagline              = coalesce($7, tagline),
+         location             = coalesce($8, location),
+         website_url          = $9,
+         brand_secondary_color = coalesce($10, brand_secondary_color),
+         brand_accent_color    = coalesce($11, brand_accent_color),
+         brand_font_family     = coalesce($12, brand_font_family),
+         brand_font_url        = coalesce($13, brand_font_url),
+         take_home_json        = coalesce($14, take_home_json),
+         has_take_home         = coalesce($15, has_take_home),
+         featured_items_json   = coalesce($16, featured_items_json),
+         scan_confidence       = coalesce($17, scan_confidence),
+         personality_preview   = coalesce($18, personality_preview),
+         vendor_builder_ran_at = case when $10 is not null then now() else vendor_builder_ran_at end
      where id = $1`,
     [
       retailerId,
@@ -639,6 +713,15 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
       updates.tagline || null,
       updates.location || null,
       url,
+      vb?.brand_secondary_color || null,
+      vb?.brand_accent_color    || null,
+      vb?.brand_font_family     || null,
+      vb?.brand_font_url        || null,
+      vb ? JSON.stringify(vb.take_home_items) : null,
+      vb ? vb.has_take_home : null,
+      vb ? JSON.stringify(vb.featured_items) : null,
+      vb?.scan_confidence ?? null,
+      vb?.personality_preview || null,
     ]
   )
 

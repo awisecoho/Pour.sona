@@ -23,6 +23,17 @@ export interface Retailer {
   culture?: string
   region?: string
   host_persona?: string
+  // Vendor Builder fields
+  chat_system_prompt?: string | null
+  brand_secondary_color?: string | null
+  brand_accent_color?: string | null
+  brand_font_family?: string | null
+  brand_font_url?: string | null
+  take_home_json?: Array<{ name: string; description: string; price: number | null; category: string }> | null
+  has_take_home?: boolean
+  featured_items_json?: Array<{ name: string; reason: string }> | null
+  scan_confidence?: number
+  personality_preview?: string | null
 }
 
 export interface Product {
@@ -103,6 +114,7 @@ export interface BlendRecommendation {
   origin?: string[]
   format?: 'single' | 'flight'
   price?: number | null
-  selectedProducts?: Array<{ name: string; why: string }>
+  selectedProducts?: Array<{ name: string; why: string; price?: number | null }>
   selectedWines?: Array<{ name: string; why: string }>
+  serveNote?: string
 }
