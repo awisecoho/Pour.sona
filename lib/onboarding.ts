@@ -23,22 +23,54 @@ async function fetchPage(url: string): Promise<string> {
 }
 
 function extractColorsFromHtml(html: string, baseUrl: string): { primary: string | null; logoUrl: string | null } {
+  // --- Color detection (most reliable first) ---
   const themeColor =
     html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
     html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']theme-color["']/i)?.[1] ||
     null
 
+  // CSS custom properties on :root or body (--primary-color, --brand-color, etc.)
+  const cssVarColor = !themeColor
+    ? (html.match(/--(?:primary|brand|accent|main|theme)(?:-color)?:\s*(#[0-9a-fA-F]{3,8})/i)?.[1] || null)
+    : null
+
+  // Inline background-color on <body>
+  const bodyBgColor = (!themeColor && !cssVarColor)
+    ? (html.match(/<body[^>]+style=["'][^"']*background(?:-color)?:\s*(#[0-9a-fA-F]{3,8})/i)?.[1] || null)
+    : null
+
+  const primary = themeColor || cssVarColor || bodyBgColor || null
+
+  // --- Logo detection (most specific first) ---
+  // apple-touch-icon (usually a clean square logo)
+  const appleTouchIcon =
+    html.match(/<link[^>]+rel=["']apple-touch-icon(?:-precomposed)?["'][^>]+href=["']([^"']+)["']/i)?.[1] ||
+    html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']apple-touch-icon(?:-precomposed)?["']/i)?.[1] ||
+    null
+
+  // og:image
   const ogImage =
     html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
     html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1] ||
     null
 
-  let logoUrl = ogImage
-  if (logoUrl && !logoUrl.startsWith('http')) {
-    try { logoUrl = new URL(logoUrl, baseUrl).toString() } catch { logoUrl = null }
+  // <link rel="icon"> (prefer larger sizes, skip .ico)
+  const iconMatches = [...html.matchAll(/<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["']/gi)]
+  const iconUrl = iconMatches
+    .map(m => m[1])
+    .find(u => !u.endsWith('.ico') && (u.endsWith('.png') || u.endsWith('.svg') || u.endsWith('.webp'))) || null
+
+  const rawLogo = appleTouchIcon || ogImage || iconUrl
+  let logoUrl: string | null = null
+  if (rawLogo) {
+    if (rawLogo.startsWith('http')) {
+      logoUrl = rawLogo
+    } else {
+      try { logoUrl = new URL(rawLogo, baseUrl).toString() } catch { logoUrl = null }
+    }
   }
 
-  return { primary: themeColor, logoUrl }
+  return { primary, logoUrl }
 }
 
 async function insertIngestionJob(url: string, signals: RawSignals) {
@@ -471,7 +503,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
     const retailerResult = await client.query<any>(
       `insert into retailers (
         name, slug, vertical, location, tagline, logo_url, brand_color, owner_email,
-        story, culture, region, active, website_url,
+        story, culture, region, active, source_url,
         chat_system_prompt, brand_secondary_color, brand_accent_color,
         brand_font_family, brand_font_url,
         take_home_json, has_take_home, featured_items_json,
@@ -693,7 +725,7 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
          region               = coalesce($6, region),
          tagline              = coalesce($7, tagline),
          location             = coalesce($8, location),
-         website_url          = $9,
+         source_url           = $9,
          brand_secondary_color = coalesce($10, brand_secondary_color),
          brand_accent_color    = coalesce($11, brand_accent_color),
          brand_font_family     = coalesce($12, brand_font_family),
