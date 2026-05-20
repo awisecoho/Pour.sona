@@ -17,6 +17,23 @@ DO $$ BEGIN
   BEGIN ALTER TABLE retailers ADD COLUMN hours jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN stripe_customer_id text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN subscription_tier text DEFAULT 'starter'; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- vendor builder columns (AI persona, extended brand palette, take-home / featured items)
+  BEGIN ALTER TABLE retailers ADD COLUMN chat_system_prompt text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN brand_secondary_color text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN brand_accent_color text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN brand_font_family text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN brand_font_url text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN take_home_json jsonb DEFAULT '[]'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN has_take_home boolean DEFAULT false; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN featured_items_json jsonb DEFAULT '[]'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN scan_confidence double precision DEFAULT 0; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN personality_preview text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN vendor_builder_ran_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- retailer_drafts vendor builder / research columns (defensive — draft insert already relies on these)
+  BEGIN ALTER TABLE retailer_drafts ADD COLUMN voice text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailer_drafts ADD COLUMN events_json jsonb DEFAULT '[]'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailer_drafts ADD COLUMN intelligence_json jsonb DEFAULT '{}'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailer_drafts ADD COLUMN research_confidence double precision DEFAULT 0; EXCEPTION WHEN duplicate_column THEN NULL; END;
   -- admin_users: add user_email if missing (old schema had user_id uuid)
   BEGIN ALTER TABLE admin_users ADD COLUMN user_email text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE admin_users ADD COLUMN email text; EXCEPTION WHEN duplicate_column THEN NULL; END;
