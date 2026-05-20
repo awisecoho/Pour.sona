@@ -17,7 +17,8 @@ async function fetchPage(url: string): Promise<string> {
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return ''
-    return await res.text()
+    const text = await res.text()
+    return text.replace(/\x00/g, '')  // strip null bytes before any processing
   } catch { return '' }
 }
 
@@ -167,6 +168,7 @@ function extractLinks(html: string, baseUrl: string): Array<{ url: string; score
 
 function stripHtml(html: string): string {
   return html
+    .replace(/\x00/g, '')           // PostgreSQL rejects null bytes in text fields
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
