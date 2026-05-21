@@ -127,10 +127,24 @@ function extractContacts(html: string, baseUrl: string): SiteContacts {
   const linkedin  = firstUrl(html, /https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[A-Za-z0-9_.][A-Za-z0-9_./-]*/i)
   const twitter   = firstUrl(html, /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+/i)
 
-  // Real contact-page link: an <a href> whose target mentions "contact"
+  // Real contact-page link. Only look at <a> anchors (not <link> stylesheets),
+  // skip asset/plugin URLs (e.g. the Contact Form 7 stylesheet
+  // contact-form-7/.../styles.css), and require a contact-like URL *path*.
   let contactPage: string | null = null
-  const a = html.match(/href=["']([^"']*contact[^"']*)["']/i)
-  if (a) contactPage = absolutize(a[1], baseUrl)
+  for (const m of html.matchAll(/<a\b[^>]*\bhref=["']([^"']+)["']/gi)) {
+    const href = m[1]
+    if (/\.(css|js|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|pdf|mp4|zip)(\?|#|$)/i.test(href)) continue
+    if (/(wp-content|wp-includes|\/plugins\/|\/themes\/|\/css\/|\/js\/|contact-form-7)/i.test(href)) continue
+    const abs = absolutize(href, baseUrl)
+    if (!abs) continue
+    try {
+      const path = new URL(abs).pathname.toLowerCase()
+      if (/(^|\/)(contact|contact-us|contactus|get-in-touch|reach-us|connect)(\/|$)/.test(path)) {
+        contactPage = abs
+        break
+      }
+    } catch { /* skip unparseable */ }
+  }
 
   return { email, instagram, facebook, linkedin, twitter, contactPage }
 }
