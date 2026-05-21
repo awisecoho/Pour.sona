@@ -31,28 +31,22 @@ export function checkOrigin(req: NextRequest): boolean {
   if (!origin) return true
   if (origin === 'null') return false
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-
-  // Fail-open when NEXT_PUBLIC_APP_URL is not configured. Otherwise a missing
-  // env var would 403 every browser request (Origin header is always set).
-  // We still fall back to a same-origin check via the Host header so we keep
-  // some CSRF protection until the env var is provisioned.
-  if (!appUrl) {
-    const host = req.headers.get('host')
-    if (host) {
-      try {
-        const originHost = new URL(origin).hostname.toLowerCase()
-        const hostName = host.split(':')[0].toLowerCase()
-        if (originHost === hostName) return true
-      } catch {}
-    }
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('[security] NEXT_PUBLIC_APP_URL is not set — checkOrigin is failing open. Set this env var in Vercel.')
-    }
-    return true
+  // Primary guard: same-origin request (Origin hostname === Host hostname).
+  // This is the real CSRF defense and transparently covers EVERY domain the app
+  // is served on — custom domain (pour-sona.com), *.vercel.app, and branch
+  // aliases — without needing per-domain config. A cross-site POST has a
+  // different Origin host than Host, so it's still blocked.
+  const host = req.headers.get('host')
+  if (host) {
+    try {
+      const originHost = new URL(origin).hostname.toLowerCase()
+      if (originHost === host.split(':')[0].toLowerCase()) return true
+    } catch {}
   }
 
-  if (origin === appUrl) return true
+  // Secondary allow: an explicitly configured canonical app URL.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (appUrl && origin === appUrl) return true
 
   if (process.env.NODE_ENV === 'development') {
     try {
