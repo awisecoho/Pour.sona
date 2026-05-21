@@ -4,9 +4,9 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 
 const NAV = [
-  { href: '/poursona-admin', label: 'All Retailers', icon: 'â—ˆ' },
-  { href: '/poursona-admin/onboard', label: 'Onboard New', icon: 'âœ¦' },
-  { href: '/poursona-admin/team', label: 'Team', icon: 'â—Ž' },
+  { href: '/poursona-admin', label: 'All Retailers', icon: '◈' },
+  { href: '/poursona-admin/onboard', label: 'Onboard New', icon: '✦' },
+  { href: '/poursona-admin/team', label: 'Team', icon: '◎' },
 ]
 
 export default function InternalLayout({ children }: { children: React.ReactNode }) {
@@ -55,7 +55,7 @@ export default function InternalLayout({ children }: { children: React.ReactNode
   }
 
   if (pathname.includes('/poursona-admin/login')) return <>{children}</>
-  if (loading) return <div style={{ minHeight: '100vh', background: '#060403', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif' }}>Verifying accessâ€¦</div></div>
+  if (loading) return <div style={{ minHeight: '100vh', background: '#060403', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: '#C9A84C', fontFamily: 'Georgia, serif' }}>Verifying access…</div></div>
   if (message) return <div style={{ minHeight: '100vh', background: '#060403', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}><div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif', maxWidth: 420, textAlign: 'center' }}>{message}</div></div>
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#060403', fontFamily: 'Georgia, serif' }}>
@@ -76,8 +76,8 @@ export default function InternalLayout({ children }: { children: React.ReactNode
           })}
         </nav>
         <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(201,168,76,.1)' }}>
-          <Link href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, marginBottom: 8, background: 'rgba(201,168,76,.05)', border: '1px solid rgba(201,168,76,.1)', color: '#6a5a3a', textDecoration: 'none', fontSize: 12 }}>âŠž My Vendor Portal</Link>
-          <button onClick={handleSignOut} style={{ width: '100%', padding: '9px 12px', background: 'transparent', border: '1px solid rgba(201,168,76,.1)', borderRadius: 8, color: '#4a3a1a', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 12, textAlign: 'left' }}>â† Sign Out</button>
+          <Link href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, marginBottom: 8, background: 'rgba(201,168,76,.05)', border: '1px solid rgba(201,168,76,.1)', color: '#6a5a3a', textDecoration: 'none', fontSize: 12 }}>⊞ My Vendor Portal</Link>
+          <button onClick={handleSignOut} style={{ width: '100%', padding: '9px 12px', background: 'transparent', border: '1px solid rgba(201,168,76,.1)', borderRadius: 8, color: '#4a3a1a', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 12, textAlign: 'left' }}>← Sign Out</button>
         </div>
       </aside>
       <main style={{ flex: 1, marginLeft: 240, padding: '32px 40px', overflowY: 'auto' as const }}>{children}</main>

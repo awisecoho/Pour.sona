@@ -9,7 +9,7 @@ export default function AdminLogin() {
     <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#0a0603,#0d1a0f)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif' }}>
       <div style={{ width: '100%', maxWidth: 460, padding: '0 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>Ã¢Å“Â¦</div>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>✦</div>
           <div style={{ color: '#C9A84C', fontSize: 11, letterSpacing: '.4em', textTransform: 'uppercase' }}>Poursona</div>
           <div style={{ color: '#F5ECD7', fontSize: 22, fontWeight: 700, marginTop: 4 }}>Admin Portal</div>
         </div>

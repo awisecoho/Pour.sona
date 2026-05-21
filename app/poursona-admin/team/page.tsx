@@ -81,7 +81,7 @@ export default function TeamPage() {
     load()
   }
 
-  if (loading) return <div style={{ color: '#C9A84C' }}>Loadingâ€¦</div>
+  if (loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
   if (loadMessage) return <div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 14 }}>{loadMessage}</div>
 
   return (
@@ -102,7 +102,7 @@ export default function TeamPage() {
           <thead><tr style={{ borderBottom: '1px solid rgba(201,168,76,.1)' }}>{['Name','Email','Role','Added',''].map(h => <th key={h} style={{ padding: '12px 20px', textAlign: 'left', color: '#4a3a1a', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>)}</tr></thead>
           <tbody>{team.map(m => (
             <tr key={m.id} style={{ borderBottom: '1px solid rgba(201,168,76,.05)' }}>
-              <td style={{ padding: '14px 20px', color: '#F5ECD7', fontSize: 13 }}>{m.name || 'â€”'}</td>
+              <td style={{ padding: '14px 20px', color: '#F5ECD7', fontSize: 13 }}>{m.name || '—'}</td>
               <td style={{ padding: '14px 20px', color: '#C9A84C', fontSize: 13 }}>{m.email}</td>
               <td style={{ padding: '14px 20px' }}><span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10, background: m.role === 'owner' ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.05)', color: m.role === 'owner' ? '#C9A84C' : '#6a5a3a' }}>{m.role}</span></td>
               <td style={{ padding: '14px 20px', color: '#4a3a1a', fontSize: 12 }}>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
@@ -131,7 +131,7 @@ export default function TeamPage() {
                 </select>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button type="submit" disabled={saving || !newEmail} style={{ flex: 1, padding: '11px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Addingâ€¦' : 'Add Member'}</button>
+                <button type="submit" disabled={saving || !newEmail} style={{ flex: 1, padding: '11px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Adding…' : 'Add Member'}</button>
                 <button type="button" onClick={() => setAdding(false)} style={{ padding: '11px 16px', background: 'transparent', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#6a5a3a', fontFamily: 'Georgia, serif', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
               </div>
             </form>
