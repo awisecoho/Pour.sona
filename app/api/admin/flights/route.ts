@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
-import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
+import { authorizeRetailer, type Role } from '@/lib/authz'
 
 export const dynamic = 'force-dynamic'
 
-async function ensureRetailerAccess(retailerId: string) {
-  const identity = await getAuthenticatedIdentity()
-  if (!identity) return { error: 'unauthorized', status: 401 as const }
-
-  const accessRows = await getRetailersForIdentity(identity.userId, identity.email)
-  if (!accessRows.some((row) => row.retailer_id === retailerId)) {
-    return { error: 'forbidden', status: 403 as const }
-  }
-
+async function ensureRetailerAccess(retailerId: string, role: Role = 'staff') {
+  const authz = await authorizeRetailer(retailerId, role)
+  if (!authz.ok) return { error: authz.error, status: authz.status }
   return { ok: true as const }
 }
 
@@ -50,7 +44,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Missing retailerId' }, { status: 400 })
     }
 
-    const authz = await ensureRetailerAccess(retailerId)
+    const authz = await ensureRetailerAccess(retailerId, 'manager')
     if ('error' in authz) {
       return NextResponse.json({ ok: false, error: authz.error }, { status: authz.status })
     }
@@ -85,7 +79,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Missing retailerId or id' }, { status: 400 })
     }
 
-    const authz = await ensureRetailerAccess(retailerId)
+    const authz = await ensureRetailerAccess(retailerId, 'manager')
     if ('error' in authz) {
       return NextResponse.json({ ok: false, error: authz.error }, { status: authz.status })
     }
@@ -129,7 +123,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Missing retailerId or id' }, { status: 400 })
     }
 
-    const authz = await ensureRetailerAccess(retailerId)
+    const authz = await ensureRetailerAccess(retailerId, 'manager')
     if ('error' in authz) {
       return NextResponse.json({ ok: false, error: authz.error }, { status: authz.status })
     }

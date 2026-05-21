@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
-import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
+import { authorizeRetailer } from '@/lib/authz'
 
 export const dynamic = 'force-dynamic'
-
-async function getAuthorizedRetailer(retailerId: string) {
-  const identity = await getAuthenticatedIdentity()
-  if (!identity) return { error: 'unauthorized', status: 401 as const }
-
-  const accessRows = await getRetailersForIdentity(identity.userId, identity.email)
-  const access = accessRows.find((row) => row.retailer_id === retailerId)
-  if (!access) return { error: 'forbidden', status: 403 as const }
-
-  return { access }
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,14 +11,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Missing retailerId' }, { status: 400 })
     }
 
-    const authz = await getAuthorizedRetailer(retailerId)
-    if ('error' in authz) {
+    // Any role tied to the venue may view it (owner-only fields redacted below).
+    const authz = await authorizeRetailer(retailerId, 'staff')
+    if (!authz.ok) {
       return NextResponse.json({ ok: false, error: authz.error }, { status: authz.status })
     }
 
     const result = await dbQuery('select * from retailers where id = $1 limit 1', [retailerId])
     const retailer = result.rows[0] || null
-    if (retailer && authz.access.role !== 'owner') {
+    if (retailer && authz.role !== 'owner') {
       delete retailer.owner_email
       delete retailer.stripe_customer_id
       delete retailer.subscription_status
@@ -49,8 +39,9 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Missing retailerId' }, { status: 400 })
     }
 
-    const authz = await getAuthorizedRetailer(retailerId)
-    if ('error' in authz) {
+    // Editing venue settings requires manager or owner.
+    const authz = await authorizeRetailer(retailerId, 'manager')
+    if (!authz.ok) {
       return NextResponse.json({ ok: false, error: authz.error }, { status: authz.status })
     }
 

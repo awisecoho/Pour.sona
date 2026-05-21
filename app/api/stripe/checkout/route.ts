@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
+import { authorizeRetailer } from '@/lib/authz'
 import { dbQuery } from '@/lib/db'
 export const dynamic = 'force-dynamic'
 
@@ -16,15 +16,12 @@ const PLANS: Record<string, { priceId: string | undefined; name: string; mrr: nu
 
 export async function POST(req: NextRequest) {
   try {
-    const identity = await getAuthenticatedIdentity()
-    if (!identity) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-
     const { retailerId, plan } = await req.json()
     if (!retailerId || !plan) return NextResponse.json({ error: 'retailerId and plan required' }, { status: 400 })
 
-    const access = await getRetailersForIdentity(identity.userId, identity.email)
-    const hasAccess = access.some((r: any) => r.retailer_id === retailerId)
-    if (!hasAccess) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    // Billing changes are owner-only.
+    const authz = await authorizeRetailer(retailerId, 'owner')
+    if (!authz.ok) return NextResponse.json({ error: authz.error }, { status: authz.status })
 
     const planConfig = PLANS[plan]
     if (!planConfig) return NextResponse.json({ error: 'invalid plan' }, { status: 400 })
