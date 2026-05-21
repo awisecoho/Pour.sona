@@ -146,11 +146,11 @@ function WelcomeScreen({
       {/* Logo or icon */}
       <div style={{ marginBottom: 24, position: 'relative' }}>
         {hasLogo ? (
-          <div style={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', border: `1.5px solid rgba(${theme.rgbStr},.25)`, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ minWidth: 88, height: 100, maxWidth: 260, borderRadius: 20, overflow: 'hidden', border: `1px solid rgba(${theme.rgbStr},.18)`, background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px 20px' }}>
             <img
               src={retailer.logo_url}
               alt={retailer.name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
           </div>
@@ -694,8 +694,8 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
         flexShrink: 0,
       }}>
         {retailer.logo_url ? (
-          <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', border: `1px solid rgba(${theme.rgbStr},.2)`, flexShrink: 0 }}>
-            <img src={retailer.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }} />
+          <div style={{ height: 34, maxWidth: 120, borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <img src={retailer.logo_url} alt="" style={{ height: '100%', maxWidth: 120, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }} />
           </div>
         ) : (
           <div style={{ width: 32, height: 32, borderRadius: '50%', background: `rgba(${theme.rgbStr},.1)`, border: `1px solid rgba(${theme.rgbStr},.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>

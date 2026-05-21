@@ -77,6 +77,16 @@ CONVERSATION STYLE: When the session starts (user says START), give a brief warm
 
   const voice = vendorSystemPrompt || voices[vertical] || voices['brewery']
 
+  // Applied on top of ANY voice (vendor-built or default). Guests on a phone
+  // can't parse stacked, multi-part questions — keep each turn to a single,
+  // simple question so the experience stays effortless.
+  const conversationRules = `
+CONVERSATION PACING — follow strictly, this matters more than sounding clever:
+- Ask exactly ONE question per message. Never stack two questions, and never join choices with "and" / "and do you..." in the same turn.
+- Keep each message short: at most 1-2 sentences before the question. No long paragraphs.
+- Favor simple either/or or yes/no questions a guest can answer in a word or two.
+- Ask at most TWO brief questions total across the whole chat, then make your recommendation. When unsure, just recommend.`
+
   // Featured / take-home context to append to the catalog section
   const featuredItems: Array<{ name: string; reason: string }> =
     Array.isArray(retailer.featured_items_json) ? retailer.featured_items_json : []
@@ -124,6 +134,7 @@ For a flight recommendation: set format = "flight", flightDetails = { "flightNam
 The handoff sentence before ===REC=== should feel like the best bartender in the place just walked over. Specific, confident, warm.`
 
   return `${voice}
+${conversationRules}
 
 ${storySection ? 'ABOUT THIS PLACE:\n' + storySection + '\n' : ''}
 YOUR CATALOG AT ${retailer.name.toUpperCase()}:

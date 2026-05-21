@@ -184,7 +184,7 @@ ${allText}
 Generate a complete brand intelligence JSON. The chat_system_prompt must:
 1. Open as a natural staff member — NOT a bot or "AI assistant"
 2. Match the venue's exact tone (formal winery vs casual taproom vs sophisticated distillery)
-3. Instruct the AI to ask max 2-3 targeted questions before making ONE confident recommendation
+3. Instruct the AI to ask ONE simple question at a time (never stack or combine questions in a single message), keep each message to 1-2 short sentences, and ask at most TWO brief questions before making ONE confident recommendation
 4. Include specific conversation openers for when guests say START
 5. Know to offer a "take-home" branch naturally if the venue sells packaged goods
 6. Reference the venue's story/culture where natural
