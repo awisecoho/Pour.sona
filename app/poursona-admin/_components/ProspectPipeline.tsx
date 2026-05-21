@@ -208,7 +208,11 @@ export default function ProspectPipeline() {
       addLog(err.message ?? 'Search failed. Try again.', 'error')
       setRunning(false); return
     }
-    for (const biz of businesses) {
+    for (let i = 0; i < businesses.length; i++) {
+      const biz = businesses[i]
+      // Brief pause between businesses to stay well under the 30k TPM rate limit.
+      // The backend retries 429s, but spacing calls out prevents hitting it at all.
+      if (i > 0) await new Promise(r => setTimeout(r, 3000))
       addLog(`Screening ${biz.name}…`)
       try {
         const result = await screenAndMessage(biz)

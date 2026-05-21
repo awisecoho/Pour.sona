@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedIdentity, getInternalMemberByEmail } from '@/lib/auth'
 export const dynamic = 'force-dynamic'
-// Web-search calls can take 20-30 s each; give the function enough runway.
-export const maxDuration = 60
+// Web-search + possible retries can take a while; give functions enough runway.
+export const maxDuration = 120
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
 async function requireTeamMember() {
@@ -12,9 +12,15 @@ async function requireTeamMember() {
   return member ?? null
 }
 
-// ── Anthropic proxy ───────────────────────────────────────────────────────────
+// ── Anthropic proxy with retry ────────────────────────────────────────────────
 // Keeps ANTHROPIC_API_KEY on the server; browser never sees it.
-async function callAnthropic(body: object): Promise<any> {
+// Web-search calls are token-heavy and the 30k TPM rate limit fires quickly.
+// We respect the retry-after header and back off up to MAX_RETRY_WAIT ms so a
+// single transient 429 doesn't surface as an error to the user.
+const MAX_RETRY_WAIT = 15_000  // cap wait per attempt at 15 s (stays within maxDuration)
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+async function callAnthropic(body: object, attempt = 0): Promise<any> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -24,6 +30,19 @@ async function callAnthropic(body: object): Promise<any> {
     },
     body: JSON.stringify(body),
   })
+
+  if (res.status === 429 && attempt < 3) {
+    // Honour Anthropic's retry-after (seconds), fall back to exponential backoff
+    const retryAfterSec = parseInt(res.headers.get('retry-after') ?? '0', 10)
+    const backoff = Math.min(
+      Math.max(retryAfterSec * 1000, Math.pow(2, attempt) * 2000),
+      MAX_RETRY_WAIT
+    )
+    console.warn(`[pipeline] 429 rate limit — waiting ${backoff}ms (attempt ${attempt + 1})`)
+    await sleep(backoff)
+    return callAnthropic(body, attempt + 1)
+  }
+
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
     throw new Error(`Anthropic ${res.status}: ${errText.slice(0, 200)}`)
@@ -99,10 +118,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'missing biz.name or biz.url' }, { status: 400 })
       }
 
-      // Step 1 — qualify the business
+      // Step 1 — qualify the business (Sonnet + web search; low max_tokens: JSON only)
       const screenData = await callAnthropic({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 600,
+        max_tokens: 300,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: SCREEN_PROMPT(biz.name, biz.url) }],
       })
@@ -117,9 +136,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, result: null })
       }
 
-      // Step 2 — draft a personalised message
+      // Step 2 — draft a personalised message (Haiku: no web search, high TPM limit)
       const msgData = await callAnthropic({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 400,
         messages: [{ role: 'user', content: MSG_PROMPT(biz.name, biz.url, signals) }],
       })
