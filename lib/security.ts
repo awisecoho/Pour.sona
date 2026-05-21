@@ -92,14 +92,44 @@ export function validateEmailFormat(email: unknown): email is string {
 const PRIVATE_HOST_PATTERNS = [
   /^localhost$/i,
   /^127\./,
+  /^0\./,                       // 0.0.0.0/8 ("this host")
   /^10\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^172\.(1[6-9]|2\d|3[01])\./, // 172.16.0.0/12
   /^192\.168\./,
-  /^::1$/,
-  /^fc[0-9a-f]{2}:/i,
+  /^169\.254\./,                // link-local / cloud metadata (169.254.169.254)
+  /^::1$/,                      // IPv6 loopback
+  /^::$/,                       // unspecified
+  /^fc[0-9a-f]{2}:/i,           // IPv6 unique-local fc00::/7
+  /^fd[0-9a-f]{2}:/i,
+  /^fe80:/i,                    // IPv6 link-local
   /\.local$/i,
   /\.internal$/i,
 ]
+
+// ── Outbound scrape URL safety (SSRF guard) ───────────────────────────────────
+// Applied before fetching a vendor-supplied website URL during onboarding so the
+// scraper can't be pointed at internal infrastructure or cloud metadata.
+export function validateScrapeUrl(raw: string | null | undefined): { ok: true; url: URL } | { ok: false; error: string } {
+  if (!raw || typeof raw !== 'string') return { ok: false, error: 'Missing url' }
+  let parsed: URL
+  try {
+    parsed = new URL(raw)
+  } catch {
+    return { ok: false, error: 'Invalid url' }
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { ok: false, error: 'URL must use http or https' }
+  }
+  // Embedded credentials (user:pass@host) are a common SSRF bypass vector.
+  if (parsed.username || parsed.password) {
+    return { ok: false, error: 'URL must not contain credentials' }
+  }
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '') // strip IPv6 brackets
+  if (PRIVATE_HOST_PATTERNS.some(p => p.test(host))) {
+    return { ok: false, error: 'URL points to a private or local network address' }
+  }
+  return { ok: true, url: parsed }
+}
 
 export function validateLogoUrl(raw: string | null | undefined): { ok: true; url: URL } | { ok: false; error: string } {
   if (!raw) return { ok: false, error: 'no logo URL' }

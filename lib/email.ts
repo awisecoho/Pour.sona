@@ -327,6 +327,41 @@ export async function sendAiCapNotice(opts: {
   })
 }
 
+export async function sendAiBudgetWarning(opts: {
+  to: string
+  retailerName: string
+  pct: number
+  upgradeUrl: string
+}): Promise<EmailResult> {
+  const { to, retailerName, pct, upgradeUrl } = opts
+  return sendEmail({
+    from: FROM,
+    to,
+    subject: `${retailerName} is at ${pct}% of this month's AI usage`,
+    html: `
+<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f9f5ec;font-family:Georgia,serif">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px">
+<table width="540" cellpadding="0" cellspacing="0" style="background:#0a0603;border-radius:16px;overflow:hidden">
+  <tr><td style="padding:32px 40px;border-bottom:1px solid rgba(201,168,76,.15)">
+    <div style="color:#C9A84C;font-size:11px;letter-spacing:.25em;text-transform:uppercase;margin-bottom:8px">Heads Up</div>
+    <div style="color:#F5ECD7;font-size:22px;font-weight:700">${retailerName} is at ${pct}% of AI usage</div>
+  </td></tr>
+  <tr><td style="padding:32px 40px">
+    <div style="color:#F5ECD7;font-size:15px;line-height:1.7;margin-bottom:16px">
+      Your guests are loving the Poursona guide — you've used ${pct}% of this month's included AI. If you cross 100%, guests will still get a curated recommendation, but the live AI conversation pauses until next month.
+    </div>
+    <a href="${upgradeUrl}" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#C9A84C,#a07830);border-radius:8px;color:#060403;font-weight:700;text-decoration:none;font-size:14px">View plans →</a>
+  </td></tr>
+  <tr><td style="padding:24px 40px;border-top:1px solid rgba(201,168,76,.08)">
+    <div style="color:#3a2a0a;font-size:11px;text-align:center">Usage resets at the start of next month.</div>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`,
+  })
+}
+
 // ── Failed / sparse scrape alert to Poursona admin ────────────────────────────
 // Self-serve onboarding has no human in the loop, so when the catalog scrape
 // comes back empty or thin we notify the admin team to finish setup (concierge).

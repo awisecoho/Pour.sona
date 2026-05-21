@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDraftFromUrl } from '@/lib/onboarding'
 import { getAuthenticatedIdentity } from '@/lib/auth'
-import { verifyOnboardSecret } from '@/lib/security'
+import { verifyOnboardSecret, validateScrapeUrl } from '@/lib/security'
 import { dbQuery } from '@/lib/db'
 import { sendScrapeAlert } from '@/lib/email'
 export const dynamic = 'force-dynamic'
@@ -36,19 +36,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { url } = await req.json()
-    if (!url || typeof url !== 'string') return NextResponse.json({ error: 'Missing url' }, { status: 400 })
-    attemptedUrl = url
+    if (typeof url === 'string') attemptedUrl = url
 
-    // Block non-HTTP URLs and private/localhost targets
-    let parsed: URL
-    try { parsed = new URL(url) } catch { return NextResponse.json({ error: 'Invalid url' }, { status: 400 }) }
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return NextResponse.json({ error: 'Invalid url' }, { status: 400 })
-    }
-    const host = parsed.hostname.toLowerCase()
-    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.') || host.endsWith('.local')) {
-      return NextResponse.json({ error: 'Invalid url' }, { status: 400 })
-    }
+    // SSRF guard: block non-HTTP(S), credentials, and private/loopback/link-local targets.
+    const safe = validateScrapeUrl(url)
+    if (!safe.ok) return NextResponse.json({ error: safe.error }, { status: 400 })
 
     const draft = await createDraftFromUrl(url)
 

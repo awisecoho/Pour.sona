@@ -120,6 +120,7 @@ function Stat({ label, value, sub, color = '#C9A84C' }: any) {
 export default function Dashboard() {
   const { retailer, retailerId, loading: retailerLoading } = useActiveRetailer()
   const [stats, setStats] = useState<Stats>({ scans: 0, convos: 0, recs: 0, orders: 0 })
+  const [aiUsage, setAiUsage] = useState<{ costUsd: number; budgetUsd: number; pct: number } | null>(null)
   const [daily, setDaily] = useState<DailyPoint[]>([])
   const [range, setRange] = useState<Range | null>(null)
   const [recent, setRecent] = useState<Pick<Session, 'id' | 'order_status' | 'created_at'>[]>([])
@@ -155,6 +156,7 @@ export default function Dashboard() {
         return
       }
       setStats(json.stats  || { scans: 0, convos: 0, recs: 0, orders: 0 })
+      setAiUsage(json.aiUsage || null)
       setDaily(json.daily  || [])
       setRange(json.range  || null)
       setRecent(json.recent || [])
@@ -246,6 +248,26 @@ export default function Dashboard() {
         <Stat label="Recommendations" value={stats.recs} sub={rate + '% rec rate'} color="#5ecf8a" />
         <Stat label="Orders" value={stats.orders} sub={ordRate + '% conv rate'} color="#7ec8e3" />
       </div>
+
+      {/* AI usage this month */}
+      {aiUsage && (
+        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '16px 24px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+            <div style={{ color: '#F5ECD7', fontSize: 13, fontWeight: 700 }}>AI Usage This Month</div>
+            <div style={{ color: aiUsage.pct >= 100 ? '#e07070' : aiUsage.pct >= 80 ? '#C9A84C' : '#4a3a1a', fontSize: 12 }}>
+              ${aiUsage.costUsd.toFixed(2)} / ${aiUsage.budgetUsd.toFixed(0)} · {aiUsage.pct}%
+            </div>
+          </div>
+          <div style={{ height: 6, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ width: aiUsage.pct + '%', height: '100%', background: aiUsage.pct >= 100 ? '#e07070' : aiUsage.pct >= 80 ? '#C9A84C' : '#5ecf8a', transition: 'width .3s' }} />
+          </div>
+          {aiUsage.pct >= 100 && (
+            <div style={{ color: '#a07a3a', fontSize: 11, marginTop: 8 }}>
+              AI cap reached — guests still get a curated pick. Usage resets next month.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Daily trend chart */}
       {daily.length > 1 && (

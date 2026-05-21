@@ -15,6 +15,11 @@ function csvRow(cells: unknown[]): string { return cells.map(escCsv).join(',') }
 // Cap chart range to 90 days to bound generate_series output
 const MAX_CHART_DAYS = 90
 
+// AI budget config (mirrors the chat route) for the usage card.
+const AI_BUDGET_USD          = Number(process.env.AI_MONTHLY_BUDGET_USD  || 15)
+const AI_INPUT_USD_PER_MTOK  = Number(process.env.AI_INPUT_USD_PER_MTOK  || 1)
+const AI_OUTPUT_USD_PER_MTOK = Number(process.env.AI_OUTPUT_USD_PER_MTOK || 5)
+
 function clampRange(from: string, to: string): { chartFrom: string; chartTo: string } {
   const now = new Date()
   const toDate  = to   ? new Date(to)   : now
@@ -55,7 +60,7 @@ export async function GET(req: NextRequest) {
     const { chartFrom, chartTo } = clampRange(from, to)
 
     // ── Summary stats (all-time when no from/to, filtered otherwise) ──────────
-    const [summaryResult, dailyResult, recentResult] = await Promise.all([
+    const [summaryResult, dailyResult, recentResult, aiResult] = await Promise.all([
       dbQuery<Record<string, string>>(
         `SELECT
            (SELECT COUNT(*)::int FROM events
@@ -120,6 +125,13 @@ export async function GET(req: NextRequest) {
          ORDER BY created_at DESC LIMIT 10`,
         [retailerId, from, to]
       ),
+
+      // ── This month's AI usage (for the cost/budget card) ──────────────────────
+      dbQuery<Record<string, unknown>>(
+        `SELECT ai_input_tokens_month, ai_output_tokens_month, ai_month_reset_at
+         FROM retailers WHERE id = $1 LIMIT 1`,
+        [retailerId]
+      ),
     ])
 
     if (format === 'csv') {
@@ -136,6 +148,16 @@ export async function GET(req: NextRequest) {
     }
 
     const s = summaryResult.rows[0] ?? {}
+
+    // AI usage this month — treat a stale reset timestamp as zero.
+    const aiRow = aiResult.rows[0] ?? {}
+    const reset = aiRow.ai_month_reset_at ? new Date(aiRow.ai_month_reset_at as string) : null
+    const monthStart = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)
+    const aiActive = reset && reset.getTime() >= monthStart
+    const inTok  = aiActive ? Number(aiRow.ai_input_tokens_month  ?? 0) : 0
+    const outTok = aiActive ? Number(aiRow.ai_output_tokens_month ?? 0) : 0
+    const aiCostUsd = (inTok / 1e6) * AI_INPUT_USD_PER_MTOK + (outTok / 1e6) * AI_OUTPUT_USD_PER_MTOK
+
     return NextResponse.json({
       ok: true,
       stats: {
@@ -143,6 +165,11 @@ export async function GET(req: NextRequest) {
         convos: Number(s.convos ?? 0),
         recs:   Number(s.recs   ?? 0),
         orders: Number(s.orders ?? 0),
+      },
+      aiUsage: {
+        costUsd:   Math.round(aiCostUsd * 100) / 100,
+        budgetUsd: AI_BUDGET_USD,
+        pct:       AI_BUDGET_USD > 0 ? Math.min(100, Math.round((aiCostUsd / AI_BUDGET_USD) * 100)) : 0,
       },
       daily: dailyResult.rows.map(r => ({
         day:    String(r.day).slice(0, 10),

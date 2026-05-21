@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildSystemPrompt } from '@/lib/prompts'
 import { dbQuery } from '@/lib/db'
-import { sendTrialExpiredNotice, sendTrialExpiringWarning, sendAiCapNotice } from '@/lib/email'
+import { sendTrialExpiredNotice, sendTrialExpiringWarning, sendAiCapNotice, sendAiBudgetWarning } from '@/lib/email'
 import { billingUrl } from '@/lib/urls'
 import { checkOrigin } from '@/lib/security'
 import { chatLimiter, getIp } from '@/lib/rate-limit'
@@ -230,7 +230,8 @@ export async function POST(req: NextRequest) {
     // call) so the guest experience never goes dark and the venue stays under its
     // cost ceiling. Owner gets a one-per-month upsell nudge.
     const usage = effectiveMonthlyUsage(retailer)
-    if (monthlyCostUsd(usage.input, usage.output) >= AI_MONTHLY_BUDGET_USD) {
+    const monthCost = monthlyCostUsd(usage.input, usage.output)
+    if (monthCost >= AI_MONTHLY_BUDGET_USD) {
       if (retailer.owner_email) {
         const claimed = await dbQuery<{ id: string }>(
           `UPDATE retailers SET ai_cap_notified_at = now()
@@ -244,6 +245,20 @@ export async function POST(req: NextRequest) {
         }
       }
       return degradedResponse(inStockProducts)
+    }
+    // Approaching the cap (>=80%): nudge the owner once per month (best-effort).
+    if (monthCost >= 0.8 * AI_MONTHLY_BUDGET_USD && retailer.owner_email) {
+      const claimed = await dbQuery<{ id: string }>(
+        `UPDATE retailers SET ai_warn_notified_at = now()
+         WHERE id = $1 AND (ai_warn_notified_at IS NULL OR ai_warn_notified_at < date_trunc('month', now()))
+         RETURNING id`,
+        [retailer.id]
+      )
+      if (claimed.rows.length > 0) {
+        const pct = Math.round((monthCost / AI_MONTHLY_BUDGET_USD) * 100)
+        sendAiBudgetWarning({ to: retailer.owner_email, retailerName: retailer.name, pct, upgradeUrl: billingUrl() })
+          .then(r => { if (!r.ok) console.error('[chat] sendAiBudgetWarning failed:', r.error) })
+      }
     }
 
     let systemPrompt = buildSystemPrompt(retailer, promptProducts, flightsResult.rows)

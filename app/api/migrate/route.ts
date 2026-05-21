@@ -45,7 +45,18 @@ DO $$ BEGIN
   BEGIN ALTER TABLE retailers ADD COLUMN ai_output_tokens_month bigint DEFAULT 0; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN ai_month_reset_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN ai_cap_notified_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN ai_warn_notified_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
 END $$;
+
+-- Performance + tenant-isolation indexes (idempotent; ensures they exist on Neon)
+CREATE INDEX IF NOT EXISTS idx_sessions_retailer_id_created_at ON sessions(retailer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_retailer_id_created_at   ON orders(retailer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_retailer_type_created    ON events(retailer_id, event_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_products_retailer_id            ON products(retailer_id);
+CREATE INDEX IF NOT EXISTS idx_flights_retailer_id             ON flights(retailer_id);
+CREATE INDEX IF NOT EXISTS idx_admin_users_email               ON admin_users(lower(email));
+CREATE INDEX IF NOT EXISTS idx_retailers_slug                  ON retailers(slug);
+CREATE INDEX IF NOT EXISTS idx_retailers_expired_trials        ON retailers(trial_ends_at ASC) WHERE subscription_status = 'trial' AND trial_ends_at IS NOT NULL;
 `
 
 // Step 2: seed core data

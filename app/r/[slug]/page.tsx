@@ -191,7 +191,12 @@ function WelcomeScreen({
         Find My {noun}
       </button>
 
-      <div style={{ marginTop: 20, color: '#2a1e0a', fontSize: 11, fontFamily: `'${font}', Georgia, serif`, letterSpacing: '.08em' }}>
+      {retailer.vertical !== 'coffee' && (
+        <div style={{ marginTop: 24, color: '#5a4a2a', fontSize: 11, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.5, maxWidth: 300 }}>
+          Must be 21+. Please enjoy responsibly.
+        </div>
+      )}
+      <div style={{ marginTop: 16, color: '#2a1e0a', fontSize: 11, fontFamily: `'${font}', Georgia, serif`, letterSpacing: '.08em' }}>
         POWERED BY POURSONA
       </div>
     </div>
@@ -414,6 +419,11 @@ function RecommendationCard({
         <div style={{ color: '#4a5a3a', fontSize: 14, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.6 }}>
           {retailer.name} will have your {noun.toLowerCase()} ready shortly.
         </div>
+        {retailer.vertical !== 'coffee' && (
+          <div style={{ color: '#3a4a2a', fontSize: 11, fontFamily: `'${font}', Georgia, serif`, marginTop: 14 }}>
+            Must be 21+. Please enjoy responsibly.
+          </div>
+        )}
       </div>
     )
   }
