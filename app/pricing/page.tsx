@@ -48,14 +48,14 @@ export default function PricingPage() {
     card: { background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.3)', borderRadius: 20, padding: '48px 40px', maxWidth: 480, margin: '0 auto', position: 'relative' },
     badge: { position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg,#C9A84C,#a07830)', borderRadius: 20, padding: '4px 18px', color: '#060403', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' },
     price: { fontSize: 64, fontWeight: 700, color: '#F5ECD7', lineHeight: 1 },
-    per: { color: '#4a3a1a', fontSize: 15, marginLeft: 4, alignSelf: 'flex-end', paddingBottom: 10 },
+    per: { color: '#9a8a64', fontSize: 15, marginLeft: 4, alignSelf: 'flex-end', paddingBottom: 10 },
     feature: { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(201,168,76,.07)', fontSize: 14, color: '#c8bfa8' },
     check: { color: '#5ecf8a', flexShrink: 0, marginTop: 1 },
     btn: { display: 'block', width: '100%', padding: '18px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 10, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 16, fontWeight: 700, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', marginTop: 32 },
-    trial: { textAlign: 'center', color: '#3a2a0a', fontSize: 12, marginTop: 12 },
+    trial: { textAlign: 'center', color: '#7a6a44', fontSize: 12, marginTop: 12 },
     faqItem: { borderBottom: '1px solid rgba(201,168,76,.1)', padding: '24px 0' },
     faqQ: { color: '#F5ECD7', fontSize: 16, fontWeight: 700, marginBottom: 10 },
-    faqA: { color: '#4a3a1a', fontSize: 14, lineHeight: 1.7 },
+    faqA: { color: '#9a8a64', fontSize: 14, lineHeight: 1.7 },
   }
 
   return (
@@ -63,7 +63,7 @@ export default function PricingPage() {
       <nav style={s.nav}>
         <Link href="/" style={{ color: '#C9A84C', fontSize: 18, fontWeight: 700, letterSpacing: '.05em', textDecoration: 'none' }}>✦ Poursona</Link>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-          <Link href="/" style={{ color: '#4a3a1a', fontSize: 13, textDecoration: 'none' }}>Home</Link>
+          <Link href="/" style={{ color: '#9a8a64', fontSize: 13, textDecoration: 'none' }}>Home</Link>
           <Link href="/admin/login" style={{ color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>Venue login</Link>
         </div>
       </nav>
@@ -72,7 +72,7 @@ export default function PricingPage() {
         <div style={{ textAlign: 'center', marginBottom: 56 }}>
           <div style={{ color: '#C9A84C', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12 }}>Pricing</div>
           <h1 style={{ fontSize: 'clamp(28px,5vw,48px)', fontWeight: 700, margin: '0 0 16px', lineHeight: 1.2 }}>One plan. Everything included.</h1>
-          <p style={{ color: '#4a3a1a', fontSize: 16, lineHeight: 1.7, maxWidth: 480, margin: '0 auto' }}>
+          <p style={{ color: '#9a8a64', fontSize: 16, lineHeight: 1.7, maxWidth: 480, margin: '0 auto' }}>
             No feature tiers. No per-seat fees. Everything Poursona offers, for one flat monthly rate.
           </p>
         </div>
@@ -86,7 +86,7 @@ export default function PricingPage() {
               <span style={s.price}>$79</span>
               <span style={s.per}>/month</span>
             </div>
-            <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 6 }}>per venue · billed monthly · cancel anytime</div>
+            <div style={{ color: '#9a8a64', fontSize: 13, marginTop: 6 }}>per venue · billed monthly · cancel anytime</div>
           </div>
 
           <div style={{ margin: '32px 0 8px' }}>
@@ -102,7 +102,7 @@ export default function PricingPage() {
           <div style={s.trial}>14-day free trial · No credit card required</div>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 40, color: '#4a3a1a', fontSize: 13 }}>
+        <div style={{ textAlign: 'center', marginTop: 40, color: '#9a8a64', fontSize: 13 }}>
           Multi-location or enterprise? <a href="mailto:hello@pour-sona.com" style={{ color: '#C9A84C', textDecoration: 'none' }}>Contact us →</a>
         </div>
       </section>
@@ -124,13 +124,13 @@ export default function PricingPage() {
       <footer style={{ borderTop: '1px solid rgba(201,168,76,.08)', padding: '32px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ color: '#C9A84C', fontWeight: 700 }}>✦ Poursona</div>
         <div style={{ display: 'flex', gap: 24 }}>
-          <Link href="/" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Home</Link>
-          <Link href="/admin/login" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Venue Login</Link>
-          <Link href="/privacy" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Privacy</Link>
-          <Link href="/terms" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Terms</Link>
-          <a href="mailto:hello@pour-sona.com" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Contact</a>
+          <Link href="/" style={{ color: '#7a6a44', fontSize: 12, textDecoration: 'none' }}>Home</Link>
+          <Link href="/admin/login" style={{ color: '#7a6a44', fontSize: 12, textDecoration: 'none' }}>Venue Login</Link>
+          <Link href="/privacy" style={{ color: '#7a6a44', fontSize: 12, textDecoration: 'none' }}>Privacy</Link>
+          <Link href="/terms" style={{ color: '#7a6a44', fontSize: 12, textDecoration: 'none' }}>Terms</Link>
+          <a href="mailto:hello@pour-sona.com" style={{ color: '#7a6a44', fontSize: 12, textDecoration: 'none' }}>Contact</a>
         </div>
-        <div style={{ color: '#3a2a0a', fontSize: 12 }}>© 2026 Poursona</div>
+        <div style={{ color: '#7a6a44', fontSize: 12 }}>© 2026 Poursona</div>
       </footer>
     </div>
   )

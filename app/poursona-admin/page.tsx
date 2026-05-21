@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import ProspectPipeline from './_components/ProspectPipeline'
 
 const ICONS: Record<string, string> = { brewery: '🍺', winery: '🍷', distillery: '🥃', coffee: '☕' }
 
@@ -14,7 +15,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string |
   )
 }
 
-type Tab = 'dashboard' | 'vendors' | 'accounting' | 'promos' | 'customers'
+type Tab = 'dashboard' | 'vendors' | 'accounting' | 'promos' | 'customers' | 'pipeline'
 
 interface Pagination { page: number; limit: number; total: number; totalPages: number }
 interface ExpiredRetailer { id: string; name: string; trial_ends_at: string | null }
@@ -221,6 +222,7 @@ export default function AppCommandCenter() {
         <button style={tabBtn('accounting')} onClick={() => setTab('accounting')}>Accounting</button>
         <button style={tabBtn('promos')} onClick={() => setTab('promos')}>Promos</button>
         <button style={tabBtn('customers')} onClick={() => setTab('customers')}>Customers</button>
+        <button style={tabBtn('pipeline')} onClick={() => setTab('pipeline')}>🔍 Pipeline</button>
       </div>
 
       {tab === 'dashboard' && (
@@ -454,6 +456,16 @@ export default function AppCommandCenter() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {tab === 'pipeline' && (
+        <div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ color: '#F5ECD7', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Prospect Pipeline</div>
+            <div style={{ color: '#9a8a64', fontSize: 13 }}>Find independent venues, qualify them with AI web search, and generate a personalised outreach message in one click.</div>
+          </div>
+          <ProspectPipeline />
         </div>
       )}
 

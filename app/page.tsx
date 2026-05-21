@@ -27,8 +27,8 @@ export default function HomePage() {
       <nav style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(201,168,76,.1)' }}>
         <div style={{ color: '#C9A84C', fontSize: 18, fontWeight: 700, letterSpacing: '.05em' }}>✦ Poursona</div>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-          <a href="#how-it-works" style={{ color: '#4a3a1a', fontSize: 13, textDecoration: 'none' }}>How it works</a>
-          <Link href="/pricing" style={{ color: '#4a3a1a', fontSize: 13, textDecoration: 'none' }}>Pricing</Link>
+          <a href="#how-it-works" style={{ color: '#9a8a64', fontSize: 13, textDecoration: 'none' }}>How it works</a>
+          <Link href="/pricing" style={{ color: '#9a8a64', fontSize: 13, textDecoration: 'none' }}>Pricing</Link>
           <Link href="/admin/login" style={{ color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>Venue login</Link>
         </div>
       </nav>
@@ -42,7 +42,7 @@ export default function HomePage() {
           Every guest finds<br />
           <span style={{ color: '#C9A84C' }}>their perfect pour.</span>
         </h1>
-        <p style={{ fontSize: 18, color: '#4a3a1a', lineHeight: 1.7, maxWidth: 560, margin: '0 auto 40px' }}>
+        <p style={{ fontSize: 18, color: '#9a8a64', lineHeight: 1.7, maxWidth: 560, margin: '0 auto 40px' }}>
           Replace the overwhelm of a 30-item menu with a 2-minute AI conversation. Guests scan, chat, and order — confident in their choice.
         </p>
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -63,7 +63,7 @@ export default function HomePage() {
 
       {/* Social proof strip */}
       <section style={{ borderTop: '1px solid rgba(201,168,76,.08)', borderBottom: '1px solid rgba(201,168,76,.08)', padding: '20px 40px', textAlign: 'center' }}>
-        <p style={{ color: '#4a3a1a', fontSize: 13, margin: 0, letterSpacing: '.05em' }}>
+        <p style={{ color: '#9a8a64', fontSize: 13, margin: 0, letterSpacing: '.05em' }}>
           Built for craft breweries — wineries, distilleries &amp; coffee roasters coming soon
         </p>
       </section>
@@ -79,7 +79,7 @@ export default function HomePage() {
             <div key={v.label} style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.12)', borderRadius: 14, padding: '28px 24px' }}>
               <div style={{ fontSize: 32, marginBottom: 14 }}>{v.icon}</div>
               <div style={{ color: '#F5ECD7', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>{v.label}</div>
-              <div style={{ color: '#4a3a1a', fontSize: 13, lineHeight: 1.6 }}>{v.desc}</div>
+              <div style={{ color: '#9a8a64', fontSize: 13, lineHeight: 1.6 }}>{v.desc}</div>
             </div>
           ))}
         </div>
@@ -97,7 +97,7 @@ export default function HomePage() {
               <div style={{ color: '#C9A84C', fontSize: 28, fontWeight: 700, opacity: .4, flexShrink: 0, width: 40 }}>{step.n}</div>
               <div>
                 <div style={{ color: '#F5ECD7', fontSize: 18, fontWeight: 700, marginBottom: 10 }}>{step.title}</div>
-                <div style={{ color: '#4a3a1a', fontSize: 14, lineHeight: 1.7 }}>{step.body}</div>
+                <div style={{ color: '#9a8a64', fontSize: 14, lineHeight: 1.7 }}>{step.body}</div>
               </div>
             </div>
           ))}
@@ -122,7 +122,7 @@ export default function HomePage() {
               <div key={f.title} style={{ padding: '24px', border: '1px solid rgba(201,168,76,.1)', borderRadius: 12 }}>
                 <div style={{ fontSize: 24, marginBottom: 12 }}>{f.icon}</div>
                 <div style={{ color: '#F5ECD7', fontWeight: 700, fontSize: 15, marginBottom: 8 }}>{f.title}</div>
-                <div style={{ color: '#4a3a1a', fontSize: 13, lineHeight: 1.6 }}>{f.body}</div>
+                <div style={{ color: '#9a8a64', fontSize: 13, lineHeight: 1.6 }}>{f.body}</div>
               </div>
             ))}
           </div>
@@ -134,29 +134,29 @@ export default function HomePage() {
         <h2 style={{ fontSize: 36, fontWeight: 700, margin: '0 0 20px', lineHeight: 1.2 }}>
           Ready to guide every guest<br />to their perfect pour?
         </h2>
-        <p style={{ color: '#4a3a1a', fontSize: 15, lineHeight: 1.7, marginBottom: 36 }}>
+        <p style={{ color: '#9a8a64', fontSize: 15, lineHeight: 1.7, marginBottom: 36 }}>
           Paste your venue website and we&apos;ll extract your menu, branding, and story automatically — live in minutes.
         </p>
         <a
           href="/signup"
           style={{ display: 'inline-block', padding: '18px 40px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', borderRadius: 10, color: '#060403', fontWeight: 700, fontSize: 16, textDecoration: 'none' }}
         >
-          Get Early Access →
+          Start Free Trial →
         </a>
-        <div style={{ marginTop: 20, color: '#3a2a0a', fontSize: 12 }}>14-day free trial · No credit card required</div>
+        <div style={{ marginTop: 20, color: '#7a6a44', fontSize: 12 }}>14-day free trial · No credit card required</div>
       </section>
 
       {/* Footer */}
       <footer style={{ borderTop: '1px solid rgba(201,168,76,.08)', padding: '32px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ color: '#C9A84C', fontWeight: 700 }}>✦ Poursona</div>
         <div style={{ display: 'flex', gap: 24 }}>
-          <Link href="/pricing" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Pricing</Link>
-          <Link href="/admin/login" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Venue Login</Link>
-          <Link href="/privacy" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Privacy</Link>
-          <Link href="/terms" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Terms</Link>
-          <a href="mailto:hello@pour-sona.com" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Contact</a>
+          <Link href="/pricing" style={{ color: '#7a6a44', fontSize: 12, textDecoration: 'none' }}>Pricing</Link>
+          <Link href="/admin/login" style={{ color: '#7a6a44', fontSize: 12, textDecoration: 'none' }}>Venue Login</Link>
+          <Link href="/privacy" style={{ color: '#7a6a44', fontSize: 12, textDecoration: 'none' }}>Privacy</Link>
+          <Link href="/terms" style={{ color: '#7a6a44', fontSize: 12, textDecoration: 'none' }}>Terms</Link>
+          <a href="mailto:hello@pour-sona.com" style={{ color: '#7a6a44', fontSize: 12, textDecoration: 'none' }}>Contact</a>
         </div>
-        <div style={{ color: '#3a2a0a', fontSize: 12 }}>© 2026 Poursona</div>
+        <div style={{ color: '#7a6a44', fontSize: 12 }}>© 2026 Poursona</div>
       </footer>
 
     </div>

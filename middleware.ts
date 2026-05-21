@@ -8,6 +8,7 @@ const LIMITS: Record<string, { max: number; window: string }> = {
   '/api/chat':      { max: 20,  window: '1 h' },
   '/api/menu-scan': { max: 10,  window: '1 h' },
   '/api/retailer':  { max: 120, window: '1 h' },
+  '/api/order':     { max: 30,  window: '1 h' },
 }
 
 // Routes that must fail-closed if Redis is unavailable (expensive AI calls)
