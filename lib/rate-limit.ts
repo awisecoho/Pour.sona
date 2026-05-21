@@ -14,10 +14,19 @@ function getRedis(): Redis {
   return _redis
 }
 
+/** Whether Upstash Redis is configured. When false, route-level limiters skip
+ *  (the middleware applies a best-effort in-memory fallback instead). */
+export function redisConfigured(): boolean {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+}
+
 function makeLimiter(prefix: string, limit: number, window: string) {
   let _limiter: Ratelimit | null = null
   return {
-    limit: (id: string) => {
+    limit: (id: string): Promise<{ success: boolean }> => {
+      // Not configured: middleware owns throttling via its in-memory fallback,
+      // so don't fail the request here. Avoids a 429 when Redis is absent.
+      if (!redisConfigured()) return Promise.resolve({ success: true })
       if (!_limiter) {
         _limiter = new Ratelimit({
           redis: getRedis(),

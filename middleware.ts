@@ -24,6 +24,43 @@ type LimiterMap = Record<string, Ratelimit>
 let exactLimiters: LimiterMap | null = null
 let prefixLimiters: Array<{ prefix: string; limiter: Ratelimit }> | null = null
 
+// ── In-memory fallback limiter ────────────────────────────────────────────────
+// Used only when Upstash Redis is NOT configured. Best-effort, per serverless
+// instance (NOT global) — so it's weaker than Redis under horizontal scale, but
+// it lets fail-closed routes (chat) keep working instead of returning 503, while
+// still throttling obvious abuse from a single IP hitting one warm instance.
+const memBuckets = new Map<string, { count: number; reset: number }>()
+
+function inMemoryAllow(path: string, ip: string, max: number, windowMs: number): boolean {
+  const key = `${path}:${ip}`
+  const now = Date.now()
+  const bucket = memBuckets.get(key)
+  if (!bucket || now > bucket.reset) {
+    memBuckets.set(key, { count: 1, reset: now + windowMs })
+    // Opportunistic cleanup so the Map can't grow unbounded on a long-lived instance.
+    if (memBuckets.size > 5000) {
+      for (const [k, v] of memBuckets) if (now > v.reset) memBuckets.delete(k)
+    }
+    return true
+  }
+  if (bucket.count >= max) return false
+  bucket.count++
+  return true
+}
+
+function getClientIp(req: NextRequest): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || 'unknown'
+}
+
+function tooManyRequests() {
+  return NextResponse.json(
+    { error: 'Too many requests. Please try again later.' },
+    { status: 429 }
+  )
+}
+
 function getRedis() {
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return null
   return new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
@@ -49,18 +86,18 @@ function getLimiters(): { exact: LimiterMap; prefix: Array<{ prefix: string; lim
 
 async function applyRateLimit(req: NextRequest) {
   const path = req.nextUrl.pathname
+  const ip = getClientIp(req)
   const rl = getLimiters()
   if (!rl) {
-    // Redis not configured — fail-closed for expensive routes, pass-through otherwise
-    if (FAIL_CLOSED_PATHS.has(path)) {
-      return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503 })
+    // Redis not configured. Instead of 503-ing expensive routes, fall back to a
+    // best-effort in-memory limiter so the experience keeps working (e.g. guest
+    // chat) while still throttling abuse. Non-tracked routes pass through.
+    const cfg = LIMITS[path]
+    if (cfg && FAIL_CLOSED_PATHS.has(path)) {
+      if (!inMemoryAllow(path, ip, cfg.max, 60 * 60 * 1000)) return tooManyRequests()
     }
     return NextResponse.next()
   }
-
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    || req.headers.get('x-real-ip')
-    || 'unknown'
 
   let limiter: Ratelimit | undefined = rl.exact[path]
   if (!limiter) {
@@ -73,8 +110,10 @@ async function applyRateLimit(req: NextRequest) {
     ;({ success, limit, remaining, reset } = await limiter.limit(ip))
   } catch (err) {
     Sentry.captureException(err, { extra: { path, context: 'rate-limit' } })
-    if (FAIL_CLOSED_PATHS.has(path)) {
-      return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503 })
+    // Redis errored mid-request — degrade to the in-memory limiter rather than 503.
+    const cfg = LIMITS[path]
+    if (cfg && FAIL_CLOSED_PATHS.has(path)) {
+      if (!inMemoryAllow(path, ip, cfg.max, 60 * 60 * 1000)) return tooManyRequests()
     }
     return NextResponse.next()
   }

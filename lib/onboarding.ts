@@ -22,6 +22,40 @@ async function fetchPage(url: string): Promise<string> {
   } catch { return '' }
 }
 
+/**
+ * Whether a detected hex is a usable *brand accent* color (not a page background).
+ * The storefront renders brand_color as the primary accent on a DARK theme, so
+ * near-white, near-black, and washed-out greys look generic / off-brand — those
+ * are almost always background tones the scraper picked up, not the identity color.
+ */
+function isUsableBrandColor(hex: string | null | undefined): boolean {
+  if (!hex) return false
+  const h = hex.replace('#', '')
+  if (h.length !== 6) return false
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  if ([r, g, b].some(Number.isNaN)) return false
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  const sat = max === 0 ? 0 : (max - min) / max
+  if (lum > 0.82) return false           // too pale / near-white (e.g. cream backgrounds)
+  if (lum < 0.05) return false           // near-black
+  if (sat < 0.12 && (lum > 0.6 || lum < 0.2)) return false  // washed-out grey extremes
+  return true
+}
+
+function resolveAssetUrl(raw: string | null | undefined, baseUrl: string): string | null {
+  if (!raw) return null
+  const cleaned = raw.trim()
+  if (!cleaned) return null
+  if (cleaned.startsWith('http')) return cleaned
+  if (cleaned.startsWith('//')) {
+    try { return new URL('https:' + cleaned).toString() } catch { return null }
+  }
+  try { return new URL(cleaned, baseUrl).toString() } catch { return null }
+}
+
 function extractColorsFromHtml(html: string, baseUrl: string): { primary: string | null; logoUrl: string | null } {
   // --- Color detection (most reliable first) ---
   const themeColor =
@@ -30,45 +64,58 @@ function extractColorsFromHtml(html: string, baseUrl: string): { primary: string
     null
 
   // CSS custom properties on :root or body (--primary-color, --brand-color, etc.)
-  const cssVarColor = !themeColor
-    ? (html.match(/--(?:primary|brand|accent|main|theme)(?:-color)?:\s*(#[0-9a-fA-F]{3,8})/i)?.[1] || null)
-    : null
+  const cssVarColor =
+    html.match(/--(?:primary|brand|accent|main|theme)(?:-color)?:\s*(#[0-9a-fA-F]{6})/i)?.[1] || null
 
   // Inline background-color on <body>
-  const bodyBgColor = (!themeColor && !cssVarColor)
-    ? (html.match(/<body[^>]+style=["'][^"']*background(?:-color)?:\s*(#[0-9a-fA-F]{3,8})/i)?.[1] || null)
-    : null
+  const bodyBgColor =
+    html.match(/<body[^>]+style=["'][^"']*background(?:-color)?:\s*(#[0-9a-fA-F]{6})/i)?.[1] || null
 
-  const primary = themeColor || cssVarColor || bodyBgColor || null
+  // Prefer the first candidate that is actually a usable brand accent. This stops
+  // pale background tones (cream, near-white) from becoming the storefront primary.
+  const candidates = [themeColor, cssVarColor, bodyBgColor]
+  const primary = candidates.find(isUsableBrandColor) || null
 
   // --- Logo detection (most specific first) ---
-  // apple-touch-icon (usually a clean square logo)
+  // 1. A real in-page logo: an <img> whose src/alt/class/id references "logo".
+  //    Prefer one with a recognized image extension; keep the first as a fallback.
+  let logoFromImg: string | null = null
+  for (const m of html.matchAll(/<img\b[^>]*>/gi)) {
+    const tag = m[0]
+    if (!/logo/i.test(tag)) continue
+    const src =
+      tag.match(/\bsrc=["']([^"']+)["']/i)?.[1] ||
+      tag.match(/\bdata-src=["']([^"']+)["']/i)?.[1] ||
+      tag.match(/\bsrcset=["']([^"'\s,]+)/i)?.[1] ||
+      null
+    if (!src) continue
+    if (/\.(svg|png|webp|jpe?g|gif)(\?|$)/i.test(src)) { logoFromImg = src; break }
+    if (!logoFromImg) logoFromImg = src
+  }
+
+  // 2. apple-touch-icon (clean square icon — decent fallback)
   const appleTouchIcon =
     html.match(/<link[^>]+rel=["']apple-touch-icon(?:-precomposed)?["'][^>]+href=["']([^"']+)["']/i)?.[1] ||
     html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']apple-touch-icon(?:-precomposed)?["']/i)?.[1] ||
     null
 
-  // og:image
+  // 3. og:image (often a social banner — last resort)
   const ogImage =
     html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
     html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1] ||
     null
 
-  // <link rel="icon"> (prefer larger sizes, skip .ico)
+  // 4. <link rel="icon"> png/svg/webp (skip .ico favicons)
   const iconMatches = [...html.matchAll(/<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["']/gi)]
   const iconUrl = iconMatches
     .map(m => m[1])
     .find(u => !u.endsWith('.ico') && (u.endsWith('.png') || u.endsWith('.svg') || u.endsWith('.webp'))) || null
 
-  const rawLogo = appleTouchIcon || ogImage || iconUrl
-  let logoUrl: string | null = null
-  if (rawLogo) {
-    if (rawLogo.startsWith('http')) {
-      logoUrl = rawLogo
-    } else {
-      try { logoUrl = new URL(rawLogo, baseUrl).toString() } catch { logoUrl = null }
-    }
-  }
+  const logoUrl =
+    resolveAssetUrl(logoFromImg, baseUrl) ||
+    resolveAssetUrl(appleTouchIcon, baseUrl) ||
+    resolveAssetUrl(ogImage, baseUrl) ||
+    resolveAssetUrl(iconUrl, baseUrl)
 
   return { primary, logoUrl }
 }
@@ -426,6 +473,14 @@ export async function createDraftFromUrl(url: string) {
     ...hostOutput,
     vendorBuilder,
   }
+
+  // If the scraped primary wasn't a usable brand accent (e.g. a pale background
+  // tone), fall back to the vendor builder's inferred identity color so the
+  // dark-themed storefront isn't washed out and actually matches the venue.
+  if (!isUsableBrandColor(signals.brandColor) && vendorBuilder.brand_primary_color) {
+    normalized.retailer.brand_color = vendorBuilder.brand_primary_color
+  }
+
   const [existingRetailers, existingDrafts] = await Promise.all([
     getExistingRetailerSlugs(),
     getExistingDraftSlugs(),
@@ -642,7 +697,8 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
   }
 
   if (mode === 'branding' || mode === 'full') {
-    if (signals.brandColor) updates.brand_color = signals.brandColor
+    if (isUsableBrandColor(signals.brandColor)) updates.brand_color = signals.brandColor
+    else if (vb?.brand_primary_color) updates.brand_color = vb.brand_primary_color
     if (signals.logoUrl) updates.logo_url = signals.logoUrl
     if (normalized.storyData?.story) updates.story = normalized.storyData.story
     if (normalized.storyData?.culture) updates.culture = normalized.storyData.culture

@@ -56,6 +56,9 @@ export interface VendorBuilderOutput {
   /** Full system prompt for the consumer chat AI — persona + instructions only,
    *  catalog is injected separately by buildSystemPrompt */
   chat_system_prompt: string
+  /** The venue's true primary identity color. Used only when the scraped primary
+   *  was missing or rejected (e.g. a pale background tone). */
+  brand_primary_color: string | null
   /** Hex colors for the storefront palette */
   brand_secondary_color: string | null
   brand_accent_color: string | null
@@ -134,6 +137,7 @@ function resolveFontUrl(family: string | null): { family: string | null; url: st
 function buildFallback(input: VendorBuilderInput): VendorBuilderOutput {
   return {
     chat_system_prompt: '',
+    brand_primary_color: null,
     brand_secondary_color: input.brandColor ? shiftHex(input.brandColor, -30) : null,
     brand_accent_color: input.brandColor ? shiftHex(input.brandColor, 40) : null,
     brand_font_family: null,
@@ -171,7 +175,7 @@ Brand voice tone: ${input.voice || input.brand_voice_tone || 'warm, knowledgeabl
 Story: ${safeStory}
 Culture/vibe: ${safeCulture}
 Brand personality traits: ${input.brand_personality.join(', ') || 'not detected'}
-Primary brand color: ${input.brandColor || 'unknown'}
+Detected primary color (may be a background tone, treat skeptically): ${input.brandColor || 'none detected'}
 Top products: ${topProducts}
 
 WEBSITE CONTENT:
@@ -190,6 +194,7 @@ Generate a complete brand intelligence JSON. The chat_system_prompt must:
 Return ONLY valid JSON:
 {
   "chat_system_prompt": "Full persona + conversation instructions (2-4 paragraphs). Write in second person as instructions to the AI. Be specific to this venue — name the place, reference actual things about them.",
+  "brand_primary_color": "#hex — the venue's TRUE primary identity color (the color a guest associates with this brand: its logo/sign color, woody/earthy for a rustic distillery, etc.). This renders as an accent on a DARK storefront, so it must be a saturated, mid-to-rich tone — NEVER near-white, cream, or near-black. If the detected primary above is a pale background, IGNORE it and infer the real brand color from the logo, imagery, and vertical.",
   "brand_secondary_color": "#hex or null — a complementary color that works with the primary, for UI accents",
   "brand_accent_color": "#hex or null — a lighter highlight/contrast color",
   "brand_font_suggestion": "one of: Playfair Display, Cormorant Garamond, Lora, EB Garamond, Merriweather, DM Serif Display, Josefin Sans, Raleway, Montserrat, Inter — choose based on venue personality",
@@ -244,19 +249,25 @@ Rules:
       ? Math.max(0, Math.min(1, data.scan_confidence))
       : 0.5
 
+    const primaryColor = data.brand_primary_color && /^#[0-9a-f]{6}$/i.test(data.brand_primary_color)
+      ? data.brand_primary_color
+      : null
+
     // Derive palette fallbacks from primary color if AI didn't provide
+    const paletteBase = primaryColor || input.brandColor
     const secondary = data.brand_secondary_color && /^#[0-9a-f]{6}$/i.test(data.brand_secondary_color)
       ? data.brand_secondary_color
-      : input.brandColor ? shiftHex(input.brandColor, -35) : null
+      : paletteBase ? shiftHex(paletteBase, -35) : null
 
     const accent = data.brand_accent_color && /^#[0-9a-f]{6}$/i.test(data.brand_accent_color)
       ? data.brand_accent_color
-      : input.brandColor ? shiftHex(input.brandColor, 50) : null
+      : paletteBase ? shiftHex(paletteBase, 50) : null
 
     return {
       chat_system_prompt: typeof data.chat_system_prompt === 'string' && data.chat_system_prompt.length > 50
         ? data.chat_system_prompt
         : '',
+      brand_primary_color: primaryColor,
       brand_secondary_color: secondary,
       brand_accent_color: accent,
       brand_font_family: fontFamily,
