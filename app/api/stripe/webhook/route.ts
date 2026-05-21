@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { dbQuery } from '@/lib/db'
+import { planToMrr, subStatusFromStripe } from '@/lib/billing'
 export const dynamic = 'force-dynamic'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
@@ -17,6 +18,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
+  // ── Idempotency / replay safety ─────────────────────────────────────────────
+  // Stripe may deliver the same event more than once. Record each event id and
+  // skip if we've already processed it. If the table doesn't exist yet (pre-
+  // migration) we log and continue rather than dropping the event.
+  try {
+    const dedupe = await dbQuery(
+      `INSERT INTO stripe_webhook_events (id, type) VALUES ($1, $2)
+       ON CONFLICT (id) DO NOTHING RETURNING id`,
+      [event.id, event.type]
+    )
+    if (dedupe.rows.length === 0) {
+      return NextResponse.json({ received: true, deduped: true })
+    }
+  } catch (e: any) {
+    console.error('[Stripe] webhook dedupe insert failed (continuing):', e?.message)
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -24,14 +42,14 @@ export async function POST(req: NextRequest) {
         const retailerId = session.metadata?.retailerId
         const plan = session.metadata?.plan || 'starter'
         if (!retailerId) break
-        const mrr: Record<string, number> = { starter: 79, growth: 99, pro: 199 }
+        const amount = planToMrr(plan)
         await dbQuery(
           `UPDATE retailers SET subscription_status = 'active', subscription_tier = $2, mrr = $3, plan_price = $3, trial_ends_at = NULL WHERE id = $1`,
-          [retailerId, plan, mrr[plan] ?? 79]
+          [retailerId, plan, amount]
         )
         await dbQuery(
           `INSERT INTO billing_events (retailer_id, event_type, amount, stripe_event_id, description) VALUES ($1, 'subscription_started', $2, $3, $4)`,
-          [retailerId, mrr[plan] ?? 79, event.id, `Subscribed to ${plan} plan`]
+          [retailerId, amount, event.id, `Subscribed to ${plan} plan`]
         )
         console.log(`[Stripe] Retailer ${retailerId} activated on ${plan} plan`)
         break
@@ -40,10 +58,9 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as Stripe.Subscription
         const retailerId = sub.metadata?.retailerId
         if (!retailerId) break
-        const status = sub.status === 'active' ? 'active' : sub.status === 'past_due' ? 'past_due' : sub.status === 'canceled' ? 'cancelled' : sub.status === 'unpaid' ? 'expired' : 'trial'
+        const status = subStatusFromStripe(sub.status)
         const plan = sub.metadata?.plan || 'starter'
-        const mrr: Record<string, number> = { starter: 79, growth: 99, pro: 199 }
-        await dbQuery(`UPDATE retailers SET subscription_status = $2, subscription_tier = $3, mrr = $4 WHERE id = $1`, [retailerId, status, plan, status === 'active' ? (mrr[plan] ?? 79) : 0])
+        await dbQuery(`UPDATE retailers SET subscription_status = $2, subscription_tier = $3, mrr = $4 WHERE id = $1`, [retailerId, status, plan, status === 'active' ? planToMrr(plan) : 0])
         break
       }
       case 'customer.subscription.deleted': {

@@ -57,6 +57,13 @@ CREATE INDEX IF NOT EXISTS idx_flights_retailer_id             ON flights(retail
 CREATE INDEX IF NOT EXISTS idx_admin_users_email               ON admin_users(lower(email));
 CREATE INDEX IF NOT EXISTS idx_retailers_slug                  ON retailers(slug);
 CREATE INDEX IF NOT EXISTS idx_retailers_expired_trials        ON retailers(trial_ends_at ASC) WHERE subscription_status = 'trial' AND trial_ends_at IS NOT NULL;
+
+-- Stripe webhook idempotency / replay safety
+CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+  id text PRIMARY KEY,
+  type text,
+  received_at timestamptz DEFAULT now()
+);
 `
 
 // Step 2: seed core data

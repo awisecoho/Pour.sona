@@ -130,6 +130,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Funnel: chat_started fires once per session (first turn only). Best-effort.
+    if (Array.isArray(messages) && messages.length <= 1) {
+      dbQuery(
+        `insert into events (retailer_id, session_id, event_type, payload) values ($1, $2, 'chat_started', '{}'::jsonb)`,
+        [retailer.id, sessionId]
+      ).catch(() => {})
+    }
+
     const [productsResult, flightsResult] = await Promise.all([
       dbQuery(
         'select * from products where retailer_id = $1 and in_stock = true order by sort_order limit 80',
@@ -252,6 +260,13 @@ export async function POST(req: NextRequest) {
             } catch {}
           }
           controller.enqueue(encoder.encode('data: ' + JSON.stringify({ done: true, text: fullText, recData, chips }) + '\n\n'))
+          // Funnel: recommendation_shown when a valid rec was produced. Best-effort.
+          if (recData) {
+            dbQuery(
+              `insert into events (retailer_id, session_id, event_type, payload) values ($1, $2, 'recommendation_shown', $3::jsonb)`,
+              [retailer.id, sessionId, JSON.stringify({ name: recData.recommendationName || recData.blendName || null })]
+            ).catch(() => {})
+          }
           dbQuery(
             `update sessions set
                messages = $2::jsonb,
