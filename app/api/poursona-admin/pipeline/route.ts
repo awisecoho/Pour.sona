@@ -84,24 +84,79 @@ Step 2 — If hot or warm, write a short contact-form message from the founder o
 Respond ONLY with valid JSON, no markdown:
 {"score":"hot"|"warm"|"skip","reason":"one sentence","has_menu":true|false,"has_ordering":true|false,"has_tasting_room":true|false,"message":"the message, or empty string"}`
 
+// ── Contact extraction ────────────────────────────────────────────────────────
+// Pulled from the raw HTML we already fetch for screening, so it costs nothing
+// extra. Surfaces real channels instead of a guessed /contact URL that 404s.
+interface SiteContacts {
+  email: string | null
+  instagram: string | null
+  facebook: string | null
+  linkedin: string | null
+  twitter: string | null
+  contactPage: string | null
+}
+
+const absolutize = (href: string, base: string): string | null => {
+  try { return new URL(href.replace(/&amp;/g, '&'), base).toString() } catch { return null }
+}
+
+const firstUrl = (html: string, re: RegExp): string | null => {
+  const m = html.match(re)
+  return m ? m[0].replace(/&amp;/g, '&').replace(/^http:/, 'https:') : null
+}
+
+function extractContacts(html: string, baseUrl: string): SiteContacts {
+  // Email: prefer mailto:, then fall back to bare addresses (filtering asset/vendor noise)
+  let email: string | null = null
+  const mailto = html.match(/mailto:([^"'?>\s]+)/i)
+  if (mailto) {
+    email = decodeURIComponent(mailto[1]).toLowerCase()
+  } else {
+    for (const m of html.matchAll(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g)) {
+      const e = m[0].toLowerCase()
+      if (/\.(png|jpe?g|gif|svg|webp|css|js)$/.test(e)) continue
+      if (/(sentry|example\.com|wixpress|\.wix|sentry\.io|godaddy|squarespace\.com|cloudflare|domain\.com|email\.com|yourdomain)/.test(e)) continue
+      email = e
+      break
+    }
+  }
+
+  // Social profiles (first occurrence of each)
+  const instagram = firstUrl(html, /https?:\/\/(?:www\.)?instagram\.com\/[A-Za-z0-9_.][A-Za-z0-9_./-]*/i)
+  const facebook  = firstUrl(html, /https?:\/\/(?:www\.)?facebook\.com\/[A-Za-z0-9_.][A-Za-z0-9_./-]*/i)
+  const linkedin  = firstUrl(html, /https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[A-Za-z0-9_.][A-Za-z0-9_./-]*/i)
+  const twitter   = firstUrl(html, /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+/i)
+
+  // Real contact-page link: an <a href> whose target mentions "contact"
+  let contactPage: string | null = null
+  const a = html.match(/href=["']([^"']*contact[^"']*)["']/i)
+  if (a) contactPage = absolutize(a[1], baseUrl)
+
+  return { email, instagram, facebook, linkedin, twitter, contactPage }
+}
+
 // ── Lightweight site fetch (no web search → minimal input tokens) ──────────────
-async function fetchSiteText(url: string, maxChars = 6000): Promise<string> {
+// Returns BOTH the stripped text (for the model) and the contact channels parsed
+// from the raw HTML.
+async function fetchSite(url: string, maxChars = 6000): Promise<{ text: string; contacts: SiteContacts }> {
+  const empty: SiteContacts = { email: null, instagram: null, facebook: null, linkedin: null, twitter: null, contactPage: null }
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
       signal: AbortSignal.timeout(8000),
     })
-    if (!res.ok) return ''
-    const html = await res.text()
+    if (!res.ok) return { text: '', contacts: empty }
+    const html = (await res.text()).replace(/\x00/g, '')
+    const contacts = extractContacts(html, url)
     const text = html
-      .replace(/\x00/g, '')
       .replace(/<script[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[\s\S]*?<\/style>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-    return text.slice(0, maxChars)
-  } catch { return '' }
+      .slice(0, maxChars)
+    return { text, contacts }
+  } catch { return { text: '', contacts: empty } }
 }
 
 // ── Route ─────────────────────────────────────────────────────────────────────
@@ -150,11 +205,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'missing biz.name or biz.url' }, { status: 400 })
       }
 
-      // Fetch the venue's own page text directly (SSRF-guarded). This replaces the
-      // web-search screen call that blew past the 30k TPM org limit on every run.
+      // Fetch the venue's own page directly (SSRF-guarded). This replaces the
+      // web-search screen call that blew past the 30k TPM org limit, and lets us
+      // harvest real contact channels (email/socials/contact page) from the HTML.
       let pageText = ''
+      let contacts: SiteContacts = { email: null, instagram: null, facebook: null, linkedin: null, twitter: null, contactPage: null }
       const safe = validateScrapeUrl(biz.url)
-      if (safe.ok) pageText = await fetchSiteText(safe.url.toString())
+      if (safe.ok) {
+        const site = await fetchSite(safe.url.toString())
+        pageText = site.text
+        contacts = site.contacts
+      }
 
       // Single Haiku call: classify AND draft the message. No web search → tiny
       // input footprint, and Haiku's TPM limit is far higher than Sonnet's.
@@ -181,9 +242,10 @@ export async function POST(req: NextRequest) {
         has_tasting_room: !!parsed.has_tasting_room,
       }
       const message = (parsed.message ?? '').trim()
-      const contact_url = biz.contact_url || biz.url.replace(/\/$/, '') + '/contact'
+      // Prefer a real discovered contact page; fall back to the search guess, then homepage.
+      const contact_url = contacts.contactPage || biz.contact_url || biz.url
 
-      return NextResponse.json({ ok: true, result: { ...biz, signals, message, contact_url } })
+      return NextResponse.json({ ok: true, result: { ...biz, signals, message, contact_url, contacts } })
     }
 
     return NextResponse.json({ error: `unknown action: ${action}` }, { status: 400 })

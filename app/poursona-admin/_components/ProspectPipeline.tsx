@@ -25,12 +25,20 @@ interface Signals {
   has_menu: boolean
   has_ordering: boolean
   has_tasting_room: boolean
-  contact_page_hint?: string
+}
+interface Contacts {
+  email: string | null
+  instagram: string | null
+  facebook: string | null
+  linkedin: string | null
+  twitter: string | null
+  contactPage: string | null
 }
 interface ScreenedBusiness extends Business {
   signals: Signals
   message: string
   contact_url: string
+  contacts?: Contacts
 }
 interface LogEntry { msg: string; type: 'info' | 'success' | 'error' | 'warn' | 'muted' }
 
@@ -337,22 +345,44 @@ export default function ProspectPipeline() {
                     <div style={{ background: BRAND.surface, border: `1px solid ${BRAND.border}`, borderRadius: '2px', padding: '14px', fontSize: '14px', lineHeight: 1.8, color: BRAND.text, whiteSpace: 'pre-wrap', marginBottom: '14px' }}>
                       {p.message}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button
-                        onClick={() => handleCopy(p.id, p.message)}
-                        style={{ background: copied[p.id] ? BRAND.hop : BRAND.accent, color: BRAND.bg, border: 'none', borderRadius: '2px', padding: '13px', fontSize: '12px', fontFamily: 'monospace', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', width: '100%' }}
-                      >
-                        {copied[p.id] ? 'Copied ✓' : 'Copy Message'}
-                      </button>
-                      <a
-                        href={p.contact_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ display: 'block', textAlign: 'center', background: 'transparent', border: `1px solid ${BRAND.accent}`, color: BRAND.accent, borderRadius: '2px', padding: '13px', fontSize: '12px', fontFamily: 'monospace', letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', boxSizing: 'border-box' as const }}
-                      >
-                        Open Contact Page →
-                      </a>
+                    <button
+                      onClick={() => handleCopy(p.id, p.message)}
+                      style={{ background: copied[p.id] ? BRAND.hop : BRAND.accent, color: BRAND.bg, border: 'none', borderRadius: '2px', padding: '13px', fontSize: '12px', fontFamily: 'monospace', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', width: '100%', marginBottom: '12px' }}
+                    >
+                      {copied[p.id] ? 'Copied ✓' : 'Copy Message'}
+                    </button>
+
+                    {/* Reach-out channels harvested from the site */}
+                    <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: BRAND.accentDim, textTransform: 'uppercase', marginBottom: '8px' }}>
+                      Reach out
                     </div>
+                    {(() => {
+                      const c = p.contacts
+                      const channels: { label: string; href: string }[] = []
+                      channels.push({ label: '↗ Contact Page', href: p.contact_url })
+                      if (c?.email)     channels.push({ label: '✉ Email', href: `mailto:${c.email}` })
+                      if (c?.instagram) channels.push({ label: 'Instagram', href: c.instagram })
+                      if (c?.facebook)  channels.push({ label: 'Facebook',  href: c.facebook })
+                      if (c?.linkedin)  channels.push({ label: 'LinkedIn',  href: c.linkedin })
+                      if (c?.twitter)   channels.push({ label: 'X / Twitter', href: c.twitter })
+                      return (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {channels.map(ch => (
+                            <a key={ch.label} href={ch.href} target="_blank" rel="noopener noreferrer"
+                              style={{ background: 'transparent', border: `1px solid ${BRAND.accent}`, color: BRAND.accent, borderRadius: '2px', padding: '9px 12px', fontSize: '11px', fontFamily: 'monospace', letterSpacing: '0.05em', textDecoration: 'none' }}>
+                              {ch.label}
+                            </a>
+                          ))}
+                          {c?.email && (
+                            <button
+                              onClick={() => handleCopy(`${p.id}-email`, c.email!)}
+                              style={{ background: 'transparent', border: `1px solid ${BRAND.border}`, color: BRAND.muted, borderRadius: '2px', padding: '9px 12px', fontSize: '11px', fontFamily: 'monospace', letterSpacing: '0.05em', cursor: 'pointer' }}>
+                              {copied[`${p.id}-email`] ? 'Copied ✓' : `Copy ${c.email}`}
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </div>
