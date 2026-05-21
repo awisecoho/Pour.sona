@@ -24,14 +24,14 @@ export async function POST(req: NextRequest) {
         const retailerId = session.metadata?.retailerId
         const plan = session.metadata?.plan || 'starter'
         if (!retailerId) break
-        const mrr: Record<string, number> = { starter: 49, growth: 99, pro: 199 }
+        const mrr: Record<string, number> = { starter: 79, growth: 99, pro: 199 }
         await dbQuery(
           `UPDATE retailers SET subscription_status = 'active', subscription_tier = $2, mrr = $3, plan_price = $3, trial_ends_at = NULL WHERE id = $1`,
-          [retailerId, plan, mrr[plan] ?? 49]
+          [retailerId, plan, mrr[plan] ?? 79]
         )
         await dbQuery(
           `INSERT INTO billing_events (retailer_id, event_type, amount, stripe_event_id, description) VALUES ($1, 'subscription_started', $2, $3, $4)`,
-          [retailerId, mrr[plan] ?? 49, event.id, `Subscribed to ${plan} plan`]
+          [retailerId, mrr[plan] ?? 79, event.id, `Subscribed to ${plan} plan`]
         )
         console.log(`[Stripe] Retailer ${retailerId} activated on ${plan} plan`)
         break
@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
         if (!retailerId) break
         const status = sub.status === 'active' ? 'active' : sub.status === 'past_due' ? 'past_due' : sub.status === 'canceled' ? 'cancelled' : sub.status === 'unpaid' ? 'expired' : 'trial'
         const plan = sub.metadata?.plan || 'starter'
-        const mrr: Record<string, number> = { starter: 49, growth: 99, pro: 199 }
-        await dbQuery(`UPDATE retailers SET subscription_status = $2, subscription_tier = $3, mrr = $4 WHERE id = $1`, [retailerId, status, plan, status === 'active' ? (mrr[plan] ?? 49) : 0])
+        const mrr: Record<string, number> = { starter: 79, growth: 99, pro: 199 }
+        await dbQuery(`UPDATE retailers SET subscription_status = $2, subscription_tier = $3, mrr = $4 WHERE id = $1`, [retailerId, status, plan, status === 'active' ? (mrr[plan] ?? 79) : 0])
         break
       }
       case 'customer.subscription.deleted': {

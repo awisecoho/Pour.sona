@@ -9,7 +9,7 @@ function getStripe() {
 }
 
 const PLANS: Record<string, { priceId: string | undefined; name: string; mrr: number }> = {
-  starter: { priceId: process.env.STRIPE_PRICE_STARTER, name: 'Starter', mrr: 49 },
+  starter: { priceId: process.env.STRIPE_PRICE_STARTER, name: 'Starter', mrr: 79 },
   growth:  { priceId: process.env.STRIPE_PRICE_GROWTH,  name: 'Growth',  mrr: 99 },
   pro:     { priceId: process.env.STRIPE_PRICE_PRO,     name: 'Pro',     mrr: 199 },
 }

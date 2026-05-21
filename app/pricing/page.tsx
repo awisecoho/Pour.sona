@@ -64,7 +64,7 @@ export default function PricingPage() {
         <Link href="/" style={{ color: '#C9A84C', fontSize: 18, fontWeight: 700, letterSpacing: '.05em', textDecoration: 'none' }}>✦ Poursona</Link>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           <Link href="/" style={{ color: '#4a3a1a', fontSize: 13, textDecoration: 'none' }}>Home</Link>
-          <Link href="/admin/login" style={{ color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>Vendor login</Link>
+          <Link href="/admin/login" style={{ color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>Venue login</Link>
         </div>
       </nav>
 
@@ -83,7 +83,7 @@ export default function PricingPage() {
           <div style={{ marginBottom: 8 }}>
             <div style={{ color: '#C9A84C', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 16 }}>Venue Plan</div>
             <div style={{ display: 'flex', alignItems: 'baseline' }}>
-              <span style={s.price}>$49</span>
+              <span style={s.price}>$79</span>
               <span style={s.per}>/month</span>
             </div>
             <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 6 }}>per venue · billed monthly · cancel anytime</div>
@@ -125,7 +125,9 @@ export default function PricingPage() {
         <div style={{ color: '#C9A84C', fontWeight: 700 }}>✦ Poursona</div>
         <div style={{ display: 'flex', gap: 24 }}>
           <Link href="/" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Home</Link>
-          <Link href="/admin/login" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Vendor Login</Link>
+          <Link href="/admin/login" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Venue Login</Link>
+          <Link href="/privacy" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Privacy</Link>
+          <Link href="/terms" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Terms</Link>
           <a href="mailto:hello@pour-sona.com" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Contact</a>
         </div>
         <div style={{ color: '#3a2a0a', fontSize: 12 }}>© 2026 Poursona</div>

@@ -29,7 +29,7 @@ export default function HomePage() {
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           <a href="#how-it-works" style={{ color: '#4a3a1a', fontSize: 13, textDecoration: 'none' }}>How it works</a>
           <Link href="/pricing" style={{ color: '#4a3a1a', fontSize: 13, textDecoration: 'none' }}>Pricing</Link>
-          <Link href="/admin/login" style={{ color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>Vendor login</Link>
+          <Link href="/admin/login" style={{ color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>Venue login</Link>
         </div>
       </nav>
 
@@ -50,7 +50,7 @@ export default function HomePage() {
             href="/signup"
             style={{ padding: '16px 32px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', borderRadius: 10, color: '#060403', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}
           >
-            Get Early Access →
+            Start Free Trial →
           </a>
           <a
             href="#how-it-works"
@@ -64,7 +64,7 @@ export default function HomePage() {
       {/* Social proof strip */}
       <section style={{ borderTop: '1px solid rgba(201,168,76,.08)', borderBottom: '1px solid rgba(201,168,76,.08)', padding: '20px 40px', textAlign: 'center' }}>
         <p style={{ color: '#4a3a1a', fontSize: 13, margin: 0, letterSpacing: '.05em' }}>
-          Built for breweries · wineries · distilleries · coffee roasters
+          Built for craft breweries — wineries, distilleries &amp; coffee roasters coming soon
         </p>
       </section>
 
@@ -151,7 +151,9 @@ export default function HomePage() {
         <div style={{ color: '#C9A84C', fontWeight: 700 }}>✦ Poursona</div>
         <div style={{ display: 'flex', gap: 24 }}>
           <Link href="/pricing" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Pricing</Link>
-          <Link href="/admin/login" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Vendor Login</Link>
+          <Link href="/admin/login" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Venue Login</Link>
+          <Link href="/privacy" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Privacy</Link>
+          <Link href="/terms" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Terms</Link>
           <a href="mailto:hello@pour-sona.com" style={{ color: '#3a2a0a', fontSize: 12, textDecoration: 'none' }}>Contact</a>
         </div>
         <div style={{ color: '#3a2a0a', fontSize: 12 }}>© 2026 Poursona</div>

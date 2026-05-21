@@ -5,7 +5,7 @@ const PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    price: 49,
+    price: 79,
     description: 'Perfect for a single location getting started',
     features: ['AI guided discovery', 'Unlimited sessions', 'QR code generator', 'Catalog management', 'Basic analytics'],
   },
