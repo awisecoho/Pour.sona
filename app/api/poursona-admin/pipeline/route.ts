@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedIdentity, getInternalMemberByEmail } from '@/lib/auth'
+import { validateScrapeUrl } from '@/lib/security'
 export const dynamic = 'force-dynamic'
 // Web-search + possible retries can take a while; give functions enough runway.
 export const maxDuration = 120
@@ -59,18 +60,49 @@ const SEARCH_PROMPT = (verticalLabel: string, location: string) =>
 [{"name":"Business Name","url":"https://website.com","contact_url":"https://website.com/contact"}]
 Guess contact_url as /contact or /contact-us. Return exactly 5.`
 
-const SCREEN_PROMPT = (name: string, url: string) =>
-  `Look up the website ${url} for "${name}". Check for: product menu, ordering, tasting room, in-person experience.
-Respond ONLY with valid JSON, no markdown:
-{"score":"hot"|"warm"|"skip","reason":"one sentence","has_menu":true|false,"has_ordering":true|false,"has_tasting_room":true|false,"contact_page_hint":"/contact or unknown"}
-Score: hot=menu+ordering/tasting room, warm=menu only, skip=no catalog or chain.`
+// Combined screen + message prompt. Runs on Haiku from the venue's OWN page text
+// (fetched directly), so it needs NO web search — keeping input tokens tiny.
+const SCREEN_AND_MSG_PROMPT = (name: string, url: string, pageText: string) =>
+  `You are evaluating a beverage business as a sales prospect for Poursona, then drafting outreach.
 
-const MSG_PROMPT = (name: string, url: string, signals: any) =>
-  `Write a short contact form message from the founder of Poursona to ${name} (${url}).
-About them: ${signals.reason}. They ${signals.has_menu ? 'have a product menu' : "don't have a clear menu"}${signals.has_tasting_room ? ', have a tasting room' : ''}${signals.has_ordering ? ', and offer ordering' : ''}.
+Business: ${name} (${url})
+${pageText
+    ? `Website content (truncated):\n"""\n${pageText}\n"""`
+    : `(Their website could not be read automatically — judge from the name/URL and note that manual review is needed.)`}
+
 Poursona: Customers scan a QR code → natural AI conversation → personalized drink recommendation → order placed. 10-minute retailer setup. Flat monthly SaaS fee.
-Write a message that: opens with ONE specific genuine observation, explains Poursona in 1–2 sentences, makes a single low-friction ask (demo or free trial), is 80–110 words, sounds like a real founder, no buzzwords.
-Output ONLY the message body. No subject, no sign-off.`
+
+Step 1 — Score the prospect:
+  hot  = has a product menu AND (online ordering OR a tasting room/taproom)
+  warm = has a menu only, OR the site couldn't be read (needs manual review)
+  skip = clearly no catalog, or a national chain/franchise
+Step 2 — If hot or warm, write a short contact-form message from the founder of Poursona:
+  open with ONE specific genuine observation about THIS business, explain Poursona in 1-2 sentences,
+  make a single low-friction ask (demo or free trial), 80-110 words, sound like a real founder,
+  no buzzwords, no subject line, no sign-off. If skip, use an empty string.
+
+Respond ONLY with valid JSON, no markdown:
+{"score":"hot"|"warm"|"skip","reason":"one sentence","has_menu":true|false,"has_ordering":true|false,"has_tasting_room":true|false,"message":"the message, or empty string"}`
+
+// ── Lightweight site fetch (no web search → minimal input tokens) ──────────────
+async function fetchSiteText(url: string, maxChars = 6000): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return ''
+    const html = await res.text()
+    const text = html
+      .replace(/\x00/g, '')
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    return text.slice(0, maxChars)
+  } catch { return '' }
+}
 
 // ── Route ─────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -118,40 +150,38 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'missing biz.name or biz.url' }, { status: 400 })
       }
 
-      // Step 1 — qualify the business (Sonnet + web search; low max_tokens: JSON only)
-      const screenData = await callAnthropic({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: SCREEN_PROMPT(biz.name, biz.url) }],
+      // Fetch the venue's own page text directly (SSRF-guarded). This replaces the
+      // web-search screen call that blew past the 30k TPM org limit on every run.
+      let pageText = ''
+      const safe = validateScrapeUrl(biz.url)
+      if (safe.ok) pageText = await fetchSiteText(safe.url.toString())
+
+      // Single Haiku call: classify AND draft the message. No web search → tiny
+      // input footprint, and Haiku's TPM limit is far higher than Sonnet's.
+      const data = await callAnthropic({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: SCREEN_AND_MSG_PROMPT(biz.name, biz.url, pageText) }],
       })
-      const screenText = textFrom(screenData)
-      let signals: any = null
+      let parsed: any = null
       try {
-        const match = screenText.match(/\{[\s\S]*?\}/)
-        signals = match ? JSON.parse(match[0]) : null
+        const match = textFrom(data).match(/\{[\s\S]*\}/)
+        parsed = match ? JSON.parse(match[0]) : null
       } catch { /* leave null */ }
 
-      if (!signals || signals.score === 'skip') {
+      if (!parsed || parsed.score === 'skip') {
         return NextResponse.json({ ok: true, result: null })
       }
 
-      // Step 2 — draft a personalised message (Haiku: no web search, high TPM limit)
-      const msgData = await callAnthropic({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 400,
-        messages: [{ role: 'user', content: MSG_PROMPT(biz.name, biz.url, signals) }],
-      })
-      const message = textFrom(msgData).trim()
-
-      const hint = signals.contact_page_hint
-      const contact_url =
-        biz.contact_url ||
-        (hint && hint !== 'unknown'
-          ? hint.startsWith('http')
-            ? hint
-            : biz.url.replace(/\/$/, '') + '/' + hint.replace(/^\//, '')
-          : biz.url)
+      const signals = {
+        score: parsed.score,
+        reason: parsed.reason ?? '',
+        has_menu: !!parsed.has_menu,
+        has_ordering: !!parsed.has_ordering,
+        has_tasting_room: !!parsed.has_tasting_room,
+      }
+      const message = (parsed.message ?? '').trim()
+      const contact_url = biz.contact_url || biz.url.replace(/\/$/, '') + '/contact'
 
       return NextResponse.json({ ok: true, result: { ...biz, signals, message, contact_url } })
     }

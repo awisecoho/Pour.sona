@@ -210,9 +210,9 @@ export default function ProspectPipeline() {
     }
     for (let i = 0; i < businesses.length; i++) {
       const biz = businesses[i]
-      // Brief pause between businesses to stay well under the 30k TPM rate limit.
-      // The backend retries 429s, but spacing calls out prevents hitting it at all.
-      if (i > 0) await new Promise(r => setTimeout(r, 3000))
+      // Small gap between businesses. Screening is now a single cheap Haiku call
+      // (no web search), so a short pause is plenty to stay clear of the rate limit.
+      if (i > 0) await new Promise(r => setTimeout(r, 800))
       addLog(`Screening ${biz.name}…`)
       try {
         const result = await screenAndMessage(biz)
