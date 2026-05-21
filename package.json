@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/check-encoding.js",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check:encoding": "node scripts/check-encoding.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
