@@ -9,6 +9,53 @@ import { chatLimiter, getIp } from '@/lib/rate-limit'
 import { apiError } from '@/lib/api'
 export const dynamic = 'force-dynamic'
 
+// ── Cost guardrails ───────────────────────────────────────────────────────────
+// These bound per-chat token spend so a venue stays well under its monthly AI
+// budget regardless of catalog size or how long a guest rambles.
+const MAX_CATALOG_ITEMS = 24      // SKUs injected into the prompt (relevance-filtered)
+const MAX_HISTORY_MESSAGES = 14   // recent turns sent to the model
+const MAX_USER_TURNS = 5          // after this many guest messages, force a recommendation
+
+/**
+ * Pick the most relevant in-stock products for the current conversation instead
+ * of dumping the whole catalog into every prompt. Keyword overlap against the
+ * guest's messages; falls back to catalog order when nothing matches or there's
+ * no conversation yet (the opening turn).
+ */
+function selectRelevantProducts(products: any[], convoText: string, max: number): any[] {
+  if (products.length <= max) return products
+  const text = convoText.toLowerCase()
+  const tokens = Array.from(new Set(text.split(/[^a-z0-9]+/).filter(w => w.length >= 3)))
+  if (tokens.length === 0) return products.slice(0, max)
+  const scored = products.map((p, idx) => {
+    const hay = [p.name, p.category, p.style, p.flavor_notes, p.description]
+      .filter(Boolean).join(' ').toLowerCase()
+    let score = 0
+    for (const t of tokens) if (hay.includes(t)) score++
+    return { p, score, idx }
+  })
+  scored.sort((a, b) => b.score - a.score || a.idx - b.idx)
+  return scored.slice(0, max).map(s => s.p)
+}
+
+/**
+ * Hard guardrail against hallucinated recommendations: every product in the REC
+ * block must exist in the live in-stock catalog. Off-menu items are dropped; if
+ * nothing valid remains, the recommendation is discarded entirely.
+ */
+function validateRecAgainstCatalog(recData: any, products: any[]): any | null {
+  if (!recData) return null
+  const names = new Set(products.map(p => String(p.name || '').trim().toLowerCase()))
+  if (Array.isArray(recData.selectedProducts)) {
+    const filtered = recData.selectedProducts.filter(
+      (sp: any) => sp && typeof sp.name === 'string' && names.has(sp.name.trim().toLowerCase())
+    )
+    if (filtered.length === 0) return null
+    recData.selectedProducts = filtered
+  }
+  return recData
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!checkOrigin(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
@@ -111,16 +158,34 @@ export async function POST(req: NextRequest) {
       ),
     ])
 
-    const systemPrompt = buildSystemPrompt(retailer, productsResult.rows, flightsResult.rows)
-
     const apiMessages = [...messages]
+
+    // Relevance-filter the catalog to the conversation so we send ~24 SKUs, not 80.
+    const convoText = apiMessages
+      .filter((m: any) => m.role === 'user' && m.content !== 'START')
+      .map((m: any) => m.content)
+      .join(' ')
+    const inStockProducts = productsResult.rows
+    const promptProducts = selectRelevantProducts(inStockProducts, convoText, MAX_CATALOG_ITEMS)
+
+    let systemPrompt = buildSystemPrompt(retailer, promptProducts, flightsResult.rows)
+
+    // Turn cap: after enough back-and-forth, force the recommendation so a chat
+    // can't run unbounded (cost) or frustrate the guest.
+    const userTurns = apiMessages.filter((m: any) => m.role === 'user').length
+    if (userTurns >= MAX_USER_TURNS) {
+      systemPrompt += `\n\nIMPORTANT: The guest has answered enough. Do NOT ask another question. Give your final recommendation now in this message using the ===REC=== format.`
+    }
+
+    // Trim history sent to the model to the most recent turns (bounds input tokens).
+    const modelMessages = apiMessages.slice(-MAX_HISTORY_MESSAGES).map((m: any) => ({ role: m.role, content: m.content }))
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const stream = await anthropic.messages.stream({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1200,
       system: systemPrompt,
-      messages: apiMessages.map(m => ({ role: m.role, content: m.content })),
+      messages: modelMessages,
     })
 
     const encoder = new TextEncoder()
@@ -140,6 +205,8 @@ export async function POST(req: NextRequest) {
           if (recMatch) {
             try { recData = JSON.parse(recMatch[1].trim().replace(/^```json\s*/i,'').replace(/```\s*$/i,'').trim()) } catch {}
           }
+          // Hard-constrain the recommendation to real in-stock SKUs (drop hallucinations).
+          recData = validateRecAgainstCatalog(recData, inStockProducts)
           // Quick-reply chips suggested by the AI for the question it just asked,
           // so the tappable options always match the question.
           let chips: string[] = []

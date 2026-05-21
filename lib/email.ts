@@ -246,6 +246,59 @@ export async function sendOrderAlert(opts: {
   })
 }
 
+// ── Failed / sparse scrape alert to Poursona admin ────────────────────────────
+// Self-serve onboarding has no human in the loop, so when the catalog scrape
+// comes back empty or thin we notify the admin team to finish setup (concierge).
+
+export async function sendScrapeAlert(opts: {
+  to: string | string[]
+  url: string
+  status: 'failed' | 'sparse'
+  productCount: number
+  issues: string[]
+  draftId?: string | null
+  venueName?: string | null
+  reviewUrl?: string
+}): Promise<EmailResult> {
+  const { to, url, status, productCount, issues, draftId, venueName, reviewUrl } = opts
+  const headline = status === 'failed' ? 'Scrape failed — manual setup needed' : 'Thin scrape — review recommended'
+  const accent = status === 'failed' ? '#e07070' : '#C9A84C'
+  const issueRows = issues.length
+    ? issues.map(i => `<li style="margin:4px 0">${i}</li>`).join('')
+    : '<li style="margin:4px 0">No specific issues flagged</li>'
+
+  return sendEmail({
+    from: FROM,
+    to,
+    subject: `[Poursona] ${status === 'failed' ? 'Scrape FAILED' : 'Thin scrape'} — ${venueName || url}`,
+    html: `
+<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f9f5ec;font-family:Georgia,serif">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px">
+<table width="540" cellpadding="0" cellspacing="0" style="background:#0a0603;border-radius:16px;overflow:hidden">
+  <tr><td style="padding:32px 40px;border-bottom:1px solid rgba(201,168,76,.15)">
+    <div style="color:${accent};font-size:11px;letter-spacing:.25em;text-transform:uppercase;margin-bottom:8px">Onboarding Alert</div>
+    <div style="color:#F5ECD7;font-size:22px;font-weight:700">${headline}</div>
+  </td></tr>
+  <tr><td style="padding:32px 40px">
+    <div style="color:#F5ECD7;font-size:14px;line-height:1.7;margin-bottom:16px">
+      A self-serve onboarding for <strong style="color:#C9A84C">${venueName || url}</strong> needs attention.
+    </div>
+    <div style="color:#4a3a1a;font-size:13px;line-height:1.8">
+      URL: <a href="${url}" style="color:#C9A84C">${url}</a><br>
+      Products extracted: <strong style="color:#F5ECD7">${productCount}</strong><br>
+      ${draftId ? `Draft ID: ${draftId}<br>` : ''}
+    </div>
+    <div style="color:#C9A84C;font-size:11px;letter-spacing:.2em;text-transform:uppercase;margin:20px 0 6px">Issues</div>
+    <ul style="color:#c8bfa8;font-size:13px;line-height:1.6;margin:0;padding-left:18px">${issueRows}</ul>
+    ${reviewUrl ? `<div style="margin-top:24px"><a href="${reviewUrl}" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#C9A84C,#a07830);border-radius:8px;color:#060403;font-weight:700;text-decoration:none;font-size:13px">Review in Admin →</a></div>` : ''}
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`,
+  })
+}
+
 // ── Trial expiring soon warning ───────────────────────────────────────────────
 
 export async function sendTrialExpiringWarning(opts: {
