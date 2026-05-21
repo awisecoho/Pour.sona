@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildSystemPrompt } from '@/lib/prompts'
 import { dbQuery } from '@/lib/db'
-import { sendTrialExpiredNotice, sendTrialExpiringWarning } from '@/lib/email'
+import { sendTrialExpiredNotice, sendTrialExpiringWarning, sendAiCapNotice } from '@/lib/email'
 import { billingUrl } from '@/lib/urls'
 import { checkOrigin } from '@/lib/security'
 import { chatLimiter, getIp } from '@/lib/rate-limit'
@@ -15,6 +15,64 @@ export const dynamic = 'force-dynamic'
 const MAX_CATALOG_ITEMS = 24      // SKUs injected into the prompt (relevance-filtered)
 const MAX_HISTORY_MESSAGES = 14   // recent turns sent to the model
 const MAX_USER_TURNS = 5          // after this many guest messages, force a recommendation
+
+// Per-venue monthly AI budget. Haiku pricing ≈ $1/M input, $5/M output.
+const AI_MONTHLY_BUDGET_USD   = Number(process.env.AI_MONTHLY_BUDGET_USD   || 15)
+const AI_INPUT_USD_PER_MTOK   = Number(process.env.AI_INPUT_USD_PER_MTOK   || 1)
+const AI_OUTPUT_USD_PER_MTOK  = Number(process.env.AI_OUTPUT_USD_PER_MTOK  || 5)
+
+function monthlyCostUsd(inputTok: number, outputTok: number): number {
+  return (inputTok / 1e6) * AI_INPUT_USD_PER_MTOK + (outputTok / 1e6) * AI_OUTPUT_USD_PER_MTOK
+}
+
+/** Usage so far this calendar month — treats a stale reset timestamp as zero. */
+function effectiveMonthlyUsage(retailer: any): { input: number; output: number } {
+  const reset = retailer.ai_month_reset_at ? new Date(retailer.ai_month_reset_at) : null
+  const d = new Date()
+  const monthStart = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)
+  const active = reset && reset.getTime() >= monthStart
+  return {
+    input: active ? Number(retailer.ai_input_tokens_month || 0) : 0,
+    output: active ? Number(retailer.ai_output_tokens_month || 0) : 0,
+  }
+}
+
+/** A no-AI recommendation built straight from the catalog, used when a venue is
+ *  over its monthly AI budget so the guest experience never goes dark. */
+function buildFallbackRecommendation(products: any[]): any | null {
+  const pick = products[0]
+  if (!pick) return null
+  return {
+    format: 'single',
+    recommendationName: pick.name,
+    tagline: 'A guest favorite',
+    selectedProducts: [{ name: pick.name, why: 'One of our most-loved picks — ask our staff to tell you more.', price: pick.price ?? null }],
+    flightDetails: null,
+    flavorProfile: [pick.style, pick.category].filter(Boolean).slice(0, 3),
+    story: pick.description || '',
+    whyItFitsYou: 'A reliable crowd-pleaser to start with.',
+    serveNote: '',
+  }
+}
+
+const SSE_HEADERS = { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' }
+
+/** Streamed response served when a venue has exhausted its monthly AI budget. */
+function degradedResponse(products: any[]): Response {
+  const rec = buildFallbackRecommendation(products)
+  const msg = rec
+    ? "Our AI guide is taking a quick breather — but here's a guest favorite to get you started. Ask our staff and they'll help you explore more."
+    : 'Our AI guide is resting for the moment — please ask our staff and they\'ll point you to a great pick.'
+  const encoder = new TextEncoder()
+  const readable = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: ' + JSON.stringify({ delta: msg }) + '\n\n'))
+      controller.enqueue(encoder.encode('data: ' + JSON.stringify({ done: true, text: msg, recData: rec, chips: [] }) + '\n\n'))
+      controller.close()
+    },
+  })
+  return new Response(readable, { headers: SSE_HEADERS })
+}
 
 /**
  * Pick the most relevant in-stock products for the current conversation instead
@@ -168,6 +226,26 @@ export async function POST(req: NextRequest) {
     const inStockProducts = productsResult.rows
     const promptProducts = selectRelevantProducts(inStockProducts, convoText, MAX_CATALOG_ITEMS)
 
+    // Per-venue monthly AI budget. Over the cap → serve a catalog fallback (no LLM
+    // call) so the guest experience never goes dark and the venue stays under its
+    // cost ceiling. Owner gets a one-per-month upsell nudge.
+    const usage = effectiveMonthlyUsage(retailer)
+    if (monthlyCostUsd(usage.input, usage.output) >= AI_MONTHLY_BUDGET_USD) {
+      if (retailer.owner_email) {
+        const claimed = await dbQuery<{ id: string }>(
+          `UPDATE retailers SET ai_cap_notified_at = now()
+           WHERE id = $1 AND (ai_cap_notified_at IS NULL OR ai_cap_notified_at < date_trunc('month', now()))
+           RETURNING id`,
+          [retailer.id]
+        )
+        if (claimed.rows.length > 0) {
+          sendAiCapNotice({ to: retailer.owner_email, retailerName: retailer.name, upgradeUrl: billingUrl() })
+            .then(r => { if (!r.ok) console.error('[chat] sendAiCapNotice failed:', r.error) })
+        }
+      }
+      return degradedResponse(inStockProducts)
+    }
+
     let systemPrompt = buildSystemPrompt(retailer, promptProducts, flightsResult.rows)
 
     // Turn cap: after enough back-and-forth, force the recommendation so a chat
@@ -190,16 +268,32 @@ export async function POST(req: NextRequest) {
 
     const encoder = new TextEncoder()
     let fullText = ''
+    let inputTokens = 0
+    let outputTokens = 0
 
     const readable = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of stream) {
+            const c = chunk as any
+            if (chunk.type === 'message_start') inputTokens = c.message?.usage?.input_tokens || 0
+            else if (chunk.type === 'message_delta') outputTokens = c.usage?.output_tokens ?? outputTokens
             if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
               fullText += chunk.delta.text
               controller.enqueue(encoder.encode('data: ' + JSON.stringify({ delta: chunk.delta.text }) + '\n\n'))
             }
           }
+
+          // Meter usage against the venue's monthly budget (resets each calendar
+          // month). Fire-and-forget; never blocks the response.
+          dbQuery(
+            `UPDATE retailers SET
+               ai_input_tokens_month  = CASE WHEN ai_month_reset_at IS NULL OR ai_month_reset_at < date_trunc('month', now()) THEN $2 ELSE ai_input_tokens_month  + $2 END,
+               ai_output_tokens_month = CASE WHEN ai_month_reset_at IS NULL OR ai_month_reset_at < date_trunc('month', now()) THEN $3 ELSE ai_output_tokens_month + $3 END,
+               ai_month_reset_at      = CASE WHEN ai_month_reset_at IS NULL OR ai_month_reset_at < date_trunc('month', now()) THEN date_trunc('month', now()) ELSE ai_month_reset_at END
+             WHERE id = $1`,
+            [retailer.id, inputTokens, outputTokens]
+          ).catch(() => {})
           let recData = null
           const recMatch = fullText.match(/===REC===([\s\S]*?)===END===/)
           if (recMatch) {

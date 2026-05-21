@@ -246,6 +246,87 @@ export async function sendOrderAlert(opts: {
   })
 }
 
+// ── Onboarding concierge note to the venue (sparse catalog) ───────────────────
+// Sent at publish time when the auto-scrape produced a thin catalog. Reassures
+// the venue that our team is finishing setup (self-serve should still feel premium).
+
+export async function sendOnboardingConcierge(opts: {
+  to: string
+  retailerName: string
+  productCount: number
+  adminUrl: string
+}): Promise<EmailResult> {
+  const { to, retailerName, productCount, adminUrl } = opts
+  return sendEmail({
+    from: FROM,
+    to,
+    subject: `We're putting the finishing touches on ${retailerName}`,
+    html: `
+<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f9f5ec;font-family:Georgia,serif">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px">
+<table width="540" cellpadding="0" cellspacing="0" style="background:#0a0603;border-radius:16px;overflow:hidden">
+  <tr><td style="padding:32px 40px;border-bottom:1px solid rgba(201,168,76,.15)">
+    <div style="color:#C9A84C;font-size:11px;letter-spacing:.25em;text-transform:uppercase;margin-bottom:8px">Almost ready</div>
+    <div style="color:#F5ECD7;font-size:22px;font-weight:700">${retailerName} is set up</div>
+  </td></tr>
+  <tr><td style="padding:32px 40px">
+    <div style="color:#F5ECD7;font-size:15px;line-height:1.7;margin-bottom:16px">
+      Your Poursona guide is live! Our automatic setup pulled in ${productCount} item${productCount === 1 ? '' : 's'} from your website — if your full menu is larger, our team is reviewing it now and will fill in the rest within a few hours.
+    </div>
+    <div style="color:#4a3a1a;font-size:13px;line-height:1.7;margin-bottom:24px">
+      You can add, edit, or remove items anytime from your dashboard — no need to wait on us.
+    </div>
+    <a href="${adminUrl}" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#C9A84C,#a07830);border-radius:8px;color:#060403;font-weight:700;text-decoration:none;font-size:14px">Open your dashboard →</a>
+  </td></tr>
+  <tr><td style="padding:24px 40px;border-top:1px solid rgba(201,168,76,.08)">
+    <div style="color:#3a2a0a;font-size:11px;text-align:center">Questions? Reply to this email — a real person will help.</div>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`,
+  })
+}
+
+// ── AI monthly budget reached (upsell + transparency to venue) ────────────────
+
+export async function sendAiCapNotice(opts: {
+  to: string
+  retailerName: string
+  upgradeUrl: string
+}): Promise<EmailResult> {
+  const { to, retailerName, upgradeUrl } = opts
+  return sendEmail({
+    from: FROM,
+    to,
+    subject: `Your Poursona AI guide is having a busy month — ${retailerName}`,
+    html: `
+<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f9f5ec;font-family:Georgia,serif">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px">
+<table width="540" cellpadding="0" cellspacing="0" style="background:#0a0603;border-radius:16px;overflow:hidden">
+  <tr><td style="padding:32px 40px;border-bottom:1px solid rgba(201,168,76,.15)">
+    <div style="color:#C9A84C;font-size:11px;letter-spacing:.25em;text-transform:uppercase;margin-bottom:8px">Great Month!</div>
+    <div style="color:#F5ECD7;font-size:22px;font-weight:700">${retailerName} hit its AI usage cap</div>
+  </td></tr>
+  <tr><td style="padding:32px 40px">
+    <div style="color:#F5ECD7;font-size:15px;line-height:1.7;margin-bottom:16px">
+      Your guests have been loving the Poursona guide — you've reached this month's included AI usage. To keep the full AI experience running for the rest of the month, upgrade your plan.
+    </div>
+    <div style="color:#4a3a1a;font-size:13px;line-height:1.7;margin-bottom:24px">
+      In the meantime, guests still see a curated recommendation so the experience never goes dark. Usage resets at the start of next month.
+    </div>
+    <a href="${upgradeUrl}" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#C9A84C,#a07830);border-radius:8px;color:#060403;font-weight:700;text-decoration:none;font-size:14px">Upgrade to keep AI active →</a>
+  </td></tr>
+  <tr><td style="padding:24px 40px;border-top:1px solid rgba(201,168,76,.08)">
+    <div style="color:#3a2a0a;font-size:11px;text-align:center">Questions? Reply to this email — we're here to help.</div>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`,
+  })
+}
+
 // ── Failed / sparse scrape alert to Poursona admin ────────────────────────────
 // Self-serve onboarding has no human in the loop, so when the catalog scrape
 // comes back empty or thin we notify the admin team to finish setup (concierge).

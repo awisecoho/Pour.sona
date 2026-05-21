@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { publishDraft } from '@/lib/onboarding'
 import { dbQuery } from '@/lib/db'
 import { grantRetailerAccessByEmail, getAuthenticatedIdentity } from '@/lib/auth'
+import { sendOnboardingConcierge } from '@/lib/email'
 import { storefrontUrl, adminUrl } from '@/lib/urls'
 import { verifyOnboardSecret } from '@/lib/security'
 import { apiError } from '@/lib/api'
@@ -32,6 +33,23 @@ export async function POST(req: NextRequest) {
       }
     } catch {
       // team-linking is non-critical; retailer is already published
+    }
+
+    // If the auto-scrape produced a thin catalog, reassure the venue that our
+    // team is finishing setup (best-effort; never blocks success).
+    try {
+      const pc = await dbQuery<{ n: number }>('select count(*)::int as n from products where retailer_id = $1', [retailer.id])
+      const productCount = pc.rows[0]?.n ?? 0
+      if (productCount < 5 && retailer.owner_email) {
+        sendOnboardingConcierge({
+          to: retailer.owner_email,
+          retailerName: retailer.name,
+          productCount,
+          adminUrl: adminUrl(),
+        }).then(r => { if (!r.ok) console.error('[finalize] concierge email failed:', r.error) })
+      }
+    } catch (e) {
+      console.error('[finalize] concierge check failed:', e)
     }
 
     return NextResponse.json({
