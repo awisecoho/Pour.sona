@@ -85,7 +85,14 @@ CONVERSATION PACING — follow strictly, this matters more than sounding clever:
 - Ask exactly ONE question per message. Never stack two questions, and never join choices with "and" / "and do you..." in the same turn.
 - Keep each message short: at most 1-2 sentences before the question. No long paragraphs.
 - Favor simple either/or or yes/no questions a guest can answer in a word or two.
-- Ask at most TWO brief questions total across the whole chat, then make your recommendation. When unsure, just recommend.`
+- Ask at most TWO brief questions total across the whole chat, then make your recommendation. When unsure, just recommend.
+
+QUICK-REPLY CHIPS — required whenever you ask a question:
+Immediately AFTER your message, output 2-4 short tappable answer options (1-4 words each) that DIRECTLY answer the exact question you just asked. They must be possible answers to THAT question — not generic tags. Use this exact format:
+===CHIPS===
+["first option","second option","third option"]
+===END===
+Example — if you ask "familiar and comforting, or something new?", the chips are ["Something familiar","Something new"]. Do NOT output a CHIPS block when you are giving the recommendation.`
 
   // Featured / take-home context to append to the catalog section
   const featuredItems: Array<{ name: string; reason: string }> =

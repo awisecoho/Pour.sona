@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
     }
 
-    const { sessionId, retailerSlug, messages, chipContext } = await req.json()
+    const { sessionId, retailerSlug, messages } = await req.json()
     if (!sessionId || !retailerSlug) return NextResponse.json({ error: 'missing fields' }, { status: 400 })
 
     const retailerResult = await dbQuery(
@@ -113,13 +113,7 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = buildSystemPrompt(retailer, productsResult.rows, flightsResult.rows)
 
-    let apiMessages = [...messages]
-    if (chipContext && apiMessages[0]?.role === 'user') {
-      apiMessages[0] = { role: 'user', content: `My mood/preference: ${chipContext}. Now help me find the perfect selection.` }
-    }
-    if (apiMessages[0]?.content === 'START') {
-      apiMessages[0] = { role: 'user', content: 'START' }
-    }
+    const apiMessages = [...messages]
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const stream = await anthropic.messages.stream({
@@ -146,7 +140,17 @@ export async function POST(req: NextRequest) {
           if (recMatch) {
             try { recData = JSON.parse(recMatch[1].trim().replace(/^```json\s*/i,'').replace(/```\s*$/i,'').trim()) } catch {}
           }
-          controller.enqueue(encoder.encode('data: ' + JSON.stringify({ done: true, text: fullText, recData }) + '\n\n'))
+          // Quick-reply chips suggested by the AI for the question it just asked,
+          // so the tappable options always match the question.
+          let chips: string[] = []
+          const chipsMatch = fullText.match(/===CHIPS===([\s\S]*?)===END===/)
+          if (chipsMatch) {
+            try {
+              const parsed = JSON.parse(chipsMatch[1].trim().replace(/^```json\s*/i,'').replace(/```\s*$/i,'').trim())
+              if (Array.isArray(parsed)) chips = parsed.filter((c: unknown) => typeof c === 'string').slice(0, 4)
+            } catch {}
+          }
+          controller.enqueue(encoder.encode('data: ' + JSON.stringify({ done: true, text: fullText, recData, chips }) + '\n\n'))
           dbQuery(
             `update sessions set
                messages = $2::jsonb,

@@ -9,25 +9,6 @@ interface Message {
   streaming?: boolean
 }
 
-const VERTICAL_CHIPS: Record<string, string[][]> = {
-  brewery: [
-    ['Something bold & hoppy', 'Light & easy', 'Dark & complex', 'Surprise me'],
-    ['Something adventurous', 'Stay in my comfort zone', 'Show me a tasting flight'],
-  ],
-  winery: [
-    ['Red wine', 'White wine', 'Something bubbly', 'Help me explore'],
-    ['I know what I like', 'Show me something new', 'What is your favorite?'],
-  ],
-  distillery: [
-    ['I love whiskey / bourbon', 'Start me with a cocktail', 'Something totally new', 'Tasting flight'],
-    ['Go deep with me', 'Keep it approachable', 'What\'s the bestseller?'],
-  ],
-  coffee: [
-    ['Espresso-based', 'Filter / pour-over', 'Something cold', 'Surprise me'],
-    ['Light & bright', 'Rich & bold', 'What\'s new this season?'],
-  ],
-}
-
 const VERTICAL_ICONS: Record<string, string> = {
   coffee: '☕',
   brewery: '🍺',
@@ -50,7 +31,11 @@ const VERTICAL_PLURAL: Record<string, string> = {
 }
 
 const stripRec = (text: string) =>
-  text.replace(/===REC===[\s\S]*?===END===/g, '').trim()
+  text
+    .replace(/===REC===[\s\S]*?===END===/g, '')
+    .replace(/===CHIPS===[\s\S]*?===END===/g, '')
+    .replace(/===[\s\S]*$/, '') // hide any partial/unclosed sentinel block while streaming
+    .trim()
 
 async function fetchRetailerBootstrap(slug: string) {
   const res = await fetch(`/api/retailer?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' })
@@ -555,8 +540,9 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
   const [rec, setRec] = useState<BlendRecommendation | null>(null)
   const [ordered, setOrdered] = useState(false)
   const [started, setStarted] = useState(false)
-  const [aiTurnCount, setAiTurnCount] = useState(0)
-  const [chipsUsed, setChipsUsed] = useState(false)
+  // Quick-reply chips suggested by the AI for its current question — kept in sync
+  // with what was actually asked, so the options always match the question.
+  const [chips, setChips] = useState<string[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -580,9 +566,10 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, rec])
 
-  const streamChat = async (msgs: Message[], chipContext?: string) => {
+  const streamChat = async (msgs: Message[]) => {
     if (!retailer || !sessionId) return
     setStreaming(true)
+    setChips([])
     setMessages(prev => [...prev, { role: 'assistant', content: '', streaming: true }])
 
     let full = ''
@@ -590,7 +577,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, retailerSlug: params.slug, messages: msgs, chipContext }),
+        body: JSON.stringify({ sessionId, retailerSlug: params.slug, messages: msgs }),
       })
 
       if (!res.ok) {
@@ -620,6 +607,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
             }
             if (p.done) {
               if (p.recData) setRec(p.recData)
+              if (Array.isArray(p.chips)) setChips(p.chips.filter((c: unknown) => typeof c === 'string').slice(0, 4))
               setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: stripRec(p.text || full), streaming: false }; return u })
             }
           } catch {}
@@ -627,7 +615,6 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
       }
     } catch {}
 
-    setAiTurnCount(c => c + 1)
     setStreaming(false)
   }
 
@@ -636,32 +623,23 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
     void streamChat([{ role: 'user', content: 'START' }])
   }
 
-  const send = (override?: string, chipCtx?: string) => {
+  const send = (override?: string) => {
     const text = override ?? input
     if (!text.trim() || streaming) return
+    setChips([])
     const msg: Message = { role: 'user', content: text.trim() }
     const next = [...messages, msg]
     setMessages(next)
     setInput('')
-    void streamChat(next.map(m => ({ role: m.role, content: m.content })), chipCtx)
+    void streamChat(next.map(m => ({ role: m.role, content: m.content })))
   }
 
-  const chipSelect = (chip: string) => {
-    setChipsUsed(true)
-    send(chip, chip)
-  }
+  const chipSelect = (chip: string) => send(chip)
 
   if (loading) return <LoadingScreen />
   if (notFound || !retailer) return <NotFound />
 
   const noun = VERTICAL_NOUN[retailer.vertical] || 'Selection'
-
-  // Chip logic: show once after 1st AI message, optionally again after 2nd
-  const chipSet = VERTICAL_CHIPS[retailer.vertical] || VERTICAL_CHIPS['brewery']
-  const activeChips =
-    aiTurnCount === 1 && !chipsUsed && !rec ? chipSet[0] :
-    aiTurnCount === 2 && !chipsUsed && !rec ? chipSet[1] :
-    null
 
   const userTurns = messages.filter(m => m.role === 'user').length
 
@@ -743,9 +721,9 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
                 )}
               </div>
 
-              {/* Chips after last AI message */}
-              {isAI && !msg.streaming && isLast && activeChips && (
-                <QuickChips chips={activeChips} onSelect={chipSelect} theme={theme} font={font} />
+              {/* AI-suggested quick replies for the last question — always match it */}
+              {isAI && !msg.streaming && isLast && !rec && chips.length > 0 && (
+                <QuickChips chips={chips} onSelect={chipSelect} theme={theme} font={font} />
               )}
             </div>
           )
@@ -791,7 +769,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
             <textarea
               ref={inputRef}
               value={input}
-              onChange={e => { setInput(e.target.value); if (e.target.value) setChipsUsed(true) }}
+              onChange={e => { setInput(e.target.value); if (e.target.value) setChips([]) }}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
               placeholder="Type your answer…"
               rows={1}
