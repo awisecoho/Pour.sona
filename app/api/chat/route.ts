@@ -7,53 +7,18 @@ import { billingUrl } from '@/lib/urls'
 import { checkOrigin } from '@/lib/security'
 import { chatLimiter, getIp } from '@/lib/rate-limit'
 import { apiError } from '@/lib/api'
+import {
+  MAX_CATALOG_ITEMS,
+  MAX_HISTORY_MESSAGES,
+  MAX_USER_TURNS,
+  AI_MONTHLY_BUDGET_USD,
+  monthlyCostUsd,
+  effectiveMonthlyUsage,
+  buildFallbackRecommendation,
+  selectRelevantProducts,
+  validateRecAgainstCatalog,
+} from '@/lib/chat-guardrails'
 export const dynamic = 'force-dynamic'
-
-// ── Cost guardrails ───────────────────────────────────────────────────────────
-// These bound per-chat token spend so a venue stays well under its monthly AI
-// budget regardless of catalog size or how long a guest rambles.
-const MAX_CATALOG_ITEMS = 24      // SKUs injected into the prompt (relevance-filtered)
-const MAX_HISTORY_MESSAGES = 14   // recent turns sent to the model
-const MAX_USER_TURNS = 5          // after this many guest messages, force a recommendation
-
-// Per-venue monthly AI budget. Haiku pricing ≈ $1/M input, $5/M output.
-const AI_MONTHLY_BUDGET_USD   = Number(process.env.AI_MONTHLY_BUDGET_USD   || 15)
-const AI_INPUT_USD_PER_MTOK   = Number(process.env.AI_INPUT_USD_PER_MTOK   || 1)
-const AI_OUTPUT_USD_PER_MTOK  = Number(process.env.AI_OUTPUT_USD_PER_MTOK  || 5)
-
-function monthlyCostUsd(inputTok: number, outputTok: number): number {
-  return (inputTok / 1e6) * AI_INPUT_USD_PER_MTOK + (outputTok / 1e6) * AI_OUTPUT_USD_PER_MTOK
-}
-
-/** Usage so far this calendar month — treats a stale reset timestamp as zero. */
-function effectiveMonthlyUsage(retailer: any): { input: number; output: number } {
-  const reset = retailer.ai_month_reset_at ? new Date(retailer.ai_month_reset_at) : null
-  const d = new Date()
-  const monthStart = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)
-  const active = reset && reset.getTime() >= monthStart
-  return {
-    input: active ? Number(retailer.ai_input_tokens_month || 0) : 0,
-    output: active ? Number(retailer.ai_output_tokens_month || 0) : 0,
-  }
-}
-
-/** A no-AI recommendation built straight from the catalog, used when a venue is
- *  over its monthly AI budget so the guest experience never goes dark. */
-function buildFallbackRecommendation(products: any[]): any | null {
-  const pick = products[0]
-  if (!pick) return null
-  return {
-    format: 'single',
-    recommendationName: pick.name,
-    tagline: 'A guest favorite',
-    selectedProducts: [{ name: pick.name, why: 'One of our most-loved picks — ask our staff to tell you more.', price: pick.price ?? null }],
-    flightDetails: null,
-    flavorProfile: [pick.style, pick.category].filter(Boolean).slice(0, 3),
-    story: pick.description || '',
-    whyItFitsYou: 'A reliable crowd-pleaser to start with.',
-    serveNote: '',
-  }
-}
 
 const SSE_HEADERS = { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' }
 
@@ -72,46 +37,6 @@ function degradedResponse(products: any[]): Response {
     },
   })
   return new Response(readable, { headers: SSE_HEADERS })
-}
-
-/**
- * Pick the most relevant in-stock products for the current conversation instead
- * of dumping the whole catalog into every prompt. Keyword overlap against the
- * guest's messages; falls back to catalog order when nothing matches or there's
- * no conversation yet (the opening turn).
- */
-function selectRelevantProducts(products: any[], convoText: string, max: number): any[] {
-  if (products.length <= max) return products
-  const text = convoText.toLowerCase()
-  const tokens = Array.from(new Set(text.split(/[^a-z0-9]+/).filter(w => w.length >= 3)))
-  if (tokens.length === 0) return products.slice(0, max)
-  const scored = products.map((p, idx) => {
-    const hay = [p.name, p.category, p.style, p.flavor_notes, p.description]
-      .filter(Boolean).join(' ').toLowerCase()
-    let score = 0
-    for (const t of tokens) if (hay.includes(t)) score++
-    return { p, score, idx }
-  })
-  scored.sort((a, b) => b.score - a.score || a.idx - b.idx)
-  return scored.slice(0, max).map(s => s.p)
-}
-
-/**
- * Hard guardrail against hallucinated recommendations: every product in the REC
- * block must exist in the live in-stock catalog. Off-menu items are dropped; if
- * nothing valid remains, the recommendation is discarded entirely.
- */
-function validateRecAgainstCatalog(recData: any, products: any[]): any | null {
-  if (!recData) return null
-  const names = new Set(products.map(p => String(p.name || '').trim().toLowerCase()))
-  if (Array.isArray(recData.selectedProducts)) {
-    const filtered = recData.selectedProducts.filter(
-      (sp: any) => sp && typeof sp.name === 'string' && names.has(sp.name.trim().toLowerCase())
-    )
-    if (filtered.length === 0) return null
-    recData.selectedProducts = filtered
-  }
-  return recData
 }
 
 export async function POST(req: NextRequest) {
