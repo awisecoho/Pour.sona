@@ -24,6 +24,17 @@ All are set in Vercel project env (production) — none are committed.
 | `AI_INPUT_USD_PER_MTOK` | Optional | cost model input price (default 1) | |
 | `AI_OUTPUT_USD_PER_MTOK` | Optional | cost model output price (default 5) | |
 | `SENTRY_DSN` / related | Optional | error tracking | no-op if absent |
+| `SOCIAL_TOKEN_KEY` | **Required (social)** | AES-256-GCM key for OAuth token encryption (`lib/social.ts`) | any string; SHA-256 → 32-byte key. Connect/posting refuses to store tokens without it |
+| `META_APP_ID` / `META_APP_SECRET` | Optional (social) | Facebook + Instagram OAuth | needs Meta app + Business verification + app review for posting scopes |
+| `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` | Optional (social) | LinkedIn OAuth | posting (`w_member_social`) needs partner-program approval |
+| `X_CLIENT_ID` / `X_CLIENT_SECRET` | Optional (social) | X / Twitter OAuth2 (PKCE) | posting requires a paid X API tier |
+
+## Social platform setup
+Each platform's **Connect** button stays disabled ("Not configured") until both its
+client-id and secret env vars are set. OAuth redirect URI to register on each platform:
+`https://pour-sona.com/api/poursona-admin/social/callback/<platform>`
+(`facebook` | `instagram` | `linkedin` | `twitter`). Manual "+ Add" works without any
+credentials — it tracks an account for selection/research but can't post until connected.
 
 ## Migration secret
 `POST /api/migrate` is gated by a hardcoded secret (`poursona-migrate-2026`) — rotate to an

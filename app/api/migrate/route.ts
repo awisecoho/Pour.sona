@@ -64,6 +64,43 @@ CREATE TABLE IF NOT EXISTS stripe_webhook_events (
   type text,
   received_at timestamptz DEFAULT now()
 );
+
+-- Linked social accounts (FB/IG/X/LinkedIn) for the marketing agent.
+-- Tokens are stored encrypted (AES-256-GCM via SOCIAL_TOKEN_KEY); see lib/social.ts.
+-- scope='poursona' = internal company accounts; scope='retailer' = per-venue.
+CREATE TABLE IF NOT EXISTS social_accounts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  scope text NOT NULL DEFAULT 'poursona',
+  retailer_id uuid,
+  platform text NOT NULL,
+  external_id text,
+  display_name text,
+  avatar_url text,
+  access_token text,
+  refresh_token text,
+  scopes text,
+  status text NOT NULL DEFAULT 'connected',
+  selected boolean NOT NULL DEFAULT true,
+  connected_by text,
+  expires_at timestamptz,
+  connected_at timestamptz DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_social_accounts_unique
+  ON social_accounts (platform, coalesce(external_id, ''), coalesce(retailer_id::text, ''));
+CREATE INDEX IF NOT EXISTS idx_social_accounts_scope ON social_accounts (scope, retailer_id);
+
+-- Optional log of posts published through the agent
+CREATE TABLE IF NOT EXISTS social_posts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid REFERENCES social_accounts(id) ON DELETE SET NULL,
+  platform text,
+  body text,
+  external_post_id text,
+  status text NOT NULL DEFAULT 'posted',
+  error text,
+  posted_by text,
+  created_at timestamptz DEFAULT now()
+);
 `
 
 // Step 2: seed core data
