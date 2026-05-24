@@ -54,9 +54,10 @@ export async function getAuthenticatedIdentity() {
     user?.emailAddresses?.[0]?.emailAddress ||
     null
   )
-  if (!userId && !email) {
-    throw new Error('Clerk identity unavailable — check CLERK env vars')
-  }
+  // Anonymous request: no Clerk session, no email. Return null so routes
+  // can emit a proper 401 instead of bubbling a 500 to the caller (which
+  // also spams Sentry on every unauth probe).
+  if (!userId && !email) return null
   if (!userId) return null
   return { userId, email }
 }
