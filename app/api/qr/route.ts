@@ -60,8 +60,10 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Generate QR as PNG buffer (errorCorrectionLevel H leaves room for logo)
-    const SIZE = 600
+    // Generate QR as PNG buffer (errorCorrectionLevel H leaves room for logo).
+    // 1024 px gives clean 3×3 in @ ~341 DPI or 4×4 in @ 256 DPI prints, well
+    // above the laser-printer/lamination threshold where scan reliability drops.
+    const SIZE = 1024
     const qrBuffer = await QRCode.toBuffer(url, {
       width: SIZE,
       margin: 2,

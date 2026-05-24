@@ -196,8 +196,21 @@ function WelcomeScreen({
           Must be 21+. Please enjoy responsibly.
         </div>
       )}
-      <div style={{ marginTop: 16, color: '#2a1e0a', fontSize: 11, fontFamily: `'${font}', Georgia, serif`, letterSpacing: '.08em' }}>
-        POWERED BY POURSONA
+      <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+        <a
+          href="https://pour-sona.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: '#2a1e0a', fontSize: 11, fontFamily: `'${font}', Georgia, serif`, letterSpacing: '.08em', textDecoration: 'none' }}
+        >
+          POWERED BY POURSONA
+        </a>
+        <a
+          href="/admin/login"
+          style={{ color: '#2a1e0a', fontSize: 10, fontFamily: `'${font}', Georgia, serif`, letterSpacing: '.05em', textDecoration: 'none' }}
+        >
+          Vendor login →
+        </a>
       </div>
     </div>
   )
