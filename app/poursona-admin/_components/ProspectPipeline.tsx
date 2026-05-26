@@ -42,16 +42,32 @@ interface ScreenedBusiness extends Business {
   contacts?: Contacts
 }
 
-// Build a mailto link with subject + body pre-populated. Falls back to a
-// templated subject if the AI didn't return one (older cached prospects,
-// or a parse failure on the screen call).
-function buildMailto(email: string, subject: string | undefined, body: string, businessName: string): string {
+// Internal mailbox the Poursona team sends prospect outreach from. Gmail
+// resolves authuser=<address> to whichever account-index that mailbox
+// currently lives at, so swapping in a new team mailbox here Just Works
+// without us needing to know u/0 vs u/1.
+const POURSONA_OUTBOUND_MAILBOX = 'andy@pour-sona.com'
+
+// Build a Gmail web-compose URL pre-populated with to, subject, and body.
+// Avoids the mailto: protocol (which on a browser without a configured
+// system mail handler just opens about:blank), and forces the draft into
+// the @pour-sona.com Workspace account regardless of which Gmail tab the
+// user has focused. Falls back to a templated subject if the AI didn't
+// return one.
+function buildGmailCompose(email: string, subject: string | undefined, body: string, businessName: string): string {
   const subj = (subject && subject.trim()) ? subject.trim() : `Quick idea for ${businessName}`
-  // encodeURIComponent handles spaces/punctuation correctly for mailto. We use
-  // %0D%0A (CRLF) for body line breaks — the most-compatible separator across
-  // mail clients (Gmail, Outlook, Apple Mail all accept it).
-  const bodyEncoded = encodeURIComponent(body).replace(/%0A/g, '%0D%0A')
-  return `mailto:${email}?subject=${encodeURIComponent(subj)}&body=${bodyEncoded}`
+  // URLSearchParams encodes spaces as '+', which Gmail decodes correctly in
+  // both subject and body. Newlines come through verbatim.
+  const params = new URLSearchParams({
+    view: 'cm',
+    fs:   '1',
+    tf:   '1',
+    to:   email,
+    su:   subj,
+    body,
+    authuser: POURSONA_OUTBOUND_MAILBOX,
+  })
+  return `https://mail.google.com/mail/?${params.toString()}`
 }
 interface LogEntry { msg: string; type: 'info' | 'success' | 'error' | 'warn' | 'muted' }
 
@@ -90,11 +106,13 @@ async function searchProspects(vertical: Vertical, location: string): Promise<Bu
   return data.businesses ?? []
 }
 
-async function screenAndMessage(biz: Business): Promise<ScreenedBusiness | null> {
+async function screenAndMessage(biz: Business, vertical: Vertical): Promise<ScreenedBusiness | null> {
   const res = await fetch('/api/poursona-admin/pipeline', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'screen', biz }),
+    // Pass vertical so the server prompt can use vertical-specific wording
+    // (e.g. "Coffee Sommelier", "Wine Sommelier") in the outreach message.
+    body: JSON.stringify({ action: 'screen', biz, vertical }),
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error ?? 'Screen failed')
@@ -236,7 +254,7 @@ export default function ProspectPipeline() {
       if (i > 0) await new Promise(r => setTimeout(r, 800))
       addLog(`Screening ${biz.name}…`)
       try {
-        const result = await screenAndMessage(biz)
+        const result = await screenAndMessage(biz, vertical)
         if (!result) { addLog(`${biz.name} → skipped`, 'muted'); continue }
         addLog(`${biz.name} → ${result.signals.score.toUpperCase()} ✓`, result.signals.score === 'hot' ? 'success' : 'warn')
         setProspects(p => [...p, result])
@@ -392,12 +410,12 @@ export default function ProspectPipeline() {
                       const c = p.contacts
                       const channels: { label: string; href: string }[] = []
                       channels.push({ label: '↗ Contact Page', href: p.contact_url })
-                      // Email link is pre-populated with the AI's clickbait subject
-                      // (or a templated fallback) + the full message as the body.
-                      // Opens the user's default mail client with the draft ready.
+                      // Email link opens Gmail web compose (NOT mailto:) signed
+                      // in to andy@pour-sona.com, with subject + body already
+                      // populated from the AI draft.
                       if (c?.email) channels.push({
-                        label: '✉ Email (draft ready)',
-                        href: buildMailto(c.email, p.subject, p.message, p.name),
+                        label: '✉ Email via Gmail',
+                        href: buildGmailCompose(c.email, p.subject, p.message, p.name),
                       })
                       if (c?.instagram) channels.push({ label: 'Instagram', href: c.instagram })
                       if (c?.facebook)  channels.push({ label: 'Facebook',  href: c.facebook })

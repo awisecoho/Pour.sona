@@ -60,27 +60,61 @@ const SEARCH_PROMPT = (verticalLabel: string, location: string) =>
 [{"name":"Business Name","url":"https://website.com","contact_url":"https://website.com/contact"}]
 Guess contact_url as /contact or /contact-us. Return exactly 5.`
 
+// Vertical-specific noun for the AI guide we'd build for this prospect.
+// Drives the "your personal digitalized X" phrasing in the outreach message,
+// so a coffee roaster hears "Coffee Sommelier" while a brewery hears
+// "Beer Curator" — much warmer than a generic "AI assistant".
+const PERSONA_BY_VERTICAL: Record<string, string> = {
+  coffee:     'Coffee Sommelier',
+  winery:     'Wine Sommelier',
+  brewery:    'Beer Curator',
+  distillery: 'Spirits Guide',
+  bottle:     'Bottle Shop Concierge',
+  tea:        'Tea Sommelier',
+}
+
+// In-person experience phrase per vertical — what we'd be "alongside".
+const IN_PERSON_BY_VERTICAL: Record<string, string> = {
+  coffee:     'in-person tastings and cuppings',
+  winery:     'in-person tastings',
+  brewery:    'taproom experience',
+  distillery: 'tasting-room pours',
+  bottle:     'in-store guidance',
+  tea:        'in-person tastings',
+}
+
 // Combined screen + message prompt. Runs on Haiku from the venue's OWN page text
 // (fetched directly), so it needs NO web search — keeping input tokens tiny.
-const SCREEN_AND_MSG_PROMPT = (name: string, url: string, pageText: string) =>
-  `You are evaluating a beverage business as a sales prospect for Poursona, then drafting outreach.
+const SCREEN_AND_MSG_PROMPT = (name: string, url: string, pageText: string, verticalId: string) => {
+  const persona = PERSONA_BY_VERTICAL[verticalId] || 'AI Sommelier'
+  const inPerson = IN_PERSON_BY_VERTICAL[verticalId] || 'in-person experience'
+  return `You are evaluating a beverage business as a sales prospect for Poursona, then drafting outreach.
 
 Business: ${name} (${url})
+Category: ${verticalId}
 ${pageText
     ? `Website content (truncated):\n"""\n${pageText}\n"""`
     : `(Their website could not be read automatically — judge from the name/URL and note that manual review is needed.)`}
 
-Poursona: Customers scan a QR code → natural AI conversation → personalized drink recommendation → order placed. 10-minute retailer setup. Flat monthly SaaS fee.
+Poursona: A vendor-specific AI guide that lives at a QR code. Each venue gets its own digitalized "${persona}" trained on their actual menu, brand story, and tone — not a generic chatbot. Customers scan, have a natural conversation about their taste, and get a recommendation that feels like talking to the venue's own expert. ~10 minute setup; runs on the vendor's own product offerings.
 
 Step 1 — Score the prospect:
   hot  = has a product menu AND (online ordering OR a tasting room/taproom)
   warm = has a menu only, OR the site couldn't be read (needs manual review)
   skip = clearly no catalog, or a national chain/franchise
 
-Step 2 — If hot or warm, write a short contact-form message from the founder of Poursona:
-  open with ONE specific genuine observation about THIS business, explain Poursona in 1-2 sentences,
-  make a single low-friction ask (demo or free trial), 80-110 words, sound like a real founder,
-  no buzzwords, no subject line in the body, no sign-off. If skip, use an empty string.
+Step 2 — If hot or warm, write a contact-form message from the founder of Poursona that:
+  • Opens with ONE specific genuine observation about THIS business (something you saw on their site — not generic praise)
+  • Bridges that observation to what Poursona does for them, NOT what Poursona is in the abstract
+  • Uses possessive "your" language to make it feel custom-built for them: "your customers", "your personal digitalized ${persona}", "your personalized offerings", "your ${inPerson}"
+  • Names the persona explicitly: "their personal digitalized ${persona}" — this is the brand-specific guide we'd build for them
+  • Closes with TWO asks layered together: (1) a soft demo question, (2) a low-friction offer to BUILD them a personal experience to try ("I'd be happy to spin up a personal experience for you to test")
+  • 90-130 words, sounds like a real founder talking — warm, specific, confident
+  • No buzzwords, no subject line inside the body, no sign-off (the user adds their own)
+  If skip, use an empty string.
+
+  STRUCTURE TEMPLATE (rewrite naturally, don't copy verbatim):
+  "I noticed [specific observation about their site/offering]. That [hands-on / craft / curated quality] is exactly what Poursona does digitally. Your customers scan a personalized QR code, have a natural conversation about their taste with your personal digitalized ${persona}, and get a recommendation that fits THEM before ordering. It takes about 10 minutes to set up and runs on your personalized offerings. Would you be open to a quick demo to see how it could work alongside your ${inPerson}? I'd be happy to spin up a personal experience for you to try."
 
 Step 3 — If hot or warm, write an email SUBJECT LINE designed to actually get opened:
   • 4-8 words, sentence case (no ALL CAPS, no Title Case)
@@ -89,13 +123,14 @@ Step 3 — If hot or warm, write an email SUBJECT LINE designed to actually get 
   • Sounds like a real person, NOT marketing copy
   • Absolutely no: "Re:", "Fwd:", "Hi", "Hello", emojis, "introducing", "leveraging", "synergies", "[BRACKETS]"
   Good examples (for context only — write a fresh one):
-    "quick idea for the ${name} tap list"
+    "your personal ${persona.toLowerCase()} for ${name}"
     "saw your menu — small thought"
     "${name} guests asking for menu help?"
   If skip, use an empty string.
 
 Respond ONLY with valid JSON, no markdown:
 {"score":"hot"|"warm"|"skip","reason":"one sentence","has_menu":true|false,"has_ordering":true|false,"has_tasting_room":true|false,"subject":"the subject line, or empty string","message":"the message, or empty string"}`
+}
 
 // ── Contact extraction ────────────────────────────────────────────────────────
 // Pulled from the raw HTML we already fetch for screening, so it costs nothing
@@ -227,10 +262,15 @@ export async function POST(req: NextRequest) {
 
     // ── action: screen ──────────────────────────────────────────────────────
     if (action === 'screen') {
-      const { biz } = body
+      const { biz, vertical } = body
       if (!biz?.name || !biz?.url) {
         return NextResponse.json({ error: 'missing biz.name or biz.url' }, { status: 400 })
       }
+      // verticalId is used by SCREEN_AND_MSG_PROMPT to pick vertical-specific
+      // wording (Coffee Sommelier vs Beer Curator etc.). Default to coffee if
+      // the client forgot to send one — keeps backward compatibility with any
+      // cached/in-flight requests from before the multi-vertical update.
+      const verticalId: string = typeof vertical?.id === 'string' ? vertical.id : 'coffee'
 
       // Fetch the venue's own page directly (SSRF-guarded). This replaces the
       // web-search screen call that blew past the 30k TPM org limit, and lets us
@@ -248,8 +288,8 @@ export async function POST(req: NextRequest) {
       // input footprint, and Haiku's TPM limit is far higher than Sonnet's.
       const data = await callAnthropic({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 600,
-        messages: [{ role: 'user', content: SCREEN_AND_MSG_PROMPT(biz.name, biz.url, pageText) }],
+        max_tokens: 700,
+        messages: [{ role: 'user', content: SCREEN_AND_MSG_PROMPT(biz.name, biz.url, pageText, verticalId) }],
       })
       let parsed: any = null
       try {
