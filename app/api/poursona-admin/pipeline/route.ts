@@ -76,13 +76,26 @@ Step 1 — Score the prospect:
   hot  = has a product menu AND (online ordering OR a tasting room/taproom)
   warm = has a menu only, OR the site couldn't be read (needs manual review)
   skip = clearly no catalog, or a national chain/franchise
+
 Step 2 — If hot or warm, write a short contact-form message from the founder of Poursona:
   open with ONE specific genuine observation about THIS business, explain Poursona in 1-2 sentences,
   make a single low-friction ask (demo or free trial), 80-110 words, sound like a real founder,
-  no buzzwords, no subject line, no sign-off. If skip, use an empty string.
+  no buzzwords, no subject line in the body, no sign-off. If skip, use an empty string.
+
+Step 3 — If hot or warm, write an email SUBJECT LINE designed to actually get opened:
+  • 4-8 words, sentence case (no ALL CAPS, no Title Case)
+  • Specific to THIS business — mention them by name OR a detail you noticed on their site
+  • Open-curiosity hook OR a one-line benefit, not a sales pitch
+  • Sounds like a real person, NOT marketing copy
+  • Absolutely no: "Re:", "Fwd:", "Hi", "Hello", emojis, "introducing", "leveraging", "synergies", "[BRACKETS]"
+  Good examples (for context only — write a fresh one):
+    "quick idea for the ${name} tap list"
+    "saw your menu — small thought"
+    "${name} guests asking for menu help?"
+  If skip, use an empty string.
 
 Respond ONLY with valid JSON, no markdown:
-{"score":"hot"|"warm"|"skip","reason":"one sentence","has_menu":true|false,"has_ordering":true|false,"has_tasting_room":true|false,"message":"the message, or empty string"}`
+{"score":"hot"|"warm"|"skip","reason":"one sentence","has_menu":true|false,"has_ordering":true|false,"has_tasting_room":true|false,"subject":"the subject line, or empty string","message":"the message, or empty string"}`
 
 // ── Contact extraction ────────────────────────────────────────────────────────
 // Pulled from the raw HTML we already fetch for screening, so it costs nothing
@@ -256,10 +269,15 @@ export async function POST(req: NextRequest) {
         has_tasting_room: !!parsed.has_tasting_room,
       }
       const message = (parsed.message ?? '').trim()
+      // Subject sanitization: strip line breaks (mailto: links break on \n) and
+      // any "Subject:" prefix the model occasionally hallucinates. Cap length so
+      // we don't blow past mail-client subject-line limits.
+      const rawSubject = String(parsed.subject ?? '').replace(/[\r\n]+/g, ' ').replace(/^\s*subject\s*:\s*/i, '').trim()
+      const subject = rawSubject.slice(0, 120)
       // Prefer a real discovered contact page; fall back to the search guess, then homepage.
       const contact_url = contacts.contactPage || biz.contact_url || biz.url
 
-      return NextResponse.json({ ok: true, result: { ...biz, signals, message, contact_url, contacts } })
+      return NextResponse.json({ ok: true, result: { ...biz, signals, subject, message, contact_url, contacts } })
     }
 
     return NextResponse.json({ error: `unknown action: ${action}` }, { status: 400 })

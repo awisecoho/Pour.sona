@@ -36,9 +36,22 @@ interface Contacts {
 }
 interface ScreenedBusiness extends Business {
   signals: Signals
+  subject?: string
   message: string
   contact_url: string
   contacts?: Contacts
+}
+
+// Build a mailto link with subject + body pre-populated. Falls back to a
+// templated subject if the AI didn't return one (older cached prospects,
+// or a parse failure on the screen call).
+function buildMailto(email: string, subject: string | undefined, body: string, businessName: string): string {
+  const subj = (subject && subject.trim()) ? subject.trim() : `Quick idea for ${businessName}`
+  // encodeURIComponent handles spaces/punctuation correctly for mailto. We use
+  // %0D%0A (CRLF) for body line breaks — the most-compatible separator across
+  // mail clients (Gmail, Outlook, Apple Mail all accept it).
+  const bodyEncoded = encodeURIComponent(body).replace(/%0A/g, '%0D%0A')
+  return `mailto:${email}?subject=${encodeURIComponent(subj)}&body=${bodyEncoded}`
 }
 interface LogEntry { msg: string; type: 'info' | 'success' | 'error' | 'warn' | 'muted' }
 
@@ -336,9 +349,28 @@ export default function ProspectPipeline() {
                   </div>
                 </div>
 
-                {/* Expanded — message + CTA buttons */}
+                {/* Expanded — subject + message + CTA buttons */}
                 {expanded[p.id] && (
                   <div style={{ borderTop: `1px solid ${BRAND.border}`, padding: '16px' }}>
+                    {/* Subject line preview — surfaces what the email link will use */}
+                    {(p.subject || p.contacts?.email) && (
+                      <>
+                        <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: BRAND.accentDim, textTransform: 'uppercase', marginBottom: '6px' }}>
+                          Subject line
+                        </div>
+                        <div style={{ background: BRAND.surface, border: `1px solid ${BRAND.border}`, borderRadius: '2px', padding: '10px 12px', fontSize: '13px', color: BRAND.text, marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                          <span style={{ flex: 1, fontStyle: p.subject ? 'normal' : 'italic', color: p.subject ? BRAND.text : BRAND.muted }}>
+                            {p.subject || `Quick idea for ${p.name}`}
+                          </span>
+                          <button
+                            onClick={() => handleCopy(`${p.id}-subject`, p.subject || `Quick idea for ${p.name}`)}
+                            style={{ background: 'transparent', border: `1px solid ${BRAND.border}`, color: BRAND.muted, borderRadius: '2px', padding: '4px 8px', fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.05em', cursor: 'pointer', flexShrink: 0 }}>
+                            {copied[`${p.id}-subject`] ? '✓' : 'Copy'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+
                     <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: BRAND.accentDim, textTransform: 'uppercase', marginBottom: '10px' }}>
                       Message — ready to paste
                     </div>
@@ -360,7 +392,13 @@ export default function ProspectPipeline() {
                       const c = p.contacts
                       const channels: { label: string; href: string }[] = []
                       channels.push({ label: '↗ Contact Page', href: p.contact_url })
-                      if (c?.email)     channels.push({ label: '✉ Email', href: `mailto:${c.email}` })
+                      // Email link is pre-populated with the AI's clickbait subject
+                      // (or a templated fallback) + the full message as the body.
+                      // Opens the user's default mail client with the draft ready.
+                      if (c?.email) channels.push({
+                        label: '✉ Email (draft ready)',
+                        href: buildMailto(c.email, p.subject, p.message, p.name),
+                      })
                       if (c?.instagram) channels.push({ label: 'Instagram', href: c.instagram })
                       if (c?.facebook)  channels.push({ label: 'Facebook',  href: c.facebook })
                       if (c?.linkedin)  channels.push({ label: 'LinkedIn',  href: c.linkedin })
