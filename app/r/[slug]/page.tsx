@@ -662,7 +662,7 @@ function RecommendationCard({
                 background: `rgba(${theme.rgbStr},.04)`,
                 border: `1px dashed rgba(${theme.rgbStr},.18)`,
               }}>
-                <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 3, fontFamily: `'${font}', Georgia, serif` }}>While you're here</div>
+                <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 3, fontFamily: `'${font}', Georgia, serif` }}>While you&apos;re here</div>
                 <div style={{ color: '#d4c8a8', fontSize: 13, fontFamily: `'${font}', Georgia, serif`, fontWeight: 600 }}>{rec.upsellSuggestion.name}</div>
                 {rec.upsellSuggestion.reason && (
                   <div style={{ color: '#6a5a3a', fontSize: 12, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.5, marginTop: 2 }}>{rec.upsellSuggestion.reason}</div>
