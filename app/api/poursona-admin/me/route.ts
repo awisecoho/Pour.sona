@@ -41,6 +41,11 @@ export async function GET() {
       role: member.role,
     })
   } catch (err) {
+    // Log the actual error so Vercel runtime logs surface it. Without this, the
+    // catch swallows the message into the response body which is invisible
+    // server-side and breaks the layout's "did this fail because forbidden, or
+    // for some other reason?" branching.
+    console.error('[api/poursona-admin/me] handler failed:', err)
     return NextResponse.json(
       {
         ok: false,
