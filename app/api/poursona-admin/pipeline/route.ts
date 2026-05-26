@@ -109,12 +109,25 @@ Step 2 — If hot or warm, write a contact-form message from the founder of Pour
   • Uses possessive "your" language to make it feel custom-built for them: "your customers", "your personal digitalized ${persona}", "your personalized offerings", "your ${inPerson}"
   • Names the persona explicitly: "their personal digitalized ${persona}" — this is the brand-specific guide we'd build for them
   • Closes with TWO asks layered together: (1) a soft demo question, (2) a low-friction offer to BUILD them a personal experience to try ("I'd be happy to spin up a personal experience for you to test")
-  • 90-130 words, sounds like a real founder talking — warm, specific, confident
-  • No buzzwords, no subject line inside the body, no sign-off (the user adds their own)
-  If skip, use an empty string.
+  • 90-130 words for the BODY (excluding the sign-off block below), sounds like a real founder talking — warm, specific, confident
+  • No buzzwords, no subject line inside the body
 
-  STRUCTURE TEMPLATE (rewrite naturally, don't copy verbatim):
-  "I noticed [specific observation about their site/offering]. That [hands-on / craft / curated quality] is exactly what Poursona does digitally. Your customers scan a personalized QR code, have a natural conversation about their taste with your personal digitalized ${persona}, and get a recommendation that fits THEM before ordering. It takes about 10 minutes to set up and runs on your personalized offerings. Would you be open to a quick demo to see how it could work alongside your ${inPerson}? I'd be happy to spin up a personal experience for you to try."
+  THEN end with the SIGN-OFF block exactly as shown — two short lines, on their own, after a blank line. Always include these TWO links verbatim so the recipient has a one-click path to try Poursona and to learn more:
+
+  ---
+  Try it free: https://pour-sona.com/signup
+  pour-sona.com
+  ---
+
+  Output the sign-off block exactly like that — the "Try it free" line first, the bare website second, NO other CTA copy, NO "Best, Andy" / "Cheers" / signature name (the user adds their own name when they paste). The two links are mandatory.
+
+  If skip, use an empty string for message.
+
+  STRUCTURE TEMPLATE (rewrite the body naturally, don't copy verbatim; sign-off stays as shown):
+  "I noticed [specific observation about their site/offering]. That [hands-on / craft / curated quality] is exactly what Poursona does digitally. Your customers scan a personalized QR code, have a natural conversation about their taste with your personal digitalized ${persona}, and get a recommendation that fits THEM before ordering. It takes about 10 minutes to set up and runs on your personalized offerings. Would you be open to a quick demo to see how it could work alongside your ${inPerson}? I'd be happy to spin up a personal experience for you to try.
+
+  Try it free: https://pour-sona.com/signup
+  pour-sona.com"
 
 Step 3 — If hot or warm, write an email SUBJECT LINE designed to actually get opened:
   • 4-8 words, sentence case (no ALL CAPS, no Title Case)

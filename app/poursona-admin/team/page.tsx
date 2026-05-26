@@ -86,35 +86,96 @@ export default function TeamPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
-        <div>
+      {/* Mobile-responsive layout via CSS media queries (no JS resize listeners).
+          The desktop <table> swaps for a stacked card list below 720px. */}
+      <style>{`
+        .team-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; gap: 16px; flex-wrap: wrap; }
+        .team-table-wrap { display: block; }
+        .team-cards { display: none; }
+        @media (max-width: 720px) {
+          .team-header { margin-bottom: 22px; }
+          .team-header h2 { font-size: 22px !important; }
+          .team-header .add-btn { padding: 10px 14px !important; font-size: 11px !important; }
+          .team-table-wrap { display: none; }
+          .team-cards { display: flex; flex-direction: column; gap: 10px; }
+          .team-card { padding: 14px 16px; background: linear-gradient(145deg,#0e0b06,#0a0805); border: 1px solid rgba(201,168,76,.12); border-radius: 12px; }
+          .team-card-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+          .team-card-row:last-child { margin-bottom: 0; }
+          .team-modal { padding: 16px !important; }
+          .team-modal-inner { padding: 22px 20px !important; max-width: 100% !important; }
+        }
+        @media (max-width: 420px) {
+          .team-header { flex-direction: column; align-items: stretch; }
+          .team-header .add-btn { width: 100%; text-align: center; }
+        }
+      `}</style>
+
+      <div className="team-header">
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Poursona Internal</div>
-          <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>Team Members</div>
-          <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 4 }}>
+          <h2 style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700, margin: 0 }}>Team Members</h2>
+          <div style={{ color: '#9a8a64', fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>
             These people have access to this portal.
             {viewerRole ? ` You are signed in as ${viewerRole}.` : ''}
           </div>
         </div>
-        <button onClick={() => setAdding(true)} style={{ padding: '10px 20px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ Add Member</button>
+        <button
+          onClick={() => setAdding(true)}
+          className="add-btn"
+          style={{ padding: '10px 20px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+        >+ Add Member</button>
       </div>
-      <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.12)', borderRadius: 14, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid rgba(201,168,76,.1)' }}>{['Name','Email','Role','Added',''].map(h => <th key={h} style={{ padding: '12px 20px', textAlign: 'left', color: '#4a3a1a', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>)}</tr></thead>
-          <tbody>{team.map(m => (
-            <tr key={m.id} style={{ borderBottom: '1px solid rgba(201,168,76,.05)' }}>
-              <td style={{ padding: '14px 20px', color: '#F5ECD7', fontSize: 13 }}>{m.name || '—'}</td>
-              <td style={{ padding: '14px 20px', color: '#C9A84C', fontSize: 13 }}>{m.email}</td>
-              <td style={{ padding: '14px 20px' }}><span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10, background: m.role === 'owner' ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.05)', color: m.role === 'owner' ? '#C9A84C' : '#6a5a3a' }}>{m.role}</span></td>
-              <td style={{ padding: '14px 20px', color: '#4a3a1a', fontSize: 12 }}>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-              <td style={{ padding: '14px 20px' }}>{m.role !== 'owner' && <button onClick={() => removeMember(m.email)} style={{ background: 'transparent', border: '1px solid rgba(255,100,100,.2)', borderRadius: 6, padding: '4px 11px', color: '#e07070', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 11 }}>Remove</button>}</td>
-            </tr>
-          ))}</tbody>
-        </table>
+
+      {/* Desktop / tablet: table layout */}
+      <div className="team-table-wrap" style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.12)', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+            <thead><tr style={{ borderBottom: '1px solid rgba(201,168,76,.1)' }}>{['Name','Email','Role','Added',''].map(h => <th key={h} style={{ padding: '12px 20px', textAlign: 'left', color: '#4a3a1a', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>)}</tr></thead>
+            <tbody>{team.map(m => (
+              <tr key={m.id} style={{ borderBottom: '1px solid rgba(201,168,76,.05)' }}>
+                <td style={{ padding: '14px 20px', color: '#F5ECD7', fontSize: 13 }}>{m.name || '—'}</td>
+                <td style={{ padding: '14px 20px', color: '#C9A84C', fontSize: 13, wordBreak: 'break-all' }}>{m.email}</td>
+                <td style={{ padding: '14px 20px' }}><span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10, background: m.role === 'owner' ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.05)', color: m.role === 'owner' ? '#C9A84C' : '#6a5a3a' }}>{m.role}</span></td>
+                <td style={{ padding: '14px 20px', color: '#4a3a1a', fontSize: 12, whiteSpace: 'nowrap' }}>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                <td style={{ padding: '14px 20px' }}>{m.role !== 'owner' && <button onClick={() => removeMember(m.email)} style={{ background: 'transparent', border: '1px solid rgba(255,100,100,.2)', borderRadius: 6, padding: '4px 11px', color: '#e07070', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 11 }}>Remove</button>}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
         {team.length === 0 && <div style={{ padding: '32px', textAlign: 'center', color: '#4a3a1a', fontSize: 13 }}>No team members yet.</div>}
       </div>
+
+      {/* Mobile: stacked card layout */}
+      <div className="team-cards">
+        {team.length === 0 ? (
+          <div style={{ padding: '32px 16px', textAlign: 'center', color: '#4a3a1a', fontSize: 13, background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.12)', borderRadius: 12 }}>
+            No team members yet.
+          </div>
+        ) : team.map(m => (
+          <div key={m.id} className="team-card">
+            <div className="team-card-row">
+              <div style={{ color: '#F5ECD7', fontSize: 15, fontWeight: 600, minWidth: 0, flex: 1 }}>{m.name || '—'}</div>
+              <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10, background: m.role === 'owner' ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.05)', color: m.role === 'owner' ? '#C9A84C' : '#6a5a3a', flexShrink: 0, textTransform: 'capitalize' }}>{m.role}</span>
+            </div>
+            <div className="team-card-row" style={{ marginBottom: 8 }}>
+              <div style={{ color: '#C9A84C', fontSize: 12, wordBreak: 'break-all', flex: 1 }}>{m.email}</div>
+            </div>
+            <div className="team-card-row">
+              <div style={{ color: '#4a3a1a', fontSize: 11 }}>
+                Added {new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+              {m.role !== 'owner' && (
+                <button onClick={() => removeMember(m.email)} style={{ background: 'transparent', border: '1px solid rgba(255,100,100,.2)', borderRadius: 6, padding: '6px 12px', color: '#e07070', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 11 }}>
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
       {adding && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 24 }}>
-          <div style={{ background: '#0e0b06', border: '1px solid rgba(201,168,76,.2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 420 }}>
+        <div className="team-modal" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 24 }}>
+          <div className="team-modal-inner" style={{ background: '#0e0b06', border: '1px solid rgba(201,168,76,.2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 420 }}>
             <div style={{ color: '#F5ECD7', fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Add Team Member</div>
             <form onSubmit={addMember}>
               {[{ k: 'newEmail', l: 'Email *', t: 'email', v: newEmail, s: setNewEmail }, { k: 'newName', l: 'Name', t: 'text', v: newName, s: setNewName }].map(({ k, l, t, v, s }) => (

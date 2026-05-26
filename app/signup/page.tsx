@@ -33,7 +33,8 @@ const VERTICAL_LABEL: Record<string, string> = {
 export default function SignupPage() {
   const [step, setStep] = useState<Step>('url')
   const [url, setUrl] = useState('')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState('')                          // business email — pre-filled from website scan when found
+  const [personalEmail, setPersonalEmail] = useState('')          // optional personal email; never validated, never blocks
   const [name, setName] = useState('')
   const [draft, setDraft] = useState<RetailerDraft | null>(null)
   const [retailer, setRetailer] = useState<Pick<Retailer, 'name' | 'owner_email'> | null>(null)
@@ -63,6 +64,12 @@ export default function SignupPage() {
       const json = await res.json()
       if (!res.ok || !json.ok) throw new Error(json.error || 'Analysis failed')
       setDraft(json.draft)
+      // Pre-fill business email from the website scan when available. The user
+      // can still overwrite it before finalizing. Only pre-fill if the field
+      // is empty so we don't clobber a re-analysis after the user typed.
+      if (typeof json.discoveredEmail === 'string' && json.discoveredEmail.length > 0) {
+        setEmail(prev => prev.trim() === '' ? json.discoveredEmail : prev)
+      }
       setStep('preview')
     } catch (err: any) {
       setError(err.message)
@@ -78,7 +85,14 @@ export default function SignupPage() {
       const res = await fetch('/api/signup/finalize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draftId: draft.id, email: email.trim(), name: name.trim() || null }),
+        // personalEmail is optional, never validated — sent as null when empty
+        // so the server-side finalize ignores it cleanly.
+        body: JSON.stringify({
+          draftId: draft.id,
+          email: email.trim(),
+          name: name.trim() || null,
+          personalEmail: personalEmail.trim() || null,
+        }),
       })
       const json = await res.json()
       if (!res.ok || !json.ok) throw new Error(json.error || 'Account creation failed')
@@ -230,8 +244,33 @@ export default function SignupPage() {
 
               {/* Email + name */}
               <div style={{ marginTop: 24 }}>
-                <label style={{ display: 'block', color: '#C9A84C', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 6 }}>Your Email</label>
-                <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@yourvenue.com" type="email" style={{ ...inp, marginBottom: 12 }} />
+                <label style={{ display: 'block', color: '#C9A84C', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 6 }}>Business Email</label>
+                <input
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="you@yourvenue.com"
+                  type="email"
+                  style={{ ...inp, marginBottom: 6 }}
+                />
+                {/* Subtle hint when we pre-filled from the scan, so the user knows
+                    where the value came from and can override confidently. */}
+                {email && (
+                  <div style={{ color: '#3a2a0a', fontSize: 11, marginBottom: 12, fontStyle: 'italic' }}>
+                    Pre-filled from your website. Edit if needed.
+                  </div>
+                )}
+                {!email && <div style={{ marginBottom: 12 }} />}
+
+                <label style={{ display: 'block', color: '#C9A84C', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Personal Email <span style={{ color: '#3a2a0a', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+                </label>
+                <input
+                  value={personalEmail}
+                  onChange={e => setPersonalEmail(e.target.value)}
+                  placeholder="alex@gmail.com"
+                  type="text"
+                  style={{ ...inp, marginBottom: 12 }}
+                />
                 <label style={{ display: 'block', color: '#C9A84C', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 6 }}>Your Name <span style={{ color: '#3a2a0a', textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="Alex" type="text" style={{ ...inp, marginBottom: 20 }} />
 
@@ -255,7 +294,13 @@ export default function SignupPage() {
               <p style={{ color: '#4a3a1a', fontSize: 14, lineHeight: 1.7, margin: '0 0 32px' }}>
                 We sent a login link to <strong style={{ color: '#C9A84C' }}>{retailer.owner_email}</strong>. Click it to access your dashboard, grab your QR code, and start guiding guests.
               </p>
-              <Link href="/admin/login" style={{ display: 'inline-block', padding: '16px 36px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', borderRadius: 10, color: '#060403', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}>
+              {/* Carry the just-signed-up email forward so /admin/login can
+                  pre-fill the Clerk sign-in form. Otherwise the vendor sees
+                  a blank login screen right after finishing onboarding. */}
+              <Link
+                href={`/admin/login?email=${encodeURIComponent(retailer.owner_email)}`}
+                style={{ display: 'inline-block', padding: '16px 36px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', borderRadius: 10, color: '#060403', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}
+              >
                 Go to Dashboard →
               </Link>
               <div style={{ marginTop: 16, color: '#3a2a0a', fontSize: 12 }}>

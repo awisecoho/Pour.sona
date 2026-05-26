@@ -3,7 +3,24 @@ import { createDraftFromUrl } from '@/lib/onboarding'
 import { onboardLimiter, getIp } from '@/lib/rate-limit'
 import { validateScrapeUrl } from '@/lib/security'
 import { apiError } from '@/lib/api'
+import { extractContactEmail } from '@/lib/contact-extract'
 export const dynamic = 'force-dynamic'
+
+// Best-effort secondary fetch to surface a public contact email for prefill.
+// The main scrape pipeline strips HTML before passing to the LLM agents, so the
+// mailto/bare-email signal would be lost otherwise. We keep this on a tight
+// timeout because a failure here must NOT block the draft response.
+async function fetchEmailFromSite(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return null
+    const html = (await res.text()).replace(/\x00/g, '')
+    return extractContactEmail(html)
+  } catch { return null }
+}
 
 export async function POST(req: NextRequest) {
   const ip = getIp(req)
@@ -26,8 +43,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const draft = await createDraftFromUrl(validated.url.toString())
-    return NextResponse.json({ ok: true, draft })
+    // Run the main draft pipeline and the email extraction in parallel so we
+    // don't pay a serial-fetch tax on the user.
+    const safeUrl = validated.url.toString()
+    const [draft, discoveredEmail] = await Promise.all([
+      createDraftFromUrl(safeUrl),
+      fetchEmailFromSite(safeUrl),
+    ])
+    return NextResponse.json({ ok: true, draft, discoveredEmail })
   } catch (err: any) {
     return apiError(err, 'Failed to analyze your website. Please try again.')
   }
