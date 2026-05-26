@@ -385,28 +385,84 @@ function OrderForm({
   )
 }
 
-// ── Recommendation card ───────────────────────────────────────────────────────
+// ── Recommendation card (Phase 3 mobile-first reveal) ───────────────────────
+// Hierarchy: image → name → reason → primary CTA. Story / serve note / pairing
+// /upsell are progressively disclosed below the fold so the buy moment stays
+// above it. The cocktailContext block (distillery cocktails) keeps the
+// vendor's spirit visually + textually central instead of demoting it to an
+// ingredient line in a recipe.
+
+function ProductHero({ product, retailer, theme, font }: {
+  product: { name: string; image_url?: string | null } | undefined
+  retailer: Retailer
+  theme: ReturnType<typeof useTheme>
+  font: string
+}) {
+  const [errored, setErrored] = useState(false)
+  const hasImage = !!(product?.image_url) && !errored
+  return (
+    <div style={{
+      position: 'relative',
+      width: '100%',
+      // Cap to a square that fits comfortably above the fold on a 6"-class phone.
+      aspectRatio: '4 / 3',
+      maxHeight: 280,
+      background: hasImage
+        ? '#000'
+        : `radial-gradient(circle at 50% 40%, rgba(${theme.rgbStr},.18) 0%, rgba(${theme.rgbStr},.04) 60%, transparent 100%)`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      overflow: 'hidden',
+      borderBottom: `1px solid rgba(${theme.rgbStr},.1)`,
+    }}>
+      {hasImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={product!.image_url!}
+          alt={product!.name}
+          onError={() => setErrored(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
+        />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontSize: 52, opacity: .55, fontFamily: `'${font}', Georgia, serif` }}>
+            {VERTICAL_ICONS[retailer.vertical] || '✦'}
+          </div>
+          <div style={{ color: `rgba(${theme.rgbStr},.45)`, fontSize: 10, letterSpacing: '.3em', fontFamily: `'${font}', Georgia, serif`, textTransform: 'uppercase' }}>
+            {retailer.name}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function RecommendationCard({
   rec,
   retailer,
   sessionId,
+  ctas,
   onOrder,
+  onTryAnother,
   theme,
   font,
 }: {
   rec: BlendRecommendation
   retailer: Retailer
   sessionId: string
+  ctas: { primary: string; secondary: string }
   onOrder: () => void
+  onTryAnother: () => void
   theme: ReturnType<typeof useTheme>
   font: string
 }) {
   const [showForm, setShowForm] = useState(false)
   const [ordered, setOrdered] = useState(false)
   const [guestName, setGuestName] = useState('')
+  const [showDetails, setShowDetails] = useState(false)
   const noun = VERTICAL_NOUN[retailer.vertical] || 'Selection'
   const products = rec.selectedProducts || []
+  const heroProduct = products[0]
+  const cocktail = rec.cocktailContext || null
 
   function handleSuccess(name: string) {
     setGuestName(name); setShowForm(false); setOrdered(true); onOrder()
@@ -460,9 +516,41 @@ function RecommendationCard({
         boxShadow: `0 0 60px rgba(${theme.rgbStr},.07), 0 24px 48px rgba(0,0,0,.5)`,
         animation: 'recReveal .45s cubic-bezier(.22,1,.36,1) both',
       }}>
-        {/* Flavor profile — top of card as the hook */}
+        {/* Hero image */}
+        <ProductHero product={heroProduct} retailer={retailer} theme={theme} font={font} />
+
+        {/* Cocktail context (distillery flow) — surfaces the cocktail name while
+            keeping the vendor's spirit as the headline product below. */}
+        {cocktail && cocktail.cocktailName && (
+          <div style={{ padding: '14px 20px 0' }}>
+            <div style={{
+              background: `rgba(${theme.rgbStr},.08)`,
+              border: `1px solid rgba(${theme.rgbStr},.18)`,
+              borderRadius: 12, padding: '12px 14px',
+            }}>
+              <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 9, letterSpacing: '.25em', textTransform: 'uppercase', marginBottom: 4, fontFamily: `'${font}', Georgia, serif` }}>
+                The cocktail
+              </div>
+              <div style={{ color: '#F5ECD7', fontSize: 16, fontWeight: 700, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.25 }}>
+                {cocktail.cocktailName}
+              </div>
+              {cocktail.cocktailDescription && (
+                <div style={{ color: '#9a8f78', fontSize: 13, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.55, marginTop: 4 }}>
+                  {cocktail.cocktailDescription}
+                </div>
+              )}
+              {cocktail.builtAround && (
+                <div style={{ color: theme.primary, fontSize: 11, fontStyle: 'italic', marginTop: 6, fontFamily: `'${font}', Georgia, serif` }}>
+                  built around <strong>{cocktail.builtAround}</strong>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Flavor chips */}
         {(rec.flavorProfile || []).length > 0 && (
-          <div style={{ padding: '16px 20px 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <div style={{ padding: '14px 20px 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {(rec.flavorProfile || []).map(f => (
               <span key={f} style={{
                 background: `rgba(${theme.rgbStr},.1)`,
@@ -479,72 +567,145 @@ function RecommendationCard({
         )}
 
         {/* Name + tagline */}
-        <div style={{ padding: '14px 20px 0' }}>
+        <div style={{ padding: '12px 20px 0' }}>
           <div style={{ color: `rgba(${theme.rgbStr},.5)`, fontSize: 10, letterSpacing: '.28em', textTransform: 'uppercase', marginBottom: 6, fontFamily: `'${font}', Georgia, serif` }}>
-            {retailer.name} · Your {noun}
+            {retailer.name} · {cocktail ? `Featuring ${noun.toLowerCase()}` : `Your ${noun}`}
           </div>
-          <div style={{ color: '#F5ECD7', fontFamily: `'${font}', Georgia, serif`, fontSize: 30, fontWeight: 700, lineHeight: 1.1, marginBottom: 6, letterSpacing: '-.3px' }}>
+          <div style={{ color: '#F5ECD7', fontFamily: `'${font}', Georgia, serif`, fontSize: 26, fontWeight: 700, lineHeight: 1.12, marginBottom: 4, letterSpacing: '-.3px' }}>
             {rec.recommendationName || rec.blendName}
           </div>
-          <div style={{ color: theme.primary, fontFamily: `'${font}', Georgia, serif`, fontSize: 15, fontStyle: 'italic', opacity: .9 }}>
-            {rec.tagline}
-          </div>
+          {rec.tagline && (
+            <div style={{ color: theme.primary, fontFamily: `'${font}', Georgia, serif`, fontSize: 14, fontStyle: 'italic', opacity: .9 }}>
+              {rec.tagline}
+            </div>
+          )}
         </div>
 
-        {/* Divider */}
-        <div style={{ height: 1, background: `rgba(${theme.rgbStr},.08)`, margin: '18px 20px' }} />
-
-        {/* Products */}
+        {/* Products list (compact — heroed item gets a subtle highlight) */}
         {products.length > 0 && (
-          <div style={{ padding: '0 20px 0' }}>
+          <div style={{ padding: '14px 20px 0' }}>
             {products.map((p, i) => (
-              <div key={i} style={{ padding: '10px 0', borderBottom: i < products.length - 1 ? `1px solid rgba(${theme.rgbStr},.06)` : 'none' }}>
-                <div style={{ color: '#ece4cc', fontSize: 15, fontFamily: `'${font}', Georgia, serif`, fontWeight: 600 }}>{p.name}</div>
-                {p.why && <div style={{ color: '#6a5a3a', fontSize: 13, marginTop: 3, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.5 }}>{p.why}</div>}
+              <div key={i} style={{ padding: '10px 0', borderBottom: i < products.length - 1 ? `1px solid rgba(${theme.rgbStr},.06)` : 'none', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                {i === 0 && (
+                  <span style={{ marginTop: 5, width: 6, height: 6, borderRadius: '50%', background: theme.primary, flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ color: '#ece4cc', fontSize: 15, fontFamily: `'${font}', Georgia, serif`, fontWeight: 600 }}>{p.name}</div>
+                    {typeof p.price === 'number' && (
+                      <div style={{ color: theme.primary, fontSize: 13, fontFamily: `'${font}', Georgia, serif`, fontWeight: 600 }}>${p.price.toFixed(2)}</div>
+                    )}
+                  </div>
+                  {p.why && <div style={{ color: '#6a5a3a', fontSize: 13, marginTop: 3, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.5 }}>{p.why}</div>}
+                </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Story */}
-        {rec.story && (
-          <div style={{ padding: '16px 20px 0', color: '#9a8f78', fontSize: 14, lineHeight: 1.8, fontFamily: `'${font}', Georgia, serif` }}>
-            {rec.story}
-          </div>
-        )}
-
-        {/* Why it fits */}
+        {/* Why it fits — the punch line for the buy moment */}
         {rec.whyItFitsYou && (
-          <div style={{ margin: '16px 20px 0', background: `rgba(${theme.rgbStr},.05)`, border: `1px solid rgba(${theme.rgbStr},.12)`, borderRadius: 12, padding: '13px 15px' }}>
-            <div style={{ color: `rgba(${theme.rgbStr},.5)`, fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 5, fontFamily: `'${font}', Georgia, serif` }}>Why this fits you</div>
-            <div style={{ color: '#d4c8a8', fontSize: 14, lineHeight: 1.7, fontFamily: `'${font}', Georgia, serif` }}>{rec.whyItFitsYou}</div>
+          <div style={{ margin: '14px 20px 0', background: `rgba(${theme.rgbStr},.05)`, border: `1px solid rgba(${theme.rgbStr},.12)`, borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ color: `rgba(${theme.rgbStr},.5)`, fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 4, fontFamily: `'${font}', Georgia, serif` }}>Why this fits you</div>
+            <div style={{ color: '#d4c8a8', fontSize: 14, lineHeight: 1.6, fontFamily: `'${font}', Georgia, serif` }}>{rec.whyItFitsYou}</div>
           </div>
         )}
 
-        {/* Serve note */}
-        {rec.serveNote && (
-          <div style={{ padding: '12px 20px 0', color: '#5a4a2a', fontSize: 13, fontStyle: 'italic', fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.6 }}>
-            {rec.serveNote}
-          </div>
-        )}
-
-        {/* CTA */}
-        <div style={{ padding: '20px 20px 24px' }}>
+        {/* CTAs — primary + secondary side-by-side, mobile-comfortable hit areas */}
+        <div style={{ padding: '18px 20px 12px', display: 'flex', gap: 10 }}>
           <button
             onClick={() => setShowForm(true)}
             style={{
-              width: '100%', padding: '16px',
+              flex: 1, padding: '15px 12px',
               borderRadius: 14,
               background: theme.primary,
               border: 'none', cursor: 'pointer',
-              color: theme.onPrimary, fontSize: 14, fontWeight: 700,
-              letterSpacing: '.12em', fontFamily: `'${font}', Georgia, serif`,
+              color: theme.onPrimary, fontSize: 13, fontWeight: 700,
+              letterSpacing: '.1em', fontFamily: `'${font}', Georgia, serif`,
               boxShadow: `0 8px 28px rgba(${theme.rgbStr},.35)`,
+              textTransform: 'uppercase',
             }}
           >
-            ORDER THIS {noun.toUpperCase()} →
+            {ctas.primary} →
+          </button>
+          <button
+            onClick={onTryAnother}
+            style={{
+              padding: '15px 16px',
+              borderRadius: 14,
+              background: 'transparent',
+              border: `1px solid rgba(${theme.rgbStr},.28)`,
+              cursor: 'pointer',
+              color: theme.primary, fontSize: 12, fontWeight: 600,
+              letterSpacing: '.06em', fontFamily: `'${font}', Georgia, serif`,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {ctas.secondary}
           </button>
         </div>
+
+        {/* Pairing + upsell — small secondary touches, not the focus */}
+        {(rec.pairing || rec.upsellSuggestion) && (
+          <div style={{ padding: '0 20px 4px' }}>
+            {rec.pairing && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 0', color: '#6a5a3a', fontSize: 13, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.55 }}>
+                <span style={{ color: theme.primary, fontWeight: 700 }}>✦</span>
+                <span><span style={{ color: `rgba(${theme.rgbStr},.7)`, fontWeight: 600 }}>Pair it with:</span> {rec.pairing}</span>
+              </div>
+            )}
+            {rec.upsellSuggestion?.name && (
+              <div style={{
+                marginTop: 6,
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: `rgba(${theme.rgbStr},.04)`,
+                border: `1px dashed rgba(${theme.rgbStr},.18)`,
+              }}>
+                <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 3, fontFamily: `'${font}', Georgia, serif` }}>While you're here</div>
+                <div style={{ color: '#d4c8a8', fontSize: 13, fontFamily: `'${font}', Georgia, serif`, fontWeight: 600 }}>{rec.upsellSuggestion.name}</div>
+                {rec.upsellSuggestion.reason && (
+                  <div style={{ color: '#6a5a3a', fontSize: 12, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.5, marginTop: 2 }}>{rec.upsellSuggestion.reason}</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Expandable: story + serve note (kept below the fold so the buy moment stays primary) */}
+        {(rec.story || rec.serveNote) && (
+          <div style={{ padding: '4px 20px 18px' }}>
+            <button
+              onClick={() => setShowDetails(d => !d)}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: `rgba(${theme.rgbStr},.55)`,
+                fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase',
+                fontFamily: `'${font}', Georgia, serif`,
+                padding: '8px 0',
+                cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              {showDetails ? '− Hide the story' : '+ Read the story'}
+            </button>
+            {showDetails && (
+              <div style={{ marginTop: 6, animation: 'recReveal .25s ease both' }}>
+                {rec.story && (
+                  <div style={{ color: '#9a8f78', fontSize: 13.5, lineHeight: 1.75, fontFamily: `'${font}', Georgia, serif` }}>
+                    {rec.story}
+                  </div>
+                )}
+                {rec.serveNote && (
+                  <div style={{ marginTop: 10, color: '#5a4a2a', fontSize: 12.5, fontStyle: 'italic', fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.6 }}>
+                    {rec.serveNote}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </>
   )
@@ -566,6 +727,10 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
   // Quick-reply chips suggested by the AI for its current question — kept in sync
   // with what was actually asked, so the options always match the question.
   const [chips, setChips] = useState<string[]>([])
+  // Phase 3: vendor CTA copy + fallback line, populated by the chat endpoint on
+  // each `done` frame. We keep a default until the first response lands so the
+  // first render never has empty button labels.
+  const [ctas, setCtas] = useState<{ primary: string; secondary: string }>({ primary: 'Order this', secondary: 'Show me another' })
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -631,6 +796,9 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
             if (p.done) {
               if (p.recData) setRec(p.recData)
               if (Array.isArray(p.chips)) setChips(p.chips.filter((c: unknown) => typeof c === 'string').slice(0, 4))
+              if (p.ctas && typeof p.ctas.primary === 'string' && typeof p.ctas.secondary === 'string') {
+                setCtas({ primary: p.ctas.primary, secondary: p.ctas.secondary })
+              }
               setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: stripRec(p.text || full), streaming: false }; return u })
             }
           } catch {}
@@ -658,6 +826,18 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
   }
 
   const chipSelect = (chip: string) => send(chip)
+
+  // Phase 3 secondary CTA: clear the current rec and re-engage the assistant
+  // with a "show me a different match" turn. Conversation history is preserved
+  // so the next recommendation can build on what we already learned.
+  const tryAnother = () => {
+    if (streaming) return
+    setRec(null)
+    setChips([])
+    const next: Message[] = [...messages, { role: 'user', content: 'Show me a different option — what else fits, based on what I told you?' }]
+    setMessages(next)
+    void streamChat(next.map(m => ({ role: m.role, content: m.content })))
+  }
 
   if (loading) return <LoadingScreen />
   if (notFound || !retailer) return <NotFound />
@@ -753,7 +933,16 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
         })}
 
         {rec && (
-          <RecommendationCard rec={rec} retailer={retailer} sessionId={sessionId!} onOrder={() => setOrdered(true)} theme={theme} font={font} />
+          <RecommendationCard
+            rec={rec}
+            retailer={retailer}
+            sessionId={sessionId!}
+            ctas={ctas}
+            onOrder={() => setOrdered(true)}
+            onTryAnother={tryAnother}
+            theme={theme}
+            font={font}
+          />
         )}
 
         <div ref={bottomRef} style={{ height: 12 }} />

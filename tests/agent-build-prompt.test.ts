@@ -101,4 +101,22 @@ describe('buildAssistantPrompt', () => {
     expect(out).toContain('"Pour me one"')
     expect(out).toContain('"Try a different match"')
   })
+
+  // Phase 3: optional reveal fields must be invited in the schema for every
+  // vertical (the *model* decides whether to populate them per turn).
+  it('exposes optional cocktailContext / pairing / upsellSuggestion fields in the schema', () => {
+    const out = buildFor('distillery')
+    expect(out).toContain('"cocktailContext"')
+    expect(out).toContain('"pairing"')
+    expect(out).toContain('"upsellSuggestion"')
+    // Guardrail: explicit "set null when you have nothing real to say"
+    expect(out).toMatch(/null when you have nothing real to say/)
+  })
+
+  it('cocktailContext guidance is present for non-distillery verticals too (model decides)', () => {
+    // We intentionally let breweries/wineries skip cocktailContext via null
+    // rather than gate the field per-vertical — keeps the schema invariant.
+    const breweryOut = buildFor('brewery')
+    expect(breweryOut).toContain('"cocktailContext"')
+  })
 })

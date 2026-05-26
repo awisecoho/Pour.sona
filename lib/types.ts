@@ -103,6 +103,8 @@ export interface Product {
   appellation?: string
   varietal?: string
   cellar_note?: string
+  // Phase 3: per-product image rendered on the guest-facing recommendation card.
+  image_url?: string | null
 }
 
 export interface Flight {
@@ -156,7 +158,34 @@ export interface BlendRecommendation {
   origin?: string[]
   format?: 'single' | 'flight'
   price?: number | null
-  selectedProducts?: Array<{ name: string; why: string; price?: number | null }>
+  // Each item may be enriched server-side with image_url from the catalog row.
+  // The AI never produces image_url; lib/recommendation-enrich.ts fills it in.
+  selectedProducts?: Array<{ name: string; why: string; price?: number | null; image_url?: string | null }>
   selectedWines?: Array<{ name: string; why: string }>
   serveNote?: string
+  // Phase 3 additions — all optional, all model-generated where present.
+  // For distillery flows when the rec is a cocktail built on a vendor's spirit.
+  // The vendor's SKU is still selectedProducts[0]; cocktailContext narrates the drink.
+  cocktailContext?: {
+    cocktailName: string
+    cocktailDescription: string
+    builtAround?: string          // vendor product name the cocktail features
+  } | null
+  // Short food / activity pairing line.
+  pairing?: string | null
+  // One add-on / take-home / next-pour nudge the venue would actually offer.
+  upsellSuggestion?: { name: string; reason: string } | null
+}
+
+// ── Stream payload to the guest UI ───────────────────────────────────────────
+// What the /api/chat SSE endpoint emits in its `done` frame. Centralised here
+// so both server and client stay in sync as the shape grows.
+export interface ChatRecommendationPayload {
+  text: string
+  recData: BlendRecommendation | null
+  chips: string[]
+  // From the retailer's resolved AssistantProfile so the UI can render the
+  // vendor's chosen CTA copy without a second round-trip.
+  ctas?: { primary: string; secondary: string }
+  fallbackLine?: string
 }

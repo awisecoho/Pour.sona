@@ -17,22 +17,28 @@ import {
   selectRelevantProducts,
   validateRecAgainstCatalog,
 } from '@/lib/chat-guardrails'
-import { getQuestionBounds } from '@/lib/agent/profile'
+import { getQuestionBounds, resolveAssistantProfile } from '@/lib/agent/profile'
+import { enrichRecommendationWithCatalog } from '@/lib/recommendation-enrich'
 export const dynamic = 'force-dynamic'
 
 const SSE_HEADERS = { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' }
 
 /** Streamed response served when a venue has exhausted its monthly AI budget. */
-function degradedResponse(products: any[]): Response {
-  const rec = buildFallbackRecommendation(products)
+function degradedResponse(products: any[], retailer?: any): Response {
+  let rec = buildFallbackRecommendation(products)
+  // Phase 3: still enrich the fallback so the catalog image shows up.
+  rec = enrichRecommendationWithCatalog(rec, products)
   const msg = rec
     ? "Our AI guide is taking a quick breather — but here's a guest favorite to get you started. Ask our staff and they'll help you explore more."
     : 'Our AI guide is resting for the moment — please ask our staff and they\'ll point you to a great pick.'
+  const profile = retailer ? resolveAssistantProfile(retailer) : null
+  const ctas = profile ? { primary: profile.cta_primary, secondary: profile.cta_secondary } : undefined
+  const fallbackLine = profile?.fallback_line
   const encoder = new TextEncoder()
   const readable = new ReadableStream({
     start(controller) {
       controller.enqueue(encoder.encode('data: ' + JSON.stringify({ delta: msg }) + '\n\n'))
-      controller.enqueue(encoder.encode('data: ' + JSON.stringify({ done: true, text: msg, recData: rec, chips: [] }) + '\n\n'))
+      controller.enqueue(encoder.encode('data: ' + JSON.stringify({ done: true, text: msg, recData: rec, chips: [], ctas, fallbackLine }) + '\n\n'))
       controller.close()
     },
   })
@@ -177,7 +183,7 @@ export async function POST(req: NextRequest) {
             .then(r => { if (!r.ok) console.error('[chat] sendAiCapNotice failed:', r.error) })
         }
       }
-      return degradedResponse(inStockProducts)
+      return degradedResponse(inStockProducts, retailer)
     }
     // Approaching the cap (>=80%): nudge the owner once per month (best-effort).
     if (monthCost >= 0.8 * AI_MONTHLY_BUDGET_USD && retailer.owner_email) {
@@ -251,6 +257,9 @@ export async function POST(req: NextRequest) {
           }
           // Hard-constrain the recommendation to real in-stock SKUs (drop hallucinations).
           recData = validateRecAgainstCatalog(recData, inStockProducts)
+          // Phase 3: enrich each surviving product with image_url / catalog price.
+          // The AI never produces URLs; this is where they get joined in.
+          recData = enrichRecommendationWithCatalog(recData, inStockProducts)
           // Quick-reply chips suggested by the AI for the question it just asked,
           // so the tappable options always match the question.
           let chips: string[] = []
@@ -261,7 +270,18 @@ export async function POST(req: NextRequest) {
               if (Array.isArray(parsed)) chips = parsed.filter((c: unknown) => typeof c === 'string').slice(0, 4)
             } catch {}
           }
-          controller.enqueue(encoder.encode('data: ' + JSON.stringify({ done: true, text: fullText, recData, chips }) + '\n\n'))
+          // Phase 3: include vendor CTA copy + fallback line in the done frame so
+          // the UI can render branded button text without a second fetch.
+          const resolvedProfile = resolveAssistantProfile(retailer)
+          const donePayload = {
+            done: true,
+            text: fullText,
+            recData,
+            chips,
+            ctas: { primary: resolvedProfile.cta_primary, secondary: resolvedProfile.cta_secondary },
+            fallbackLine: resolvedProfile.fallback_line,
+          }
+          controller.enqueue(encoder.encode('data: ' + JSON.stringify(donePayload) + '\n\n'))
           // Funnel: recommendation_shown when a valid rec was produced. Best-effort.
           if (recData) {
             dbQuery(

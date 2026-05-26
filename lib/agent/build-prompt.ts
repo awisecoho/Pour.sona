@@ -241,7 +241,10 @@ function renderRecFormat(profile: AssistantProfile): string {
   "flavorProfile": ["flavor1", "flavor2", "flavor3"],
   "story": "2-3 sentences — what makes this special, from the place's perspective (string)",
   "whyItFitsYou": "Specific to what they told you (string)",
-  "serveNote": "How to enjoy it — temp, glassware, pairing, ritual (string)"
+  "serveNote": "How to enjoy it — temp, glassware, pairing, ritual (string)",
+  "cocktailContext": null,
+  "pairing": null,
+  "upsellSuggestion": null
 }
 ===END===
 
@@ -250,9 +253,20 @@ TYPE RULES — follow exactly or the app breaks:
 - "selectedProducts" must be an array with at least one item
 - "flavorProfile" must be an array of 2-4 short strings
 - "format" must be exactly "single" or "flight"
-- All other fields must be strings, never null
+- "story", "whyItFitsYou", "tagline", "recommendationName", "serveNote" must be strings, never null
+- "cocktailContext", "pairing", "upsellSuggestion" are OPTIONAL — set null when you have nothing real to say. Never invent.
 
 For a flight recommendation: set format = "flight", flightDetails = { "flightName": "string", "price": 18.00, "pourSize": "4oz", "count": 3 }, selectedProducts = the individual pours in the flight.
+
+OPTIONAL ENRICHMENT FIELDS — populate ONLY when genuinely useful:
+
+cocktailContext — use ONLY when recommending a cocktail built around a vendor spirit (distilleries especially). The vendor's SKU stays in selectedProducts; this narrates how the cocktail uses it. Shape:
+  "cocktailContext": { "cocktailName": "Old Fashioned", "cocktailDescription": "2oz of our bourbon, sugar, bitters, orange peel, big ice", "builtAround": "Exact vendor product name" }
+For neat pours / non-cocktail recs: cocktailContext = null.
+
+pairing — short food/occasion line if it genuinely improves the experience ("Stunning with sharp cheddar."). Otherwise null.
+
+upsellSuggestion — ONE add-on or take-home nudge a real bartender would actually offer ("Grab a 4-pack to-go — same beer, same price as 4 pints"). Must reference real catalog items if implying products. Otherwise null.
 
 CALL-TO-ACTION COPY (for the UI buttons that appear after the recommendation):
 - Primary CTA: "${cta}"

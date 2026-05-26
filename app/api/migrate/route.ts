@@ -50,6 +50,9 @@ DO $$ BEGIN
   -- lib/agent/profile.ts derives sensible defaults from category + existing fields
   -- so no vendor breaks when the column is first added.
   BEGIN ALTER TABLE retailers ADD COLUMN assistant_profile jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- Phase 3 Recommendation Reveal: product imagery on the guest-facing card.
+  -- NULL is valid; the reveal UI falls back to a category icon when absent.
+  BEGIN ALTER TABLE products ADD COLUMN image_url text; EXCEPTION WHEN duplicate_column THEN NULL; END;
 END $$;
 
 -- Performance + tenant-isolation indexes (idempotent; ensures they exist on Neon)
