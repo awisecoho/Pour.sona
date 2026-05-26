@@ -119,6 +119,50 @@ async function screenAndMessage(biz: Business, vertical: Vertical): Promise<Scre
   return data.result ?? null
 }
 
+// ── Lead CRM integration ─────────────────────────────────────────────────────
+// Save a screened prospect to prospect_leads. Idempotent server-side by url
+// so users can hit "Save Lead" without checking duplicates first.
+async function saveLead(p: ScreenedBusiness, vertical: Vertical, location: string, emailOverride: string | null): Promise<{ id: string; wasInserted: boolean } | null> {
+  const res = await fetch('/api/poursona-admin/leads', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: p.name,
+      url: p.url,
+      vertical: vertical.id,
+      location,
+      score: p.signals?.score,
+      reason: p.signals?.reason,
+      has_menu: p.signals?.has_menu,
+      has_ordering: p.signals?.has_ordering,
+      has_tasting_room: p.signals?.has_tasting_room,
+      email: emailOverride ?? p.contacts?.email ?? null,
+      contact_url: p.contact_url,
+      instagram: p.contacts?.instagram,
+      facebook: p.contacts?.facebook,
+      linkedin: p.contacts?.linkedin,
+      twitter: p.contacts?.twitter,
+      subject: p.subject,
+      message: p.message,
+    }),
+  })
+  const data = await res.json()
+  if (!res.ok || !data.ok) return null
+  return { id: data.lead.id, wasInserted: data.was_inserted }
+}
+
+// Log an activity on a saved lead. Best-effort; we don't surface failures to
+// the user because the user-facing action (e.g. opening Gmail) succeeded.
+async function logLeadActivity(leadId: string, type: string, body?: string, payload?: object) {
+  try {
+    await fetch(`/api/poursona-admin/leads/${leadId}/activities`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, body, payload }),
+    })
+  } catch { /* swallow */ }
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 function ScoreBadge({ score }: { score: string }) {
   const map: Record<string, [string, string]> = {
@@ -222,6 +266,12 @@ export default function ProspectPipeline() {
   const [prospects, setProspects] = useState<ScreenedBusiness[]>([])
   const [expanded,  setExpanded]  = useState<Record<string, boolean>>({})
   const [copied,    setCopied]    = useState<Record<string, boolean>>({})
+  // Lead CRM state: tracks which prospects have been saved (server lead id),
+  // plus per-prospect inline-email entries when the scraper didn't find one.
+  const [savedLeads, setSavedLeads] = useState<Record<string, string>>({})           // prospect.id → lead.id
+  const [savingLead, setSavingLead] = useState<Record<string, boolean>>({})
+  const [emailDraft, setEmailDraft] = useState<Record<string, string>>({})            // prospect.id → typed email
+  const [showEmailInput, setShowEmailInput] = useState<Record<string, boolean>>({})   // prospect.id → toggle
   const logRef = useRef<HTMLDivElement>(null)
 
   const addLog = (msg: string, type: LogEntry['type'] = 'info') => {
@@ -233,6 +283,45 @@ export default function ProspectPipeline() {
     navigator.clipboard.writeText(text)
     setCopied(c => ({ ...c, [id]: true }))
     setTimeout(() => setCopied(c => ({ ...c, [id]: false })), 2000)
+  }
+
+  // Save a prospect to the leads table. Uses the typed email if the user
+  // entered one inline. After save, the card flips to a "Saved ✓" state and
+  // the email channel becomes a real link.
+  const handleSaveLead = async (p: ScreenedBusiness) => {
+    if (!vertical) return
+    setSavingLead(s => ({ ...s, [p.id]: true }))
+    try {
+      const inlineEmail = emailDraft[p.id]?.trim() || null
+      const result = await saveLead(p, vertical, location, inlineEmail)
+      if (!result) {
+        addLog(`${p.name} → save failed`, 'error')
+        return
+      }
+      setSavedLeads(s => ({ ...s, [p.id]: result.id }))
+      // If the user added an email inline, reflect it on the local prospect so
+      // the Email button picks it up.
+      if (inlineEmail) {
+        setProspects(prev => prev.map(x => x.id === p.id ? { ...x, contacts: { ...(x.contacts || { email: null, instagram: null, facebook: null, linkedin: null, twitter: null, contactPage: null }), email: inlineEmail } } : x))
+        setShowEmailInput(s => ({ ...s, [p.id]: false }))
+      }
+      addLog(`${p.name} → ${result.wasInserted ? 'saved as lead' : 'already in leads'}`, 'success')
+    } finally {
+      setSavingLead(s => ({ ...s, [p.id]: false }))
+    }
+  }
+
+  // Wire the Gmail compose click to log an 'email_sent' activity on the lead.
+  // Only fires when the prospect has been saved first (we don't want to log
+  // activity for unsaved prospects since there's nothing to attach it to).
+  const handleEmailClick = (p: ScreenedBusiness) => {
+    const leadId = savedLeads[p.id]
+    if (leadId) {
+      void logLeadActivity(leadId, 'email_sent', `Opened Gmail compose to ${p.contacts?.email ?? '(no email)'}`, {
+        recipient: p.contacts?.email,
+        subject: p.subject,
+      })
+    }
   }
 
   const runPipeline = async () => {
@@ -395,17 +484,69 @@ export default function ProspectPipeline() {
                     <div style={{ background: BRAND.surface, border: `1px solid ${BRAND.border}`, borderRadius: '2px', padding: '14px', fontSize: '14px', lineHeight: 1.8, color: BRAND.text, whiteSpace: 'pre-wrap', marginBottom: '14px' }}>
                       {p.message}
                     </div>
-                    <button
-                      onClick={() => handleCopy(p.id, p.message)}
-                      style={{ background: copied[p.id] ? BRAND.hop : BRAND.accent, color: BRAND.bg, border: 'none', borderRadius: '2px', padding: '13px', fontSize: '12px', fontFamily: 'monospace', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', width: '100%', marginBottom: '12px' }}
-                    >
-                      {copied[p.id] ? 'Copied ✓' : 'Copy Message'}
-                    </button>
+                    {/* Action row: Copy Message + Save Lead (CRM) */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+                      <button
+                        onClick={() => handleCopy(p.id, p.message)}
+                        style={{ flex: 1, background: copied[p.id] ? BRAND.hop : BRAND.accent, color: BRAND.bg, border: 'none', borderRadius: '2px', padding: '13px', fontSize: '12px', fontFamily: 'monospace', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}
+                      >
+                        {copied[p.id] ? 'Copied ✓' : 'Copy Message'}
+                      </button>
+                      <button
+                        onClick={() => handleSaveLead(p)}
+                        disabled={savingLead[p.id]}
+                        style={{
+                          background: savedLeads[p.id] ? BRAND.hop : 'transparent',
+                          color: savedLeads[p.id] ? BRAND.bg : BRAND.accent,
+                          border: savedLeads[p.id] ? 'none' : `1px solid ${BRAND.accent}`,
+                          borderRadius: '2px', padding: '13px 18px', fontSize: '12px',
+                          fontFamily: 'monospace', letterSpacing: '0.1em', textTransform: 'uppercase',
+                          cursor: savingLead[p.id] ? 'wait' : 'pointer', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {savingLead[p.id] ? 'Saving…' : savedLeads[p.id] ? 'Saved ✓' : '＋ Save Lead'}
+                      </button>
+                    </div>
 
                     {/* Reach-out channels harvested from the site */}
-                    <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: BRAND.accentDim, textTransform: 'uppercase', marginBottom: '8px' }}>
-                      Reach out
+                    <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: BRAND.accentDim, textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Reach out</span>
+                      {!p.contacts?.email && !showEmailInput[p.id] && (
+                        <button
+                          onClick={() => setShowEmailInput(s => ({ ...s, [p.id]: true }))}
+                          style={{ background: 'transparent', border: `1px solid ${BRAND.border}`, color: BRAND.muted, borderRadius: '2px', padding: '4px 9px', fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'none' }}
+                        >
+                          ＋ Add Email
+                        </button>
+                      )}
                     </div>
+
+                    {/* Inline email-add when the scraper didn't find one */}
+                    {!p.contacts?.email && showEmailInput[p.id] && (
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                        <input
+                          type="email"
+                          value={emailDraft[p.id] || ''}
+                          onChange={e => setEmailDraft(d => ({ ...d, [p.id]: e.target.value }))}
+                          placeholder="contact@business.com"
+                          autoFocus
+                          style={{ flex: 1, background: BRAND.surface, border: `1px solid ${BRAND.border}`, borderRadius: '2px', padding: '8px 10px', color: BRAND.text, fontSize: '12px', fontFamily: 'monospace', outline: 'none' }}
+                        />
+                        <button
+                          onClick={() => handleSaveLead(p)}
+                          disabled={!emailDraft[p.id]?.includes('@') || savingLead[p.id]}
+                          style={{ background: BRAND.accent, color: BRAND.bg, border: 'none', borderRadius: '2px', padding: '8px 12px', fontSize: '11px', fontFamily: 'monospace', letterSpacing: '0.05em', cursor: 'pointer' }}
+                        >
+                          {savingLead[p.id] ? '…' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => { setShowEmailInput(s => ({ ...s, [p.id]: false })); setEmailDraft(d => ({ ...d, [p.id]: '' })) }}
+                          style={{ background: 'transparent', border: `1px solid ${BRAND.border}`, color: BRAND.muted, borderRadius: '2px', padding: '8px 10px', fontSize: '11px', cursor: 'pointer' }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
                     {(() => {
                       const c = p.contacts
                       const channels: { label: string; href: string }[] = []
@@ -425,6 +566,7 @@ export default function ProspectPipeline() {
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                           {channels.map(ch => (
                             <a key={ch.label} href={ch.href} target="_blank" rel="noopener noreferrer"
+                              onClick={ch.label.startsWith('✉') ? () => handleEmailClick(p) : undefined}
                               style={{ background: 'transparent', border: `1px solid ${BRAND.accent}`, color: BRAND.accent, borderRadius: '2px', padding: '9px 12px', fontSize: '11px', fontFamily: 'monospace', letterSpacing: '0.05em', textDecoration: 'none' }}>
                               {ch.label}
                             </a>

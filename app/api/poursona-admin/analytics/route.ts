@@ -30,9 +30,6 @@ export async function GET(req: NextRequest) {
   try {
     const identity = await getAuthenticatedIdentity()
     if (!identity) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-    // Loud logging on the auth path so /poursona-admin layout redirect-loops
-    // surface as real errors in Vercel logs. Remove once diagnosed.
-    console.log('[api/poursona-admin/analytics] identity ok:', { userId: identity.userId, email: identity.email })
 
     const teamCheck = await dbQuery(
       'SELECT role FROM poursona_team WHERE lower(email) = lower($1) LIMIT 1',

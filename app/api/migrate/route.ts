@@ -108,6 +108,57 @@ CREATE TABLE IF NOT EXISTS social_posts (
   posted_by text,
   created_at timestamptz DEFAULT now()
 );
+
+-- Prospect leads CRM-lite. Saved from the pipeline screening step so the team
+-- can track follow-ups, status transitions, and per-lead activity over time.
+-- "status" lifecycle: new -> contacted -> replied -> demo_scheduled -> qualified
+--                     -> closed_won | closed_lost. Free-text not enforced --
+-- the UI offers a canonical set but a vendor could land in any state.
+CREATE TABLE IF NOT EXISTS prospect_leads (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  url text NOT NULL,
+  vertical text,
+  location text,
+  score text,
+  reason text,
+  has_menu boolean DEFAULT false,
+  has_ordering boolean DEFAULT false,
+  has_tasting_room boolean DEFAULT false,
+  email text,
+  contact_url text,
+  instagram text,
+  facebook text,
+  linkedin text,
+  twitter text,
+  subject text,
+  message text,
+  status text NOT NULL DEFAULT 'new',
+  notes text,
+  saved_by_email text,
+  saved_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_prospect_leads_status     ON prospect_leads(status);
+CREATE INDEX IF NOT EXISTS idx_prospect_leads_saved_at   ON prospect_leads(saved_at DESC);
+CREATE INDEX IF NOT EXISTS idx_prospect_leads_email      ON prospect_leads(lower(email));
+-- Soft de-dupe: same url + same business name within a saved set. UNIQUE(url)
+-- alone is too strict (city + url combos exist), but url is a decent natural key.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_prospect_leads_url ON prospect_leads(lower(url));
+
+-- Activity timeline per lead. Captures both user-logged events (notes, status
+-- changes) and system-logged events (email_sent fired by the Gmail compose
+-- click, status changes from the lead detail UI).
+CREATE TABLE IF NOT EXISTS prospect_activities (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id uuid NOT NULL REFERENCES prospect_leads(id) ON DELETE CASCADE,
+  type text NOT NULL,
+  body text,
+  payload jsonb,
+  created_by_email text,
+  created_at timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_prospect_activities_lead_id ON prospect_activities(lead_id, created_at DESC);
 `
 
 // Step 2: seed core data

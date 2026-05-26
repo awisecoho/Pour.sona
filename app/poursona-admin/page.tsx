@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import ProspectPipeline from './_components/ProspectPipeline'
 import SocialAccounts from './_components/SocialAccounts'
+import LeadsManager from './_components/LeadsManager'
 
 const ICONS: Record<string, string> = { brewery: '🍺', winery: '🍷', distillery: '🥃', coffee: '☕' }
 
@@ -16,7 +17,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string |
   )
 }
 
-type Tab = 'dashboard' | 'vendors' | 'accounting' | 'promos' | 'customers' | 'pipeline' | 'social'
+type Tab = 'dashboard' | 'vendors' | 'accounting' | 'promos' | 'customers' | 'pipeline' | 'leads' | 'social'
 
 interface Pagination { page: number; limit: number; total: number; totalPages: number }
 interface ExpiredRetailer { id: string; name: string; trial_ends_at: string | null }
@@ -224,6 +225,7 @@ export default function AppCommandCenter() {
         <button style={tabBtn('promos')} onClick={() => setTab('promos')}>Promos</button>
         <button style={tabBtn('customers')} onClick={() => setTab('customers')}>Customers</button>
         <button style={tabBtn('pipeline')} onClick={() => setTab('pipeline')}>🔍 Pipeline</button>
+        <button style={tabBtn('leads')} onClick={() => setTab('leads')}>📇 Leads</button>
         <button style={tabBtn('social')} onClick={() => setTab('social')}>📣 Social</button>
       </div>
 
@@ -465,9 +467,19 @@ export default function AppCommandCenter() {
         <div>
           <div style={{ marginBottom: 20 }}>
             <div style={{ color: '#F5ECD7', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Prospect Pipeline</div>
-            <div style={{ color: '#9a8a64', fontSize: 13 }}>Find independent venues, qualify them with AI web search, and generate a personalised outreach message in one click.</div>
+            <div style={{ color: '#9a8a64', fontSize: 13 }}>Find independent venues, qualify them with AI web search, and generate a personalised outreach message in one click. Save the ones worth following up in the <strong style={{ color: '#C9A84C' }}>Leads</strong> tab.</div>
           </div>
           <ProspectPipeline />
+        </div>
+      )}
+
+      {tab === 'leads' && (
+        <div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ color: '#F5ECD7', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Leads</div>
+            <div style={{ color: '#9a8a64', fontSize: 13 }}>Saved prospects with status, contact channels, and activity history. The Gmail Email button on the Pipeline auto-logs an &ldquo;email sent&rdquo; activity on the matching lead.</div>
+          </div>
+          <LeadsManager />
         </div>
       )}
 
