@@ -9,7 +9,13 @@
 // ── Tunables ──────────────────────────────────────────────────────────────────
 export const MAX_CATALOG_ITEMS = 24      // SKUs injected into the prompt (relevance-filtered)
 export const MAX_HISTORY_MESSAGES = 14   // recent turns sent to the model
-export const MAX_USER_TURNS = 5          // after this many guest messages, force a recommendation
+/**
+ * Absolute backstop on guest turns. Per-vendor caps (driven by AssistantProfile +
+ * category template) are usually tighter; see getMaxUserTurns(retailer). This
+ * constant survives only so the chat route can short-circuit before even loading
+ * a retailer when something is malformed.
+ */
+export const MAX_USER_TURNS = 6
 
 // Per-venue monthly AI budget. Haiku pricing ≈ $1/M input, $5/M output.
 export const AI_MONTHLY_BUDGET_USD  = Number(process.env.AI_MONTHLY_BUDGET_USD  || 15)

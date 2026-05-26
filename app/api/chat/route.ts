@@ -10,7 +10,6 @@ import { apiError } from '@/lib/api'
 import {
   MAX_CATALOG_ITEMS,
   MAX_HISTORY_MESSAGES,
-  MAX_USER_TURNS,
   AI_MONTHLY_BUDGET_USD,
   monthlyCostUsd,
   effectiveMonthlyUsage,
@@ -18,6 +17,7 @@ import {
   selectRelevantProducts,
   validateRecAgainstCatalog,
 } from '@/lib/chat-guardrails'
+import { getQuestionBounds } from '@/lib/agent/profile'
 export const dynamic = 'force-dynamic'
 
 const SSE_HEADERS = { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' }
@@ -196,11 +196,13 @@ export async function POST(req: NextRequest) {
 
     let systemPrompt = buildSystemPrompt(retailer, promptProducts, flightsResult.rows)
 
-    // Turn cap: after enough back-and-forth, force the recommendation so a chat
-    // can't run unbounded (cost) or frustrate the guest.
-    const userTurns = apiMessages.filter((m: any) => m.role === 'user').length
-    if (userTurns >= MAX_USER_TURNS) {
-      systemPrompt += `\n\nIMPORTANT: The guest has answered enough. Do NOT ask another question. Give your final recommendation now in this message using the ===REC=== format.`
+    // Turn cap is per-vendor (driven by AssistantProfile / category template).
+    // After max questions, force the recommendation so chat can't run unbounded
+    // on cost or frustrate the guest. "START" doesn't count — it's the kick-off.
+    const { max: maxUserTurns } = getQuestionBounds(retailer)
+    const userTurns = apiMessages.filter((m: any) => m.role === 'user' && m.content !== 'START').length
+    if (userTurns >= maxUserTurns) {
+      systemPrompt += `\n\nIMPORTANT: The guest has answered enough (${userTurns} of ${maxUserTurns} questions used). Do NOT ask another question. Give your final recommendation now in this message using the ===REC=== format.`
     }
 
     // Trim history sent to the model to the most recent turns (bounds input tokens).

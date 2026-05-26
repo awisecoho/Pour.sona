@@ -2,6 +2,46 @@ export type Vertical = 'coffee' | 'brewery' | 'winery' | 'distillery'
 
 export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'cancelled' | 'expired'
 
+// ── Assistant Profile (Phase 1) ───────────────────────────────────────────────
+// Per-vendor configuration that drives the guest-facing chat: brand voice,
+// question strategy, recommendation rules, CTA copy. Stored as JSONB in
+// retailers.assistant_profile. NULL is valid — see lib/agent/profile.ts which
+// derives a working profile from the retailer's vertical + existing fields.
+
+export type BrandTone = 'warm' | 'expert' | 'playful' | 'minimalist' | 'reverent'
+export type ExperienceStyle = 'bartender' | 'sommelier' | 'barista' | 'spirits-guide' | 'host'
+
+export interface RecommendationRule {
+  when_user_says: string                  // free-text trigger phrase, e.g. "light and sessionable"
+  prioritize_categories?: string[]        // catalog category names
+  avoid_categories?: string[]
+}
+
+export interface AssistantProfile {
+  // — Brand Identity —
+  agent_name: string
+  brand_tone: BrandTone
+  brand_personality: string               // 1-2 sentences
+  experience_style: ExperienceStyle
+  preferred_vocab: string[]
+  avoid_words: string[]
+
+  // — Product Strategy —
+  key_differentiators: string[]
+  best_sellers: string[]                  // exact product names
+  recommendation_rules: RecommendationRule[]
+
+  // — Question Strategy — (undefined = use category default)
+  min_questions?: number
+  max_questions?: number
+  question_themes: string[]               // ordered subset of category theme IDs
+
+  // — CTA / Fallback —
+  cta_primary: string
+  cta_secondary: string
+  fallback_line: string
+}
+
 export interface Retailer {
   id: string
   name: string
@@ -34,6 +74,8 @@ export interface Retailer {
   featured_items_json?: Array<{ name: string; reason: string }> | null
   scan_confidence?: number
   personality_preview?: string | null
+  // Phase 1 Assistant Profile. NULL = derive defaults from category at runtime.
+  assistant_profile?: AssistantProfile | null
 }
 
 export interface Product {

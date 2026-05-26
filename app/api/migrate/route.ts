@@ -46,6 +46,10 @@ DO $$ BEGIN
   BEGIN ALTER TABLE retailers ADD COLUMN ai_month_reset_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN ai_cap_notified_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN ai_warn_notified_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- Phase 1 Assistant Profile: per-vendor brand/question/CTA config. NULL is valid;
+  -- lib/agent/profile.ts derives sensible defaults from category + existing fields
+  -- so no vendor breaks when the column is first added.
+  BEGIN ALTER TABLE retailers ADD COLUMN assistant_profile jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
 END $$;
 
 -- Performance + tenant-isolation indexes (idempotent; ensures they exist on Neon)
