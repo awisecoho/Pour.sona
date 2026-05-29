@@ -562,14 +562,16 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
         chat_system_prompt, brand_secondary_color, brand_accent_color,
         brand_font_family, brand_font_url,
         take_home_json, has_take_home, featured_items_json,
-        scan_confidence, personality_preview, vendor_builder_ran_at
+        scan_confidence, personality_preview, vendor_builder_ran_at,
+        subscription_status, trial_ends_at
       ) values (
         $1, $2, $3, $4, $5, $6, $7, $8,
         $9, $10, $11, $12, $13,
         $14, $15, $16,
         $17, $18,
         $19, $20, $21,
-        $22, $23, now()
+        $22, $23, now(),
+        'trial', now() + interval '14 days'
       )
       returning *`,
       [

@@ -40,6 +40,8 @@ DO $$ BEGIN
   BEGIN ALTER TABLE admin_users ADD COLUMN clerk_user_id text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   -- drop the old user_id FK if it exists (from Supabase auth.users)
   BEGIN ALTER TABLE admin_users DROP COLUMN user_id; EXCEPTION WHEN undefined_column THEN NULL; END;
+  -- ensure subscription_status has a safe default so new retailer INSERTs never fail on NOT NULL
+  BEGIN ALTER TABLE retailers ALTER COLUMN subscription_status SET DEFAULT 'trial'; EXCEPTION WHEN undefined_column THEN NULL; END;
   -- per-venue monthly AI usage metering (enforces the AI cost ceiling)
   BEGIN ALTER TABLE retailers ADD COLUMN ai_input_tokens_month bigint DEFAULT 0; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN ai_output_tokens_month bigint DEFAULT 0; EXCEPTION WHEN duplicate_column THEN NULL; END;

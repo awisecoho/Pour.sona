@@ -115,19 +115,19 @@ Step 2 — If hot or warm, write a contact-form message from the founder of Pour
   THEN end with the SIGN-OFF block exactly as shown — two short lines, on their own, after a blank line. Always include these TWO links verbatim so the recipient has a one-click path to try Poursona and to learn more:
 
   ---
-  Try it free: https://pour-sona.com/signup
-  pour-sona.com
+  Try Now → https://pour-sona.com/signup
+  https://pour-sona.com
   ---
 
-  Output the sign-off block exactly like that — the "Try it free" line first, the bare website second, NO other CTA copy, NO "Best, Andy" / "Cheers" / signature name (the user adds their own name when they paste). The two links are mandatory.
+  Output the sign-off block exactly like that — the "Try Now" line first, the full website URL second, NO other CTA copy, NO "Best, Andy" / "Cheers" / signature name (the user adds their own name when they paste). The two links are mandatory.
 
   If skip, use an empty string for message.
 
   STRUCTURE TEMPLATE (rewrite the body naturally, don't copy verbatim; sign-off stays as shown):
   "I noticed [specific observation about their site/offering]. That [hands-on / craft / curated quality] is exactly what Poursona does digitally. Your customers scan a personalized QR code, have a natural conversation about their taste with your personal digitalized ${persona}, and get a recommendation that fits THEM before ordering. It takes about 10 minutes to set up and runs on your personalized offerings. Would you be open to a quick demo to see how it could work alongside your ${inPerson}? I'd be happy to spin up a personal experience for you to try.
 
-  Try it free: https://pour-sona.com/signup
-  pour-sona.com"
+  Try Now → https://pour-sona.com/signup
+  https://pour-sona.com"
 
 Step 3 — If hot or warm, write an email SUBJECT LINE designed to actually get opened:
   • 4-8 words, sentence case (no ALL CAPS, no Title Case)
@@ -321,7 +321,13 @@ export async function POST(req: NextRequest) {
         has_ordering: !!parsed.has_ordering,
         has_tasting_room: !!parsed.has_tasting_room,
       }
-      const message = (parsed.message ?? '').trim()
+      const SIGNUP_URL = 'https://pour-sona.com/signup'
+      const WEBSITE_URL = 'https://pour-sona.com'
+      let message = (parsed.message ?? '').trim()
+      // Guarantee the sign-off is present even if the model omitted it.
+      if (message && !message.includes(SIGNUP_URL)) {
+        message += `\n\nTry Now → ${SIGNUP_URL}\n${WEBSITE_URL}`
+      }
       // Subject sanitization: strip line breaks (mailto: links break on \n) and
       // any "Subject:" prefix the model occasionally hallucinates. Cap length so
       // we don't blow past mail-client subject-line limits.

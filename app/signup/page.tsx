@@ -37,7 +37,7 @@ export default function SignupPage() {
   const [personalEmail, setPersonalEmail] = useState('')          // optional personal email; never validated, never blocks
   const [name, setName] = useState('')
   const [draft, setDraft] = useState<RetailerDraft | null>(null)
-  const [retailer, setRetailer] = useState<Pick<Retailer, 'name' | 'owner_email'> | null>(null)
+  const [retailer, setRetailer] = useState<Pick<Retailer, 'id' | 'name' | 'owner_email'> | null>(null)
   const [error, setError] = useState('')
   const [extractMsg, setExtractMsg] = useState(EXTRACTING_MESSAGES[0])
 
@@ -295,10 +295,17 @@ export default function SignupPage() {
                 We sent a login link to <strong style={{ color: '#C9A84C' }}>{retailer.owner_email}</strong>. Click it to access your dashboard, grab your QR code, and start guiding guests.
               </p>
               {/* Carry the just-signed-up email forward so /admin/login can
-                  pre-fill the Clerk sign-in form. Otherwise the vendor sees
-                  a blank login screen right after finishing onboarding. */}
+                  pre-fill the Clerk sign-in form. Also pin this specific
+                  retailer in localStorage so the admin layout opens the right
+                  venue immediately — even for users who have access to multiple
+                  retailers (e.g. Poursona team members testing the flow). */}
               <Link
                 href={`/admin/login?email=${encodeURIComponent(retailer.owner_email)}`}
+                onClick={() => {
+                  if (retailer.id && typeof window !== 'undefined') {
+                    localStorage.setItem('poursona_active_retailer', retailer.id)
+                  }
+                }}
                 style={{ display: 'inline-block', padding: '16px 36px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', borderRadius: 10, color: '#060403', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}
               >
                 Go to Dashboard →

@@ -211,15 +211,29 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: 32 }}>
+      <style>{`
+        .dash-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 20px; }
+        .dash-sessions-table { display: block; }
+        .dash-sessions-cards { display: none; }
+        .dash-date-row { display: flex; gap: 8px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        @media (max-width: 640px) {
+          .dash-stats { grid-template-columns: repeat(2,1fr); gap: 12px; }
+          .dash-sessions-table { display: none; }
+          .dash-sessions-cards { display: flex; flex-direction: column; gap: 10px; }
+          .dash-date-row { gap: 6px; }
+          .dash-date-row input[type="date"] { flex: 1; min-width: 0; font-size: 13px !important; }
+        }
+      `}</style>
+
+      <div style={{ marginBottom: 28 }}>
         <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Dashboard</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {retailer?.logo_url
             ? <img src={retailer.logo_url} alt="" style={{ height: 36, objectFit: 'contain', borderRadius: 4 }} />
             : <span style={{ fontSize: 28 }}>{icon}</span>}
-          <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>{retailer?.name}</div>
+          <div style={{ color: '#F5ECD7', fontSize: 22, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{retailer?.name}</div>
         </div>
-        <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 6, display: 'flex', gap: 16 }}>
+        <div style={{ color: '#4a3a1a', fontSize: 12, marginTop: 6, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ textTransform: 'capitalize' }}>{retailer?.vertical}</span>
           {retailer?.location && <span>{retailer.location}</span>}
           <a href={'/r/' + retailer?.slug} target="_blank" style={{ color: '#C9A84C', textDecoration: 'none' }}>↗ /r/{retailer?.slug}</a>
@@ -231,18 +245,19 @@ export default function Dashboard() {
       )}
 
       {/* Date range controls */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="dash-date-row">
         <span style={{ color: '#4a3a1a', fontSize: 11 }}>{rangeLabel}</span>
         <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} onKeyDown={e => e.key === 'Enter' && applyDateRange()} style={inp} title="From" />
         <input type="date" value={toDate}   onChange={e => setToDate(e.target.value)}   onKeyDown={e => e.key === 'Enter' && applyDateRange()} style={inp} title="To" />
         <button onClick={applyDateRange} style={btn()}>Apply</button>
         {hasRange && <button onClick={clearDateRange} style={btn('outline')}>Clear</button>}
         <div style={{ marginLeft: 'auto' }}>
-          <button onClick={exportCsv} style={btn('outline')}>↓ Export CSV</button>
+          <button onClick={exportCsv} style={btn('outline')}>↓ CSV</button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
+      {/* Stats grid — 4-col desktop, 2-col mobile */}
+      <div className="dash-stats">
         <Stat label="QR Scans" value={stats.scans} sub="Total visits" />
         <Stat label="Conversations" value={stats.convos} sub="Sessions started" />
         <Stat label="Recommendations" value={stats.recs} sub={rate + '% rec rate'} color="#5ecf8a" />
@@ -251,8 +266,8 @@ export default function Dashboard() {
 
       {/* AI usage this month */}
       {aiUsage && (
-        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '16px 24px', marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '16px 20px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
             <div style={{ color: '#F5ECD7', fontSize: 13, fontWeight: 700 }}>AI Usage This Month</div>
             <div style={{ color: aiUsage.pct >= 100 ? '#e07070' : aiUsage.pct >= 80 ? '#C9A84C' : '#4a3a1a', fontSize: 12 }}>
               ${aiUsage.costUsd.toFixed(2)} / ${aiUsage.budgetUsd.toFixed(0)} · {aiUsage.pct}%
@@ -271,50 +286,71 @@ export default function Dashboard() {
 
       {/* Daily trend chart */}
       {daily.length > 1 && (
-        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px 24px', marginBottom: 32 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px 20px', marginBottom: 32 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 6 }}>
             <div style={{ color: '#F5ECD7', fontSize: 13, fontWeight: 700 }}>Daily Activity</div>
-            <div style={{ color: '#3a2a0a', fontSize: 10 }}>
-              {range?.chartFrom} → {range?.chartTo}
-            </div>
+            <div style={{ color: '#3a2a0a', fontSize: 10 }}>{range?.chartFrom} → {range?.chartTo}</div>
           </div>
           <DailyChart data={daily} />
         </div>
       )}
 
+      {/* Recent Sessions — table on desktop, cards on mobile */}
       <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(201,168,76,.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(201,168,76,.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700 }}>Recent Sessions</div>
           <div style={{ color: '#4a3a1a', fontSize: 11 }}>{retailer?.name}</div>
         </div>
         {recent.length === 0 ? (
-          <div style={{ padding: '32px 24px', textAlign: 'center', color: '#4a3a1a', fontSize: 13 }}>
+          <div style={{ padding: '32px 20px', textAlign: 'center', color: '#4a3a1a', fontSize: 13 }}>
             No sessions yet — share your QR code to get started.
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid rgba(201,168,76,.08)' }}>
-                {['Session','Status','Date'].map(h => <th key={h} style={{ padding: '10px 24px', textAlign: 'left', color: '#4a3a1a', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>)}
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Desktop table */}
+            <div className="dash-sessions-table">
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(201,168,76,.08)' }}>
+                    {['Session','Status','Date'].map(h => <th key={h} style={{ padding: '10px 20px', textAlign: 'left', color: '#4a3a1a', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.map((s: any) => (
+                    <tr key={s.id} style={{ borderBottom: '1px solid rgba(201,168,76,.05)' }}>
+                      <td style={{ padding: '12px 20px', color: '#6a5a3a', fontSize: 12 }}>{s.id.substring(0,8)}…</td>
+                      <td style={{ padding: '12px 20px' }}>
+                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11,
+                          background: s.order_status==='ordered'?'rgba(94,207,138,.15)':s.order_status==='recommended'?'rgba(201,168,76,.15)':'rgba(255,255,255,.05)',
+                          color: s.order_status==='ordered'?'#5ecf8a':s.order_status==='recommended'?'#C9A84C':'#6a5a3a'
+                        }}>{s.order_status}</span>
+                      </td>
+                      <td style={{ padding: '12px 20px', color: '#6a5a3a', fontSize: 12 }}>
+                        {new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile cards */}
+            <div className="dash-sessions-cards" style={{ padding: '12px' }}>
               {recent.map((s: any) => (
-                <tr key={s.id} style={{ borderBottom: '1px solid rgba(201,168,76,.05)' }}>
-                  <td style={{ padding: '12px 24px', color: '#6a5a3a', fontSize: 12 }}>{s.id.substring(0,8)}…</td>
-                  <td style={{ padding: '12px 24px' }}>
+                <div key={s.id} style={{ padding: '14px 16px', background: 'rgba(255,255,255,.02)', border: '1px solid rgba(201,168,76,.07)', borderRadius: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ color: '#6a5a3a', fontSize: 12 }}>{s.id.substring(0,8)}…</span>
                     <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11,
                       background: s.order_status==='ordered'?'rgba(94,207,138,.15)':s.order_status==='recommended'?'rgba(201,168,76,.15)':'rgba(255,255,255,.05)',
                       color: s.order_status==='ordered'?'#5ecf8a':s.order_status==='recommended'?'#C9A84C':'#6a5a3a'
                     }}>{s.order_status}</span>
-                  </td>
-                  <td style={{ padding: '12px 24px', color: '#6a5a3a', fontSize: 12 }}>
+                  </div>
+                  <div style={{ color: '#4a3a1a', fontSize: 11 }}>
                     {new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
     </div>
