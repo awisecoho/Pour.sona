@@ -403,8 +403,11 @@ ${signals.menuText}`
     console.error('[Onboarding] catalog raw preview:', catalogRaw.slice(0, 500))
     throw err
   }
+  // Soft-fail on empty products: JS-rendered menus return no data to a static scraper.
+  // Still create the draft with brand info intact — vendor adds catalog in the admin.
   if (!Array.isArray(catalog.products) || catalog.products.length === 0) {
-    throw new Error('Catalog extraction returned no products')
+    console.warn('[Onboarding] catalog extraction returned no products (JS-rendered menu or no menu page found); draft will have empty catalog')
+    catalog.products = []
   }
 
   // Defensive normalization — Claude may omit keys when no data exists
