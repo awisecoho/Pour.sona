@@ -4,7 +4,7 @@ import { extractBrand } from './agents/brand'
 import { extractEvents } from './agents/events'
 import { generateHostPersona } from './agents/host'
 import { runVendorBuilder } from './agents/vendor-builder'
-import type { RawSignals } from './agents/research'
+import type { RawSignals, MenuAsset } from './agents/research'
 import { dbQuery, getPool } from './db'
 import { grantRetailerAccessByEmail } from './auth'
 
@@ -125,7 +125,12 @@ async function insertIngestionJob(url: string, signals: RawSignals) {
     `insert into ingestion_jobs (source_type, source_value, status, raw_text, raw_json)
      values ($1, $2, $3, $4, $5)
      returning id`,
-    ['url', url, 'uploaded', signals.menuText.slice(0, 10000), { ...signals, menuText: signals.menuText.slice(0, 2000) }]
+    ['url', url, 'uploaded', signals.menuText.slice(0, 10000), {
+      ...signals,
+      menuText: signals.menuText.slice(0, 2000),
+      // Strip base64 from assets — store only URL + MIME for audit, not the binary payload
+      menuAssets: signals.menuAssets.map(({ url: u, mimeType }) => ({ url: u, mimeType })),
+    }]
   )
   return result.rows[0] || null
 }
@@ -298,6 +303,71 @@ function extractJsonFromClaude(raw: string): any {
   throw new Error('Incomplete JSON object or array in Claude response')
 }
 
+// ── PDF / image menu asset helpers ───────────────────────────────────────────
+
+const MENU_ASSET_MIME: Record<string, MenuAsset['mimeType']> = {
+  pdf:  'application/pdf',
+  jpg:  'image/jpeg',
+  jpeg: 'image/jpeg',
+  png:  'image/png',
+  webp: 'image/webp',
+}
+
+/**
+ * Scan the homepage HTML for <a href> links pointing at PDF or image files.
+ * Returns up to 3 URLs, same-domain links first.
+ */
+function extractMenuAssetUrls(html: string, baseUrl: string): string[] {
+  const regex = /href=["']([^"']+\.(?:pdf|jpe?g|png|webp)(?:\?[^"']*)?)/gi
+  const base = new URL(baseUrl)
+  const seen = new Set<string>()
+  const results: string[] = []
+  let m
+  while ((m = regex.exec(html)) !== null) {
+    try {
+      const full = new URL(m[1].trim(), base).toString()
+      if (!seen.has(full)) { seen.add(full); results.push(full) }
+    } catch { /* ignore malformed hrefs */ }
+  }
+  // same-domain first, then cross-domain CDN links
+  const origin = base.origin
+  return results
+    .sort((a, b) => (a.startsWith(origin) ? 0 : 1) - (b.startsWith(origin) ? 0 : 1))
+    .slice(0, 3)
+}
+
+/**
+ * Fetch a PDF or image from `url` and return it as a base64 MenuAsset.
+ * Returns null on any error or if the file exceeds 15 MB.
+ */
+async function fetchMenuAsset(url: string): Promise<MenuAsset | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!res.ok) return null
+
+    const buf = await res.arrayBuffer()
+    if (buf.byteLength > 15 * 1024 * 1024) {
+      console.warn('[Onboarding] menu asset too large, skipping:', url)
+      return null
+    }
+
+    // Derive MIME type from URL extension (Content-Type headers are unreliable for PDFs on S3/CDNs)
+    const ext = url.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+    const mimeType = MENU_ASSET_MIME[ext] ?? null
+    if (!mimeType) return null
+
+    return { url, mimeType, base64: Buffer.from(buf).toString('base64') }
+  } catch (err) {
+    console.warn('[Onboarding] fetchMenuAsset failed for', url, ':', err instanceof Error ? err.message : String(err))
+    return null
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function extractSignals(rootUrl: string): Promise<RawSignals> {
   const rootHtml = await fetchPage(rootUrl)
   if (!rootHtml) throw new Error('Could not fetch website')
@@ -308,28 +378,44 @@ export async function extractSignals(rootUrl: string): Promise<RawSignals> {
 
   const screenshotColors = extractColorsFromHtml(rootHtml, rootUrl)
 
-  // Crawl sub-pages
-  const crawlResults = await Promise.allSettled(
+  // Detect PDF/image menu assets and crawl sub-pages in parallel
+  const assetUrls = extractMenuAssetUrls(rootHtml, rootUrl)
+  const [crawlResults, ...assetResults] = await Promise.allSettled([
+    Promise.allSettled(
       links.map(async (link) => {
         const html = await fetchPage(link.url)
         if (!html) return null
         return { url: link.url, type: link.type, text: stripHtml(html).slice(0, 5000) }
       })
-    )
+    ),
+    ...assetUrls.map(fetchMenuAsset),
+  ])
 
   const menuPages: string[] = []
   const storyPages: string[] = []
   const eventPages: string[] = []
   const crawledUrls: string[] = [rootUrl]
 
-  for (const result of crawlResults) {
-    if (result.status === 'fulfilled' && result.value) {
-      const { url, type, text } = result.value
-      crawledUrls.push(url)
-      if (type === 'menu' || type === 'both') menuPages.push(`--- ${url} ---\n${text}`)
-      if (type === 'story' || type === 'both') storyPages.push(`--- ${url} ---\n${text}`)
-      if (type === 'events' || type === 'both') eventPages.push(`--- ${url} ---\n${text}`)
+  if (crawlResults.status === 'fulfilled') {
+    for (const result of crawlResults.value) {
+      if (result.status === 'fulfilled' && result.value) {
+        const { url, type, text } = result.value
+        crawledUrls.push(url)
+        if (type === 'menu' || type === 'both') menuPages.push(`--- ${url} ---\n${text}`)
+        if (type === 'story' || type === 'both') storyPages.push(`--- ${url} ---\n${text}`)
+        if (type === 'events' || type === 'both') eventPages.push(`--- ${url} ---\n${text}`)
+      }
     }
+  }
+
+  // Collect successfully fetched PDF/image assets (cap at 2 to control token spend)
+  const menuAssets: MenuAsset[] = assetResults
+    .filter((r): r is PromiseFulfilledResult<MenuAsset | null> => r.status === 'fulfilled' && r.value !== null)
+    .map(r => r.value as MenuAsset)
+    .slice(0, 2)
+
+  if (menuAssets.length > 0) {
+    console.log('[Onboarding] found menu assets:', menuAssets.map(a => `${a.mimeType} ${a.url}`))
   }
 
   const rootText = stripHtml(rootHtml).slice(0, 3000)
@@ -347,6 +433,7 @@ export async function extractSignals(rootUrl: string): Promise<RawSignals> {
     rootText,
     sourceUrl: rootUrl,
     crawledUrls,
+    menuAssets,
   }
 }
 
@@ -354,13 +441,8 @@ export async function normalizeToRetailerDraft(signals: Awaited<ReturnType<typeo
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
   // Catalog and brand intelligence run in parallel; catalog remains the critical path.
-  const [catalogMsg, brandData] = await Promise.all([
-    anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
-      messages: [{
-        role: 'user',
-        content: `Extract product catalog from this beverage vendor website.
+  // Build content blocks: always start with the text prompt, then attach any PDF/image assets.
+  const catalogPromptText = `Extract product catalog from this beverage vendor website.
 
 VERTICAL DETECTION:
 - distillery/spirits/whiskey/bourbon/rye/gin/vodka/rum/moonshine → "distillery"
@@ -381,9 +463,34 @@ Return ONLY valid JSON:
 
 Site: ${signals.sourceUrl}
 Title: ${signals.title}
-Content:
+${signals.menuAssets.length > 0 ? 'Web content (menu may also be in the attached document/image below):' : 'Content:'}
 ${signals.menuText}`
-      }]
+
+  // SDK 0.24.x predates the `document` block type — cast to any for PDFs.
+  // ImageBlockParam already exists in 0.24.x so images are properly typed.
+  // TODO: remove the `any` cast after upgrading @anthropic-ai/sdk to ≥0.30.
+  const catalogContent: any[] = [
+    { type: 'text', text: catalogPromptText },
+    ...signals.menuAssets.map((asset) => {
+      if (asset.mimeType === 'application/pdf') {
+        return {
+          type: 'document',
+          source: { type: 'base64', media_type: 'application/pdf', data: asset.base64 },
+          title: 'Menu PDF',
+        }
+      }
+      return {
+        type: 'image',
+        source: { type: 'base64', media_type: asset.mimeType, data: asset.base64 },
+      } as Anthropic.ImageBlockParam
+    }),
+  ]
+
+  const [catalogMsg, brandData] = await Promise.all([
+    anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: catalogContent }],
     }),
     extractBrand({
       storyText: signals.storyText,

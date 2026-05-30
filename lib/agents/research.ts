@@ -1,6 +1,13 @@
 // Phase 2: type definitions for shared signal contract.
 // Crawling logic remains in lib/onboarding.ts extractSignals().
 
+/** A PDF or image menu fetched directly from the vendor's site. */
+export interface MenuAsset {
+  url: string
+  mimeType: 'application/pdf' | 'image/jpeg' | 'image/png' | 'image/webp'
+  base64: string
+}
+
 export interface RawSignals {
   title: string
   metaDesc: string
@@ -12,6 +19,8 @@ export interface RawSignals {
   rootText: string
   sourceUrl: string
   crawledUrls: string[]
+  /** PDF or image menus linked from the homepage — empty array when none found. */
+  menuAssets: MenuAsset[]
 }
 
 export interface VendorEvent {
