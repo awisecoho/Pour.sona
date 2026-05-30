@@ -5,6 +5,7 @@ import { validateScrapeUrl } from '@/lib/security'
 import { apiError } from '@/lib/api'
 import { extractContactEmail } from '@/lib/contact-extract'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 300 // website analysis pipeline: crawl + 5 LLM calls can take 60–120s
 
 // Best-effort secondary fetch to surface a public contact email for prefill.
 // The main scrape pipeline strips HTML before passing to the LLM agents, so the

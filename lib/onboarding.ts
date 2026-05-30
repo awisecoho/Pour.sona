@@ -433,7 +433,13 @@ ${signals.menuText}`
 
 export async function createDraftFromUrl(url: string) {
   const signals = await extractSignals(url)
-  const job = await insertIngestionJob(url, signals)
+  // Non-fatal: ingestion_jobs is for audit/diagnostics only; a failure here must not abort signup.
+  let job: { id: string } | null = null
+  try {
+    job = await insertIngestionJob(url, signals)
+  } catch (jobErr) {
+    console.warn('[Onboarding] insertIngestionJob failed (non-fatal):', jobErr instanceof Error ? jobErr.message : String(jobErr))
+  }
 
   const normalized = await normalizeToRetailerDraft(signals)
   const [hostOutput, vendorBuilder] = await Promise.all([
