@@ -466,23 +466,20 @@ Title: ${signals.title}
 ${signals.menuAssets.length > 0 ? 'Web content (menu may also be in the attached document/image below):' : 'Content:'}
 ${signals.menuText}`
 
-  // SDK 0.24.x predates the `document` block type — cast to any for PDFs.
-  // ImageBlockParam already exists in 0.24.x so images are properly typed.
-  // TODO: remove the `any` cast after upgrading @anthropic-ai/sdk to ≥0.30.
-  const catalogContent: any[] = [
+  const catalogContent: Anthropic.Messages.ContentBlockParam[] = [
     { type: 'text', text: catalogPromptText },
-    ...signals.menuAssets.map((asset) => {
+    ...signals.menuAssets.map((asset): Anthropic.Messages.DocumentBlockParam | Anthropic.Messages.ImageBlockParam => {
       if (asset.mimeType === 'application/pdf') {
         return {
           type: 'document',
           source: { type: 'base64', media_type: 'application/pdf', data: asset.base64 },
           title: 'Menu PDF',
-        }
+        } satisfies Anthropic.Messages.DocumentBlockParam
       }
       return {
         type: 'image',
         source: { type: 'base64', media_type: asset.mimeType, data: asset.base64 },
-      } as Anthropic.ImageBlockParam
+      } satisfies Anthropic.Messages.ImageBlockParam
     }),
   ]
 
