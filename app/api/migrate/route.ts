@@ -34,6 +34,11 @@ DO $$ BEGIN
   BEGIN ALTER TABLE retailer_drafts ADD COLUMN events_json jsonb DEFAULT '[]'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailer_drafts ADD COLUMN intelligence_json jsonb DEFAULT '{}'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailer_drafts ADD COLUMN research_confidence double precision DEFAULT 0; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- demo-first signup tracking
+  BEGIN ALTER TABLE retailer_drafts ADD COLUMN demo_started_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailer_drafts ADD COLUMN demo_expires_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailer_drafts ADD COLUMN demo_email text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailer_drafts ADD COLUMN demo_ip text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   -- admin_users: add user_email if missing (old schema had user_id uuid)
   BEGIN ALTER TABLE admin_users ADD COLUMN user_email text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE admin_users ADD COLUMN email text; EXCEPTION WHEN duplicate_column THEN NULL; END;

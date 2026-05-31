@@ -39,9 +39,10 @@ function makeLimiter(prefix: string, limit: number, window: string) {
   }
 }
 
-export const chatLimiter = makeLimiter('rl:chat', 20, '1 h')
-export const onboardLimiter = makeLimiter('rl:onboard', 5, '1 h')
-export const retailerLimiter = makeLimiter('rl:retailer', 120, '1 h')
+export const chatLimiter     = makeLimiter('rl:chat',      20,  '1 h')
+export const onboardLimiter  = makeLimiter('rl:onboard',    5,  '1 h')
+export const retailerLimiter = makeLimiter('rl:retailer', 120,  '1 h')
+export const demoChatLimiter = makeLimiter('rl:demo-chat',  10,  '1 h')
 
 export function getIp(req: Request): string {
   const fwd = (req as any).headers?.get?.('x-forwarded-for')

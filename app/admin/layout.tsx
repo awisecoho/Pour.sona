@@ -100,6 +100,43 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return
         }
 
+        // Demo-first signup: if the vendor claimed a guide before creating their
+        // Clerk account, publish the pending draft now using their real email.
+        if (typeof window !== 'undefined') {
+          const pendingDraftId = localStorage.getItem('pending_draft_id')
+          if (pendingDraftId && access.email) {
+            try {
+              const finalizeRes = await fetch('/api/signup/finalize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ draftId: pendingDraftId, email: access.email }),
+              })
+              if (finalizeRes.ok) {
+                localStorage.removeItem('pending_draft_id')
+                // Bust the access cache so the new retailer appears
+                resetAdminAccessCache()
+                const freshAccess = await loadAdminAccess()
+                if (cancelled || currentRequestIdRef.current !== requestId) return
+                if (freshAccess?.ok) {
+                  const freshRetailers = Array.isArray(freshAccess.retailers) ? freshAccess.retailers : []
+                  setAllRetailers(freshRetailers)
+                  setRetailer(freshRetailers[0] || null)
+                  if (freshRetailers[0]?.id) localStorage.setItem('poursona_active_retailer', freshRetailers[0].id)
+                  setShellState(freshRetailers.length > 0 ? 'ready' : 'no-retailers')
+                  return
+                }
+              } else {
+                // Non-fatal: log but don't block the dashboard
+                console.error('[admin/layout] pending draft finalize failed:', await finalizeRes.text())
+                localStorage.removeItem('pending_draft_id')
+              }
+            } catch (err) {
+              console.error('[admin/layout] pending draft finalize error:', err)
+              localStorage.removeItem('pending_draft_id')
+            }
+          }
+        }
+
         const retailers = Array.isArray(access.retailers) ? access.retailers : []
         setAllRetailers(retailers)
 

@@ -3,14 +3,17 @@
 **Prepared for:** Software engineering review · Legal review · Accounting / Finance review
 **Date prepared:** 2026-05-26
 **System status:** Live in production at https://pour-sona.com
-**Document set:**
+**Document set (read in order):**
 
 | # | Document | Audience |
 |---|---|---|
-| 00 | This page | All reviewers |
-| 01 | [Engineering review](./01-engineering-review.md) | Software engineer / technical reviewer |
-| 02 | [Legal review](./02-legal-review.md) | Legal counsel |
-| 03 | [Finance review](./03-finance-review.md) | Accounting / Finance |
+| 00 | [Mutual NDA](./00-nda.md) — **execute before reading further** | All reviewers |
+| 01 | This page (Executive Summary) | All reviewers |
+| 02 | [Engineering review](./02-engineering-review.md) | Software engineer / technical reviewer |
+| 03 | [Legal review](./03-legal-review.md) | Legal counsel |
+| 04 | [Finance review](./04-finance-review.md) | Accounting / Finance |
+
+> All material distributed with this packet is provided subject to the executed Mutual Non-Disclosure Agreement (Document 00). Please do not circulate the packet without first returning a signed copy of the NDA to `andy@pour-sona.com`.
 
 ---
 

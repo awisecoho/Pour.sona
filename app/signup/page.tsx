@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Retailer, Product } from '@/lib/types'
 
@@ -31,6 +32,7 @@ const VERTICAL_LABEL: Record<string, string> = {
 }
 
 export default function SignupPage() {
+  const router = useRouter()
   const [step, setStep] = useState<Step>('url')
   const [url, setUrl] = useState('')
   const [email, setEmail] = useState('')                          // business email — pre-filled from website scan when found
@@ -63,14 +65,9 @@ export default function SignupPage() {
       })
       const json = await res.json()
       if (!res.ok || !json.ok) throw new Error(json.error || 'Analysis failed')
-      setDraft(json.draft)
-      // Pre-fill business email from the website scan when available. The user
-      // can still overwrite it before finalizing. Only pre-fill if the field
-      // is empty so we don't clobber a re-analysis after the user typed.
-      if (typeof json.discoveredEmail === 'string' && json.discoveredEmail.length > 0) {
-        setEmail(prev => prev.trim() === '' ? json.discoveredEmail : prev)
-      }
-      setStep('preview')
+      // Send the vendor straight to their live demo instead of a static preview.
+      // The demo page handles the "Claim Your Guide" → Clerk signup flow.
+      router.push(`/demo/${json.draft.id}`)
     } catch (err: any) {
       setError(err.message)
       setStep('url')

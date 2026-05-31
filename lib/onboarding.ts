@@ -165,11 +165,13 @@ async function insertRetailerDraft(params: {
     `insert into retailer_drafts (
       ingestion_job_id, status, name, slug, vertical, location, tagline, logo_url, brand_color,
       source_url, menu_json, flight_json, parsed_json, story, culture, region, voice,
-      events_json, intelligence_json, research_confidence
+      events_json, intelligence_json, research_confidence,
+      demo_expires_at
     ) values (
       $1, $2, $3, $4, $5, $6, $7, $8, $9,
       $10, $11, $12, $13, $14, $15, $16, $17,
-      $18, $19, $20
+      $18, $19, $20,
+      now() + interval '7 days'
     )
     returning *`,
     [
