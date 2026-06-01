@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'CuvAi — Your AI-Powered Guest Guide',
+  title: { absolute: 'CuvAi — Your AI-Powered Guest Guide' },
   description: 'Turn every QR scan into a personalized recommendation. AI-guided discovery for breweries, wineries, distilleries, and coffee shops.',
 }
 

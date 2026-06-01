@@ -4,8 +4,26 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { cssVars } from '@/lib/theme'
 
 export const metadata: Metadata = {
-  title: 'CuvAi — Guided Beverage Discovery',
+  metadataBase: new URL('https://pour-sona.com'),
+  title: {
+    default: 'CuvAi — Guided Beverage Discovery',
+    template: '%s · CuvAi',
+  },
   description: 'AI-guided beverage discovery for breweries, wineries, distilleries, and coffee shops.',
+  applicationName: 'CuvAi',
+  openGraph: {
+    title: 'CuvAi — Guided Beverage Discovery',
+    description: 'AI-guided beverage discovery for breweries, wineries, distilleries, and coffee shops.',
+    siteName: 'CuvAi',
+    type: 'website',
+    // Image auto-added from app/opengraph-image.jpg
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'CuvAi — Guided Beverage Discovery',
+    description: 'AI-guided beverage discovery for breweries, wineries, distilleries, and coffee shops.',
+    // Image auto-added from app/twitter-image.jpg
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
