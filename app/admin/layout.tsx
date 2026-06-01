@@ -112,7 +112,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 body: JSON.stringify({ draftId: pendingDraftId, email: access.email }),
               })
               if (finalizeRes.ok) {
+                // Capture the retailer finalize just created so we can open THAT one,
+                // not an arbitrary retailers[0] (which for multi-venue accounts is
+                // some other venue — the cause of "landed on the wrong vendor").
+                const finalizeJson = await finalizeRes.json().catch(() => null)
+                const newRetailerId: string | null = finalizeJson?.retailer?.id || null
                 localStorage.removeItem('pending_draft_id')
+                // Pin the new venue BEFORE reloading access so resolveRetailer picks it.
+                if (newRetailerId) localStorage.setItem('poursona_active_retailer', newRetailerId)
                 // Bust the access cache so the new retailer appears
                 resetAdminAccessCache()
                 const freshAccess = await loadAdminAccess()
@@ -120,8 +127,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 if (freshAccess?.ok) {
                   const freshRetailers = Array.isArray(freshAccess.retailers) ? freshAccess.retailers : []
                   setAllRetailers(freshRetailers)
-                  setRetailer(freshRetailers[0] || null)
-                  if (freshRetailers[0]?.id) localStorage.setItem('poursona_active_retailer', freshRetailers[0].id)
+                  // Prefer the just-created venue; fall back to first only if not found.
+                  const newRetailer = freshRetailers.find((r: any) => r.id === newRetailerId) || freshRetailers[0] || null
+                  setRetailer(newRetailer)
+                  if (newRetailer?.id) localStorage.setItem('poursona_active_retailer', newRetailer.id)
                   setShellState(freshRetailers.length > 0 ? 'ready' : 'no-retailers')
                   return
                 }
