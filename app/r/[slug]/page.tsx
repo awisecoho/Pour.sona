@@ -56,11 +56,11 @@ function hexToRgb(hex: string): [number, number, number] | null {
 
 function useTheme(retailer: Retailer | null) {
   return useMemo(() => {
-    const primary = retailer?.brand_color || '#C9A84C'
+    const primary = retailer?.brand_color || '#3FC6D4'
     const rgb = hexToRgb(primary)
-    const rgbStr = rgb ? `${rgb[0]},${rgb[1]},${rgb[2]}` : '201,168,76'
+    const rgbStr = rgb ? `${rgb[0]},${rgb[1]},${rgb[2]}` : '63,198,212'
     const luminance = rgb ? (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255 : 0.5
-    const onPrimary = luminance > 0.55 ? '#0a0603' : '#F5ECD7'
+    const onPrimary = luminance > 0.55 ? '#0A0E15' : '#E8EDF2'
     return { primary, rgbStr, onPrimary }
   }, [retailer])
 }
@@ -79,17 +79,17 @@ function useFont(retailer: Retailer | null) {
     document.head.appendChild(link)
   }, [retailer?.brand_font_url])
 
-  return retailer?.brand_font_family || 'Georgia'
+  return retailer?.brand_font_family || 'Space Grotesk'
 }
 
 // ── Screens ───────────────────────────────────────────────────────────────────
 
 function LoadingScreen() {
   return (
-    <div style={{ minHeight: '100vh', background: '#080604', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
+    <div style={{ minHeight: '100vh', background: '#0A0E15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', gap: 7 }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: '#C9A84C', animation: `ldot 1.3s ease-in-out ${i * 0.18}s infinite` }} />
+          <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: '#3FC6D4', animation: `ldot 1.3s ease-in-out ${i * 0.18}s infinite` }} />
         ))}
       </div>
       <style>{`@keyframes ldot{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}`}</style>
@@ -99,10 +99,10 @@ function LoadingScreen() {
 
 function NotFound() {
   return (
-    <div style={{ minHeight: '100vh', background: '#080604', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10 }}>
-      <div style={{ color: '#C9A84C', fontSize: 32 }}>✦</div>
-      <div style={{ color: '#d4c8a8', fontFamily: 'Georgia, serif', fontSize: 18 }}>Guide not found</div>
-      <div style={{ color: '#4a3a1a', fontFamily: 'Georgia, serif', fontSize: 14 }}>This QR code may be inactive.</div>
+    <div style={{ minHeight: '100vh', background: '#0A0E15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10 }}>
+      <div style={{ color: '#3FC6D4', fontSize: 32 }}>✦</div>
+      <div style={{ color: '#C4CDD9', fontFamily: "'Space Grotesk', sans-serif", fontSize: 18 }}>Guide not found</div>
+      <div style={{ color: '#3A4456', fontFamily: "'Space Grotesk', sans-serif", fontSize: 14 }}>This QR code may be inactive.</div>
     </div>
   )
 }
@@ -124,7 +124,7 @@ function WelcomeScreen({
   const hasLogo = Boolean(retailer.logo_url)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(170deg,#080604 0%,#0c1208 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(170deg,#0A0E15 0%,#101622 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
       {/* Ambient glow */}
       <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, rgba(${theme.rgbStr},.08) 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
@@ -147,16 +147,16 @@ function WelcomeScreen({
       </div>
 
       {/* Name + location */}
-      <div style={{ color: '#F5ECD7', fontSize: 34, fontWeight: 700, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.2, marginBottom: 6, letterSpacing: '-.3px' }}>
+      <div style={{ color: '#E8EDF2', fontSize: 34, fontWeight: 700, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.2, marginBottom: 6, letterSpacing: '-.3px' }}>
         {retailer.name}
       </div>
       {retailer.location && (
-        <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 13, fontFamily: `'${font}', Georgia, serif`, marginBottom: 4, letterSpacing: '.04em' }}>
+        <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 13, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginBottom: 4, letterSpacing: '.04em' }}>
           {retailer.location}
         </div>
       )}
       {retailer.tagline && (
-        <div style={{ color: '#6a5a3a', fontSize: 15, fontStyle: 'italic', fontFamily: `'${font}', Georgia, serif`, marginBottom: 0 }}>
+        <div style={{ color: '#6B7588', fontSize: 15, fontStyle: 'italic', fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginBottom: 0 }}>
           {retailer.tagline}
         </div>
       )}
@@ -165,7 +165,7 @@ function WelcomeScreen({
       <div style={{ width: 40, height: 1, background: `rgba(${theme.rgbStr},.2)`, margin: '28px auto' }} />
 
       {/* Prompt */}
-      <div style={{ color: '#8a7a5a', fontSize: 16, lineHeight: 1.8, maxWidth: 320, marginBottom: 36, fontFamily: `'${font}', Georgia, serif` }}>
+      <div style={{ color: '#7B8598', fontSize: 16, lineHeight: 1.8, maxWidth: 320, marginBottom: 36, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
         I&apos;ll help you find the perfect {VERTICAL_PLURAL[retailer.vertical] || 'selection'}. Just a question or two.
       </div>
 
@@ -184,7 +184,7 @@ function WelcomeScreen({
           fontWeight: 700,
           letterSpacing: '.15em',
           cursor: 'pointer',
-          fontFamily: `'${font}', Georgia, serif`,
+          fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
           boxShadow: `0 8px 32px rgba(${theme.rgbStr},.25)`,
         }}
       >
@@ -192,7 +192,7 @@ function WelcomeScreen({
       </button>
 
       {retailer.vertical !== 'coffee' && (
-        <div style={{ marginTop: 24, color: '#5a4a2a', fontSize: 11, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.5, maxWidth: 300 }}>
+        <div style={{ marginTop: 24, color: '#4A5468', fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.5, maxWidth: 300 }}>
           Must be 21+. Please enjoy responsibly.
         </div>
       )}
@@ -201,13 +201,13 @@ function WelcomeScreen({
           href="https://pour-sona.com"
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: '#2a1e0a', fontSize: 11, fontFamily: `'${font}', Georgia, serif`, letterSpacing: '.08em', textDecoration: 'none' }}
+          style={{ color: '#1E2531', fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, letterSpacing: '.08em', textDecoration: 'none' }}
         >
-          POWERED BY POURSONA
+          POWERED BY CUVAI
         </a>
         <a
           href="/admin/login"
-          style={{ color: '#2a1e0a', fontSize: 10, fontFamily: `'${font}', Georgia, serif`, letterSpacing: '.05em', textDecoration: 'none' }}
+          style={{ color: '#1E2531', fontSize: 10, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, letterSpacing: '.05em', textDecoration: 'none' }}
         >
           Vendor login →
         </a>
@@ -243,7 +243,7 @@ function QuickChips({
               padding: '9px 18px',
               color: theme.primary,
               fontSize: 14,
-              fontFamily: `'${font}', Georgia, serif`,
+              fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               flexShrink: 0,
@@ -289,8 +289,8 @@ function OrderForm({
     width: '100%', padding: '13px 15px',
     background: 'rgba(255,255,255,.06)',
     border: `1px solid rgba(${theme.rgbStr},.18)`,
-    borderRadius: 11, color: '#F5ECD7',
-    fontFamily: `'${font}', Georgia, serif`, fontSize: 15,
+    borderRadius: 11, color: '#E8EDF2',
+    fontFamily: `'${font}', 'Space Grotesk', sans-serif`, fontSize: 15,
     outline: 'none', boxSizing: 'border-box',
   }
 
@@ -320,7 +320,7 @@ function OrderForm({
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(8px)', zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
       <div style={{
-        background: '#0d0a07',
+        background: '#12161F',
         border: `1px solid rgba(${theme.rgbStr},.2)`,
         borderRadius: '22px 22px 0 0',
         padding: '10px 0 0',
@@ -335,29 +335,29 @@ function OrderForm({
         <div style={{ padding: '0 24px 36px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
             <div>
-              <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 10, letterSpacing: '.22em', textTransform: 'uppercase', marginBottom: 5, fontFamily: `'${font}', Georgia, serif` }}>Confirm Order</div>
-              <div style={{ color: '#F5ECD7', fontSize: 21, fontWeight: 700, fontFamily: `'${font}', Georgia, serif` }}>{rec.recommendationName || rec.blendName}</div>
-              {rec.tagline && <div style={{ color: '#6a5a3a', fontSize: 13, fontStyle: 'italic', fontFamily: `'${font}', Georgia, serif`, marginTop: 2 }}>{rec.tagline}</div>}
+              <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 10, letterSpacing: '.22em', textTransform: 'uppercase', marginBottom: 5, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>Confirm Order</div>
+              <div style={{ color: '#E8EDF2', fontSize: 21, fontWeight: 700, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>{rec.recommendationName || rec.blendName}</div>
+              {rec.tagline && <div style={{ color: '#6B7588', fontSize: 13, fontStyle: 'italic', fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginTop: 2 }}>{rec.tagline}</div>}
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#3a2a0a', fontSize: 24, cursor: 'pointer', lineHeight: 1, padding: 0, marginTop: -2 }}>×</button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#2A3242', fontSize: 24, cursor: 'pointer', lineHeight: 1, padding: 0, marginTop: -2 }}>×</button>
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', color: `rgba(${theme.rgbStr},.5)`, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', marginBottom: 7, fontFamily: `'${font}', Georgia, serif` }}>
-              Name <span style={{ color: '#3a2a0a', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+            <label style={{ display: 'block', color: `rgba(${theme.rgbStr},.5)`, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', marginBottom: 7, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
+              Name <span style={{ color: '#2A3242', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
             </label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="Alex" type="text" style={inp} />
           </div>
 
           <div style={{ marginBottom: 22 }}>
-            <label style={{ display: 'block', color: `rgba(${theme.rgbStr},.5)`, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', marginBottom: 7, fontFamily: `'${font}', Georgia, serif` }}>
-              Email for receipt <span style={{ color: '#3a2a0a', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+            <label style={{ display: 'block', color: `rgba(${theme.rgbStr},.5)`, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', marginBottom: 7, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
+              Email for receipt <span style={{ color: '#2A3242', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
             </label>
             <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" type="email" style={inp} />
           </div>
 
           {err && (
-            <div style={{ background: 'rgba(224,100,100,.08)', border: '1px solid rgba(224,100,100,.2)', borderRadius: 10, padding: '11px 14px', color: '#d07070', fontSize: 13, fontFamily: `'${font}', Georgia, serif`, marginBottom: 16 }}>{err}</div>
+            <div style={{ background: 'rgba(224,100,100,.08)', border: '1px solid rgba(224,100,100,.2)', borderRadius: 10, padding: '11px 14px', color: '#d07070', fontSize: 13, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginBottom: 16 }}>{err}</div>
           )}
 
           <button
@@ -369,14 +369,14 @@ function OrderForm({
               background: busy ? `rgba(${theme.rgbStr},.25)` : theme.primary,
               border: 'none', cursor: busy ? 'wait' : 'pointer',
               color: theme.onPrimary, fontSize: 14, fontWeight: 700,
-              letterSpacing: '.1em', fontFamily: `'${font}', Georgia, serif`,
+              letterSpacing: '.1em', fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
               boxShadow: busy ? 'none' : `0 6px 24px rgba(${theme.rgbStr},.3)`,
               transition: 'all .2s',
             }}
           >
             {busy ? 'Placing Order…' : `Order at ${retailer.name}`}
           </button>
-          <div style={{ textAlign: 'center', color: '#2a1e0a', fontSize: 11, fontFamily: `'${font}', Georgia, serif`, marginTop: 12 }}>
+          <div style={{ textAlign: 'center', color: '#1E2531', fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginTop: 12 }}>
             Staff will prepare your selection · no payment here
           </div>
         </div>
@@ -424,10 +424,10 @@ function ProductHero({ product, retailer, theme, font }: {
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <div style={{ fontSize: 52, opacity: .55, fontFamily: `'${font}', Georgia, serif` }}>
+          <div style={{ fontSize: 52, opacity: .55, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
             {VERTICAL_ICONS[retailer.vertical] || '✦'}
           </div>
-          <div style={{ color: `rgba(${theme.rgbStr},.45)`, fontSize: 10, letterSpacing: '.3em', fontFamily: `'${font}', Georgia, serif`, textTransform: 'uppercase' }}>
+          <div style={{ color: `rgba(${theme.rgbStr},.45)`, fontSize: 10, letterSpacing: '.3em', fontFamily: `'${font}', 'Space Grotesk', sans-serif`, textTransform: 'uppercase' }}>
             {retailer.name}
           </div>
         </div>
@@ -472,7 +472,7 @@ function RecommendationCard({
     return (
       <div style={{
         marginTop: 20,
-        background: 'linear-gradient(145deg,#071209,#0a1a08)',
+        background: 'linear-gradient(145deg,#0A1622,#0C1B26)',
         border: '1px solid rgba(94,207,138,.2)',
         borderRadius: 20,
         padding: '36px 24px',
@@ -482,14 +482,14 @@ function RecommendationCard({
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(94,207,138,.12)', border: '1px solid rgba(94,207,138,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 24 }}>
           ✓
         </div>
-        <div style={{ color: '#5ecf8a', fontSize: 20, fontFamily: `'${font}', Georgia, serif`, fontWeight: 700, marginBottom: 6 }}>
+        <div style={{ color: '#5ecf8a', fontSize: 20, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, fontWeight: 700, marginBottom: 6 }}>
           {guestName ? `Enjoy it, ${guestName}!` : 'Order placed!'}
         </div>
-        <div style={{ color: '#4a5a3a', fontSize: 14, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.6 }}>
+        <div style={{ color: '#4a5a3a', fontSize: 14, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.6 }}>
           {retailer.name} will have your {noun.toLowerCase()} ready shortly.
         </div>
         {retailer.vertical !== 'coffee' && (
-          <div style={{ color: '#3a4a2a', fontSize: 11, fontFamily: `'${font}', Georgia, serif`, marginTop: 14 }}>
+          <div style={{ color: '#3a4a2a', fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginTop: 14 }}>
             Must be 21+. Please enjoy responsibly.
           </div>
         )}
@@ -509,7 +509,7 @@ function RecommendationCard({
 
       <div style={{
         marginTop: 20,
-        background: 'linear-gradient(155deg,#100c06 0%,#0a0e08 100%)',
+        background: 'linear-gradient(155deg,#141925 0%,#10141D 100%)',
         border: `1px solid rgba(${theme.rgbStr},.22)`,
         borderRadius: 20,
         overflow: 'hidden',
@@ -528,19 +528,19 @@ function RecommendationCard({
               border: `1px solid rgba(${theme.rgbStr},.18)`,
               borderRadius: 12, padding: '12px 14px',
             }}>
-              <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 9, letterSpacing: '.25em', textTransform: 'uppercase', marginBottom: 4, fontFamily: `'${font}', Georgia, serif` }}>
+              <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 9, letterSpacing: '.25em', textTransform: 'uppercase', marginBottom: 4, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
                 The cocktail
               </div>
-              <div style={{ color: '#F5ECD7', fontSize: 16, fontWeight: 700, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.25 }}>
+              <div style={{ color: '#E8EDF2', fontSize: 16, fontWeight: 700, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.25 }}>
                 {cocktail.cocktailName}
               </div>
               {cocktail.cocktailDescription && (
-                <div style={{ color: '#9a8f78', fontSize: 13, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.55, marginTop: 4 }}>
+                <div style={{ color: '#9a8f78', fontSize: 13, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.55, marginTop: 4 }}>
                   {cocktail.cocktailDescription}
                 </div>
               )}
               {cocktail.builtAround && (
-                <div style={{ color: theme.primary, fontSize: 11, fontStyle: 'italic', marginTop: 6, fontFamily: `'${font}', Georgia, serif` }}>
+                <div style={{ color: theme.primary, fontSize: 11, fontStyle: 'italic', marginTop: 6, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
                   built around <strong>{cocktail.builtAround}</strong>
                 </div>
               )}
@@ -557,7 +557,7 @@ function RecommendationCard({
                 border: `1px solid rgba(${theme.rgbStr},.2)`,
                 borderRadius: 20, padding: '4px 13px',
                 color: theme.primary, fontSize: 12,
-                fontFamily: `'${font}', Georgia, serif`,
+                fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
                 letterSpacing: '.04em',
               }}>
                 {f}
@@ -568,14 +568,14 @@ function RecommendationCard({
 
         {/* Name + tagline */}
         <div style={{ padding: '12px 20px 0' }}>
-          <div style={{ color: `rgba(${theme.rgbStr},.5)`, fontSize: 10, letterSpacing: '.28em', textTransform: 'uppercase', marginBottom: 6, fontFamily: `'${font}', Georgia, serif` }}>
+          <div style={{ color: `rgba(${theme.rgbStr},.5)`, fontSize: 10, letterSpacing: '.28em', textTransform: 'uppercase', marginBottom: 6, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
             {retailer.name} · {cocktail ? `Featuring ${noun.toLowerCase()}` : `Your ${noun}`}
           </div>
-          <div style={{ color: '#F5ECD7', fontFamily: `'${font}', Georgia, serif`, fontSize: 26, fontWeight: 700, lineHeight: 1.12, marginBottom: 4, letterSpacing: '-.3px' }}>
+          <div style={{ color: '#E8EDF2', fontFamily: `'${font}', 'Space Grotesk', sans-serif`, fontSize: 26, fontWeight: 700, lineHeight: 1.12, marginBottom: 4, letterSpacing: '-.3px' }}>
             {rec.recommendationName || rec.blendName}
           </div>
           {rec.tagline && (
-            <div style={{ color: theme.primary, fontFamily: `'${font}', Georgia, serif`, fontSize: 14, fontStyle: 'italic', opacity: .9 }}>
+            <div style={{ color: theme.primary, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, fontSize: 14, fontStyle: 'italic', opacity: .9 }}>
               {rec.tagline}
             </div>
           )}
@@ -591,12 +591,12 @@ function RecommendationCard({
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                    <div style={{ color: '#ece4cc', fontSize: 15, fontFamily: `'${font}', Georgia, serif`, fontWeight: 600 }}>{p.name}</div>
+                    <div style={{ color: '#DCE3EC', fontSize: 15, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, fontWeight: 600 }}>{p.name}</div>
                     {typeof p.price === 'number' && (
-                      <div style={{ color: theme.primary, fontSize: 13, fontFamily: `'${font}', Georgia, serif`, fontWeight: 600 }}>${p.price.toFixed(2)}</div>
+                      <div style={{ color: theme.primary, fontSize: 13, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, fontWeight: 600 }}>${p.price.toFixed(2)}</div>
                     )}
                   </div>
-                  {p.why && <div style={{ color: '#6a5a3a', fontSize: 13, marginTop: 3, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.5 }}>{p.why}</div>}
+                  {p.why && <div style={{ color: '#6B7588', fontSize: 13, marginTop: 3, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.5 }}>{p.why}</div>}
                 </div>
               </div>
             ))}
@@ -606,8 +606,8 @@ function RecommendationCard({
         {/* Why it fits — the punch line for the buy moment */}
         {rec.whyItFitsYou && (
           <div style={{ margin: '14px 20px 0', background: `rgba(${theme.rgbStr},.05)`, border: `1px solid rgba(${theme.rgbStr},.12)`, borderRadius: 12, padding: '12px 14px' }}>
-            <div style={{ color: `rgba(${theme.rgbStr},.5)`, fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 4, fontFamily: `'${font}', Georgia, serif` }}>Why this fits you</div>
-            <div style={{ color: '#d4c8a8', fontSize: 14, lineHeight: 1.6, fontFamily: `'${font}', Georgia, serif` }}>{rec.whyItFitsYou}</div>
+            <div style={{ color: `rgba(${theme.rgbStr},.5)`, fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 4, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>Why this fits you</div>
+            <div style={{ color: '#C4CDD9', fontSize: 14, lineHeight: 1.6, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>{rec.whyItFitsYou}</div>
           </div>
         )}
 
@@ -621,7 +621,7 @@ function RecommendationCard({
               background: theme.primary,
               border: 'none', cursor: 'pointer',
               color: theme.onPrimary, fontSize: 13, fontWeight: 700,
-              letterSpacing: '.1em', fontFamily: `'${font}', Georgia, serif`,
+              letterSpacing: '.1em', fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
               boxShadow: `0 8px 28px rgba(${theme.rgbStr},.35)`,
               textTransform: 'uppercase',
             }}
@@ -637,7 +637,7 @@ function RecommendationCard({
               border: `1px solid rgba(${theme.rgbStr},.28)`,
               cursor: 'pointer',
               color: theme.primary, fontSize: 12, fontWeight: 600,
-              letterSpacing: '.06em', fontFamily: `'${font}', Georgia, serif`,
+              letterSpacing: '.06em', fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
               whiteSpace: 'nowrap',
             }}
           >
@@ -649,7 +649,7 @@ function RecommendationCard({
         {(rec.pairing || rec.upsellSuggestion) && (
           <div style={{ padding: '0 20px 4px' }}>
             {rec.pairing && (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 0', color: '#6a5a3a', fontSize: 13, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.55 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 0', color: '#6B7588', fontSize: 13, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.55 }}>
                 <span style={{ color: theme.primary, fontWeight: 700 }}>✦</span>
                 <span><span style={{ color: `rgba(${theme.rgbStr},.7)`, fontWeight: 600 }}>Pair it with:</span> {rec.pairing}</span>
               </div>
@@ -662,10 +662,10 @@ function RecommendationCard({
                 background: `rgba(${theme.rgbStr},.04)`,
                 border: `1px dashed rgba(${theme.rgbStr},.18)`,
               }}>
-                <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 3, fontFamily: `'${font}', Georgia, serif` }}>While you&apos;re here</div>
-                <div style={{ color: '#d4c8a8', fontSize: 13, fontFamily: `'${font}', Georgia, serif`, fontWeight: 600 }}>{rec.upsellSuggestion.name}</div>
+                <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 3, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>While you&apos;re here</div>
+                <div style={{ color: '#C4CDD9', fontSize: 13, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, fontWeight: 600 }}>{rec.upsellSuggestion.name}</div>
                 {rec.upsellSuggestion.reason && (
-                  <div style={{ color: '#6a5a3a', fontSize: 12, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.5, marginTop: 2 }}>{rec.upsellSuggestion.reason}</div>
+                  <div style={{ color: '#6B7588', fontSize: 12, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.5, marginTop: 2 }}>{rec.upsellSuggestion.reason}</div>
                 )}
               </div>
             )}
@@ -683,7 +683,7 @@ function RecommendationCard({
                 border: 'none',
                 color: `rgba(${theme.rgbStr},.55)`,
                 fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase',
-                fontFamily: `'${font}', Georgia, serif`,
+                fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
                 padding: '8px 0',
                 cursor: 'pointer', textAlign: 'left',
               }}
@@ -693,12 +693,12 @@ function RecommendationCard({
             {showDetails && (
               <div style={{ marginTop: 6, animation: 'recReveal .25s ease both' }}>
                 {rec.story && (
-                  <div style={{ color: '#9a8f78', fontSize: 13.5, lineHeight: 1.75, fontFamily: `'${font}', Georgia, serif` }}>
+                  <div style={{ color: '#9a8f78', fontSize: 13.5, lineHeight: 1.75, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
                     {rec.story}
                   </div>
                 )}
                 {rec.serveNote && (
-                  <div style={{ marginTop: 10, color: '#5a4a2a', fontSize: 12.5, fontStyle: 'italic', fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.6 }}>
+                  <div style={{ marginTop: 10, color: '#4A5468', fontSize: 12.5, fontStyle: 'italic', fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.6 }}>
                     {rec.serveNote}
                   </div>
                 )}
@@ -851,7 +851,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(170deg,#080604 0%,#0c1208 100%)', fontFamily: `'${font}', Georgia, serif` }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(170deg,#0A0E15 0%,#101622 100%)', fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
       <style>{`
         @keyframes blink{0%,100%{opacity:.2;transform:scale(.65)}50%{opacity:1;transform:scale(1)}}
         @keyframes cursor{0%,100%{opacity:1}50%{opacity:0}}
@@ -861,7 +861,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:2px}
         ::-webkit-scrollbar-thumb{background:rgba(${theme.rgbStr},.15)}
-        textarea::placeholder{color:#3a2a0a}
+        textarea::placeholder{color:#2A3242}
         button:active{opacity:.8}
       `}</style>
 
@@ -884,8 +884,8 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
           </div>
         )}
         <div>
-          <div style={{ color: '#ede5cc', fontSize: 15, fontWeight: 600, fontFamily: `'${font}', Georgia, serif`, lineHeight: 1.2 }}>{retailer.name}</div>
-          <div style={{ color: '#2a1e0a', fontSize: 9, letterSpacing: '.18em', marginTop: 1 }}>PERSONAL GUIDE</div>
+          <div style={{ color: '#ede5cc', fontSize: 15, fontWeight: 600, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.2 }}>{retailer.name}</div>
+          <div style={{ color: '#1E2531', fontSize: 9, letterSpacing: '.18em', marginTop: 1 }}>PERSONAL GUIDE</div>
         </div>
       </div>
 
@@ -906,7 +906,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
                 border: isAI ? '1px solid rgba(255,255,255,.07)' : `1px solid rgba(${theme.rgbStr},.22)`,
                 borderRadius: isAI ? '4px 18px 18px 18px' : '18px 18px 4px 18px',
                 color: isAI ? '#cfc5a8' : theme.primary,
-                fontFamily: `'${font}', Georgia, serif`,
+                fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
               }}>
                 {msg.content === '' && msg.streaming ? (
                   <span style={{ display: 'inline-flex', gap: 5, padding: '2px 0' }}>
@@ -959,7 +959,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
               borderRadius: 20, padding: '7px 16px',
               color: `rgba(${theme.rgbStr},.55)`,
               fontSize: 12, letterSpacing: '.1em',
-              cursor: 'pointer', fontFamily: `'${font}', Georgia, serif`,
+              cursor: 'pointer', fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
             }}
           >
             ✦ Just give me a recommendation
@@ -993,7 +993,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
                 borderRadius: 12,
                 padding: '12px 15px',
                 color: '#ede5cc',
-                fontFamily: `'${font}', Georgia, serif`,
+                fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
                 fontSize: 15,
                 resize: 'none',
                 outline: 'none',
@@ -1011,7 +1011,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
                 borderRadius: 10,
                 width: 44, height: 44,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: input.trim() && !streaming ? theme.onPrimary : '#2a1e0a',
+                color: input.trim() && !streaming ? theme.onPrimary : '#1E2531',
                 cursor: input.trim() && !streaming ? 'pointer' : 'default',
                 fontSize: 16,
                 transition: 'all .15s',

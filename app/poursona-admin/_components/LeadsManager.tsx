@@ -130,7 +130,7 @@ export default function LeadsManager() {
             onChange={e => setQ(e.target.value)}
             onKeyDown={handleSearch}
             placeholder="Search name, email, or URL — press Enter"
-            style={{ width: '100%', background: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: 2, padding: '10px 12px', color: BRAND.text, fontSize: 13, fontFamily: 'Georgia, serif', outline: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', background: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: 2, padding: '10px 12px', color: BRAND.text, fontSize: 13, fontFamily: "'Space Grotesk', sans-serif", outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
 
@@ -181,7 +181,7 @@ function LeadRow({ lead, active, onClick }: { lead: Lead; active: boolean; onCli
       style={{
         width: '100%', textAlign: 'left', background: active ? 'rgba(200,169,110,.08)' : BRAND.card,
         border: `1px solid ${active ? BRAND.accent : BRAND.border}`, borderRadius: 2,
-        padding: '12px 14px', cursor: 'pointer', fontFamily: 'Georgia, serif',
+        padding: '12px 14px', cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif",
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
@@ -437,7 +437,7 @@ function chipStyle(active: boolean, color: string = BRAND.accent): React.CSSProp
 function inputStyle(): React.CSSProperties {
   return {
     flex: 1, background: BRAND.surface, border: `1px solid ${BRAND.border}`, borderRadius: 2,
-    padding: '8px 10px', color: BRAND.text, fontSize: 13, fontFamily: 'Georgia, serif',
+    padding: '8px 10px', color: BRAND.text, fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
     outline: 'none', boxSizing: 'border-box', width: '100%',
   }
 }

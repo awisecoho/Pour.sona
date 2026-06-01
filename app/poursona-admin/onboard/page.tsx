@@ -40,17 +40,17 @@ function AgentLoadingScreen({ url }: { url: string }) {
   const hostname = (() => { try { return new URL(url).hostname } catch { return url } })()
 
   return (
-    <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '32px 28px', marginBottom: 20 }}>
+    <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 14, padding: '32px 28px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <div style={{ fontSize: 28 }}>✦</div>
         <div>
-          <div style={{ color: '#C9A84C', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 2 }}>AI Agent Active</div>
-          <div style={{ color: '#F5ECD7', fontSize: 18, fontWeight: 700, fontFamily: 'Georgia, serif' }}>Your Personal Agent is Learning</div>
+          <div style={{ color: '#3FC6D4', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 2 }}>AI Agent Active</div>
+          <div style={{ color: '#E8EDF2', fontSize: 18, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>Your Personal Agent is Learning</div>
         </div>
       </div>
 
-      <div style={{ color: '#8a7a5a', fontSize: 13, fontFamily: 'Georgia, serif', marginBottom: 20 }}>
-        Reading <span style={{ color: '#C9A84C' }}>{hostname}</span> to build a fully custom experience…
+      <div style={{ color: '#7B8598', fontSize: 13, fontFamily: "'Space Grotesk', sans-serif", marginBottom: 20 }}>
+        Reading <span style={{ color: '#3FC6D4' }}>{hostname}</span> to build a fully custom experience…
       </div>
 
       {/* Progress bar */}
@@ -58,17 +58,17 @@ function AgentLoadingScreen({ url }: { url: string }) {
         <div style={{
           height: '100%',
           borderRadius: 8,
-          background: 'linear-gradient(90deg,#C9A84C,#a07830)',
+          background: 'linear-gradient(90deg,#3FC6D4,#2A9BA8)',
           width: `${displayPct}%`,
           transition: 'width .2s ease',
         }} />
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-        <div style={{ color: '#6a5a2a', fontSize: 12, fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
+        <div style={{ color: '#6a5a2a', fontSize: 12, fontFamily: "'Space Grotesk', sans-serif", fontStyle: 'italic' }}>
           {LOADING_STAGES[stageIdx]?.msg}
         </div>
-        <div style={{ color: '#4a3a1a', fontSize: 11 }}>{Math.round(displayPct)}%</div>
+        <div style={{ color: '#3A4456', fontSize: 11 }}>{Math.round(displayPct)}%</div>
       </div>
 
       {/* Spinning indicator */}
@@ -76,7 +76,7 @@ function AgentLoadingScreen({ url }: { url: string }) {
         {[0, 1, 2, 3].map(i => (
           <div key={i} style={{
             width: 7, height: 7, borderRadius: '50%',
-            background: '#C9A84C',
+            background: '#3FC6D4',
             animation: `agentPulse 1.6s ease-in-out ${i * 0.2}s infinite`,
           }} />
         ))}
@@ -109,17 +109,17 @@ function PersonalityPreview({
   const confidenceLabel = confidence >= 0.85
     ? { text: 'High confidence', color: '#5ecf8a' }
     : confidence >= 0.6
-    ? { text: 'Good confidence', color: '#C9A84C' }
+    ? { text: 'Good confidence', color: '#3FC6D4' }
     : { text: 'Low confidence — consider manual review', color: '#e07070' }
 
   return (
-    <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 14, padding: '28px 24px', marginBottom: 20 }}>
-      <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', marginBottom: 4 }}>Agent Ready</div>
-      <div style={{ color: '#F5ECD7', fontSize: 20, fontWeight: 700, fontFamily: 'Georgia, serif', marginBottom: 20 }}>Your agent sounds like…</div>
+    <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.2)', borderRadius: 14, padding: '28px 24px', marginBottom: 20 }}>
+      <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', marginBottom: 4 }}>Agent Ready</div>
+      <div style={{ color: '#E8EDF2', fontSize: 20, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif", marginBottom: 20 }}>Your agent sounds like…</div>
 
       {hasPreview && (
-        <div style={{ background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 12, padding: '16px 18px', marginBottom: 20 }}>
-          <div style={{ color: '#F5ECD7', fontSize: 16, lineHeight: 1.7, fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
+        <div style={{ background: 'rgba(63,198,212,.06)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 12, padding: '16px 18px', marginBottom: 20 }}>
+          <div style={{ color: '#E8EDF2', fontSize: 16, lineHeight: 1.7, fontFamily: "'Space Grotesk', sans-serif", fontStyle: 'italic' }}>
             &ldquo;{preview}&rdquo;
           </div>
         </div>
@@ -129,13 +129,13 @@ function PersonalityPreview({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
         {vb.brand_font_family && (
           <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,.06)' }}>
-            <div style={{ color: '#4a3a1a', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 4 }}>Font</div>
-            <div style={{ color: '#C9A84C', fontSize: 13, fontFamily: 'Georgia, serif' }}>{vb.brand_font_family}</div>
+            <div style={{ color: '#3A4456', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 4 }}>Font</div>
+            <div style={{ color: '#3FC6D4', fontSize: 13, fontFamily: "'Space Grotesk', sans-serif" }}>{vb.brand_font_family}</div>
           </div>
         )}
         {vb.brand_secondary_color && (
           <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,.06)' }}>
-            <div style={{ color: '#4a3a1a', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 4 }}>Palette</div>
+            <div style={{ color: '#3A4456', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 4 }}>Palette</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {[draft.brand_color, vb.brand_secondary_color, vb.brand_accent_color].filter(Boolean).map((c: string, i: number) => (
                 <span key={i} style={{ width: 16, height: 16, borderRadius: 4, background: c, display: 'inline-block', border: '1px solid rgba(255,255,255,.15)' }} title={c} />
@@ -145,14 +145,14 @@ function PersonalityPreview({
         )}
         {vb.has_take_home && (
           <div style={{ padding: '10px 12px', background: 'rgba(94,207,138,.04)', borderRadius: 8, border: '1px solid rgba(94,207,138,.12)' }}>
-            <div style={{ color: '#4a3a1a', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 4 }}>Take-Home</div>
+            <div style={{ color: '#3A4456', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 4 }}>Take-Home</div>
             <div style={{ color: '#5ecf8a', fontSize: 13 }}>✓ {(vb.take_home_items || []).length} items detected</div>
           </div>
         )}
         {(vb.featured_items || []).length > 0 && (
           <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,.06)' }}>
-            <div style={{ color: '#4a3a1a', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 4 }}>Featured</div>
-            <div style={{ color: '#C9A84C', fontSize: 13 }}>{(vb.featured_items || []).length} highlighted items</div>
+            <div style={{ color: '#3A4456', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 4 }}>Featured</div>
+            <div style={{ color: '#3FC6D4', fontSize: 13 }}>{(vb.featured_items || []).length} highlighted items</div>
           </div>
         )}
       </div>
@@ -166,7 +166,7 @@ function PersonalityPreview({
       </div>
 
       {confidence < 0.6 && (
-        <div style={{ background: 'rgba(224,112,112,.07)', border: '1px solid rgba(224,112,112,.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 20, color: '#e07070', fontSize: 13, fontFamily: 'Georgia, serif' }}>
+        <div style={{ background: 'rgba(224,112,112,.07)', border: '1px solid rgba(224,112,112,.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 20, color: '#e07070', fontSize: 13, fontFamily: "'Space Grotesk', sans-serif" }}>
           The site had limited content — some details may need manual review after publishing.
         </div>
       )}
@@ -174,13 +174,13 @@ function PersonalityPreview({
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
         <button
           onClick={onContinue}
-          style={{ padding: '13px 24px', border: 'none', borderRadius: 10, background: 'linear-gradient(135deg,#C9A84C,#a07830)', color: '#060403', fontWeight: 700, cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 13, letterSpacing: '.08em' }}
+          style={{ padding: '13px 24px', border: 'none', borderRadius: 10, background: 'linear-gradient(135deg,#3FC6D4,#2A9BA8)', color: '#0C1018', fontWeight: 700, cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, letterSpacing: '.08em' }}
         >
           Looks Good → Review Draft
         </button>
         <button
           onClick={onReject}
-          style={{ padding: '13px 24px', border: '1px solid rgba(201,168,76,.2)', borderRadius: 10, background: 'transparent', color: '#6a5a3a', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 13 }}
+          style={{ padding: '13px 24px', border: '1px solid rgba(63,198,212,.2)', borderRadius: 10, background: 'transparent', color: '#6B7588', cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif", fontSize: 13 }}
         >
           Try a Different URL
         </button>
@@ -258,53 +258,53 @@ export default function OnboardPage() {
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '14px 16px',
     background: 'rgba(255,255,255,.07)',
-    border: '1px solid rgba(201,168,76,.25)',
-    borderRadius: 10, color: '#F5ECD7',
-    fontFamily: 'Georgia, serif', fontSize: 15,
+    border: '1px solid rgba(63,198,212,.25)',
+    borderRadius: 10, color: '#E8EDF2',
+    fontFamily: "'Space Grotesk', sans-serif", fontSize: 15,
     outline: 'none', boxSizing: 'border-box',
     WebkitAppearance: 'none', appearance: 'none',
   }
   const labelStyle: React.CSSProperties = {
-    color: '#C9A84C', fontSize: 11, letterSpacing: '.15em',
+    color: '#3FC6D4', fontSize: 11, letterSpacing: '.15em',
     textTransform: 'uppercase', display: 'block', marginBottom: 8,
   }
   const cardStyle: React.CSSProperties = {
-    background: 'linear-gradient(145deg,#0e0b06,#0a0805)',
-    border: '1px solid rgba(201,168,76,.15)',
+    background: 'linear-gradient(145deg,#161C28,#10141D)',
+    border: '1px solid rgba(63,198,212,.15)',
     borderRadius: 14, padding: '24px 20px', marginBottom: 20,
   }
   const btnStyle: React.CSSProperties = {
     padding: '14px 24px', border: 'none', borderRadius: 10,
-    background: 'linear-gradient(135deg,#C9A84C,#a07830)',
-    color: '#060403', fontWeight: 700, cursor: 'pointer',
-    fontFamily: 'Georgia, serif', fontSize: 13, letterSpacing: '.08em',
+    background: 'linear-gradient(135deg,#3FC6D4,#2A9BA8)',
+    color: '#0C1018', fontWeight: 700, cursor: 'pointer',
+    fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, letterSpacing: '.08em',
   }
 
   // Published screen
   if (published) return (
     <div>
       <div style={{ marginBottom: 28 }}>
-        <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Poursona Internal</div>
-        <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>Published!</div>
+        <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>CuvAi Internal</div>
+        <div style={{ color: '#E8EDF2', fontSize: 26, fontWeight: 700 }}>Published!</div>
       </div>
       <div style={{ maxWidth: 540 }}>
         <div style={{ ...cardStyle, border: '1px solid rgba(94,207,138,.25)' }}>
           <div style={{ color: '#5ecf8a', fontSize: 12, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 8 }}>Live</div>
-          <div style={{ color: '#F5ECD7', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{published.retailer?.name}</div>
-          <div style={{ color: '#4a3a1a', fontSize: 13, marginBottom: 24 }}>/r/{published.retailer?.slug}</div>
-          <a href={'/r/' + published.retailer?.slug} target="_blank" style={{ display: 'inline-block', padding: '10px 18px', background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#C9A84C', textDecoration: 'none', fontSize: 13, marginBottom: 20 }}>
+          <div style={{ color: '#E8EDF2', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{published.retailer?.name}</div>
+          <div style={{ color: '#3A4456', fontSize: 13, marginBottom: 24 }}>/r/{published.retailer?.slug}</div>
+          <a href={'/r/' + published.retailer?.slug} target="_blank" style={{ display: 'inline-block', padding: '10px 18px', background: 'rgba(63,198,212,.1)', border: '1px solid rgba(63,198,212,.2)', borderRadius: 8, color: '#3FC6D4', textDecoration: 'none', fontSize: 13, marginBottom: 20 }}>
             Preview Experience ↗
           </a>
           {ownerEmail && !invited && (
-            <div style={{ borderTop: '1px solid rgba(201,168,76,.1)', paddingTop: 20 }}>
-              <div style={{ color: '#F5ECD7', fontSize: 14, marginBottom: 14 }}>Send admin access to <strong style={{ color: '#C9A84C' }}>{ownerEmail}</strong>?</div>
+            <div style={{ borderTop: '1px solid rgba(63,198,212,.1)', paddingTop: 20 }}>
+              <div style={{ color: '#E8EDF2', fontSize: 14, marginBottom: 14 }}>Send admin access to <strong style={{ color: '#3FC6D4' }}>{ownerEmail}</strong>?</div>
               {error && <div style={{ color: '#e07070', fontSize: 13, marginBottom: 12 }}>{error}</div>}
               <button onClick={sendInvite} disabled={inviting} style={{ ...btnStyle, opacity: inviting ? .5 : 1 }}>{inviting ? 'Sending…' : 'Send Invite'}</button>
             </div>
           )}
           {invited && <div style={{ color: '#5ecf8a', fontSize: 14, marginTop: 16 }}>✓ Invite sent to {ownerEmail}</div>}
         </div>
-        <button onClick={reset} style={{ ...btnStyle, background: 'transparent', border: '1px solid rgba(201,168,76,.2)', color: '#6a5a3a' }}>
+        <button onClick={reset} style={{ ...btnStyle, background: 'transparent', border: '1px solid rgba(63,198,212,.2)', color: '#6B7588' }}>
           Onboard Another
         </button>
       </div>
@@ -314,9 +314,9 @@ export default function OnboardPage() {
   return (
     <div>
       <div style={{ marginBottom: 28 }}>
-        <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Poursona Internal</div>
-        <div style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700 }}>Onboard New Retailer</div>
-        <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 6 }}>AI reads the site, extracts branding, builds a custom guest personality.</div>
+        <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>CuvAi Internal</div>
+        <div style={{ color: '#E8EDF2', fontSize: 26, fontWeight: 700 }}>Onboard New Retailer</div>
+        <div style={{ color: '#3A4456', fontSize: 13, marginTop: 6 }}>AI reads the site, extracts branding, builds a custom guest personality.</div>
       </div>
 
       <div style={{ maxWidth: 640 }}>
@@ -324,7 +324,7 @@ export default function OnboardPage() {
         {/* Step 1 — URL input */}
         {!loading && !draft && (
           <div style={cardStyle}>
-            <div style={{ color: '#F5ECD7', fontSize: 15, fontWeight: 700, marginBottom: 20 }}>Step 1 — Website</div>
+            <div style={{ color: '#E8EDF2', fontSize: 15, fontWeight: 700, marginBottom: 20 }}>Step 1 — Website</div>
 
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>Business Website URL *</label>
@@ -377,10 +377,10 @@ export default function OnboardPage() {
         {/* Step 2 — Review & Publish */}
         {!loading && draft && !showPersonality && (
           <div style={cardStyle}>
-            <div style={{ color: '#F5ECD7', fontSize: 15, fontWeight: 700, marginBottom: 20 }}>Step 2 — Review & Publish</div>
+            <div style={{ color: '#E8EDF2', fontSize: 15, fontWeight: 700, marginBottom: 20 }}>Step 2 — Review & Publish</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
               <div>
-                <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>Detected</div>
+                <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>Detected</div>
                 {([
                   ['Name', draft.name],
                   ['Slug', '/r/' + draft.slug],
@@ -388,9 +388,9 @@ export default function OnboardPage() {
                   ['Location', draft.location],
                   ['Color', draft.brand_color],
                 ] as [string, string][]).map(([k, v]) => v ? (
-                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(201,168,76,.07)' }}>
-                    <span style={{ color: '#4a3a1a', fontSize: 12 }}>{k}</span>
-                    <span style={{ color: '#C9A84C', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(63,198,212,.07)' }}>
+                    <span style={{ color: '#3A4456', fontSize: 12 }}>{k}</span>
+                    <span style={{ color: '#3FC6D4', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                       {k === 'Color' && <span style={{ width: 14, height: 14, borderRadius: 3, background: v, display: 'inline-block', border: '1px solid rgba(255,255,255,.2)', flexShrink: 0 }} />}
                       {v}
                     </span>
@@ -399,21 +399,21 @@ export default function OnboardPage() {
 
                 {/* Agent summary row */}
                 {draft.intelligence_json?.vendorBuilder?.personality_preview && (
-                  <div style={{ marginTop: 12, padding: '8px 10px', background: 'rgba(201,168,76,.05)', borderRadius: 8 }}>
-                    <div style={{ color: '#4a3a1a', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 4 }}>Agent Voice</div>
-                    <div style={{ color: '#8a7a5a', fontSize: 12, fontStyle: 'italic', fontFamily: 'Georgia, serif', lineHeight: 1.5 }}>
+                  <div style={{ marginTop: 12, padding: '8px 10px', background: 'rgba(63,198,212,.05)', borderRadius: 8 }}>
+                    <div style={{ color: '#3A4456', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 4 }}>Agent Voice</div>
+                    <div style={{ color: '#7B8598', fontSize: 12, fontStyle: 'italic', fontFamily: "'Space Grotesk', sans-serif", lineHeight: 1.5 }}>
                       {draft.intelligence_json.vendorBuilder.personality_preview}
                     </div>
                   </div>
                 )}
               </div>
               <div>
-                <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>Menu ({(draft.menu_json || []).length})</div>
+                <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>Menu ({(draft.menu_json || []).length})</div>
                 <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                   {(draft.menu_json || []).slice(0, 20).map((p: any, i: number) => (
-                    <div key={i} style={{ padding: '5px 0', borderBottom: '1px solid rgba(201,168,76,.05)' }}>
-                      <div style={{ color: '#F5ECD7', fontSize: 12 }}>{p.name}</div>
-                      <div style={{ color: '#4a3a1a', fontSize: 10 }}>{[p.category, p.price != null ? '$' + p.price : null].filter(Boolean).join(' · ')}</div>
+                    <div key={i} style={{ padding: '5px 0', borderBottom: '1px solid rgba(63,198,212,.05)' }}>
+                      <div style={{ color: '#E8EDF2', fontSize: 12 }}>{p.name}</div>
+                      <div style={{ color: '#3A4456', fontSize: 10 }}>{[p.category, p.price != null ? '$' + p.price : null].filter(Boolean).join(' · ')}</div>
                     </div>
                   ))}
                 </div>
@@ -422,7 +422,7 @@ export default function OnboardPage() {
             {error && <div style={{ color: '#e07070', fontSize: 13, marginBottom: 14 }}>{error}</div>}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
               <button onClick={publish} disabled={loading} style={{ ...btnStyle, opacity: loading ? .5 : 1 }}>{loading ? 'Publishing…' : 'Publish Retailer'}</button>
-              <button onClick={reset} style={{ ...btnStyle, background: 'transparent', border: '1px solid rgba(201,168,76,.2)', color: '#6a5a3a' }}>Try New URL</button>
+              <button onClick={reset} style={{ ...btnStyle, background: 'transparent', border: '1px solid rgba(63,198,212,.2)', color: '#6B7588' }}>Try New URL</button>
             </div>
           </div>
         )}

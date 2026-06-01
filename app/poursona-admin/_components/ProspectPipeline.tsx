@@ -42,7 +42,7 @@ interface ScreenedBusiness extends Business {
   contacts?: Contacts
 }
 
-// Internal mailbox the Poursona team sends prospect outreach from. Gmail
+// Internal mailbox the CuvAi team sends prospect outreach from. Gmail
 // resolves authuser=<address> to whichever account-index that mailbox
 // currently lives at, so swapping in a new team mailbox here Just Works
 // without us needing to know u/0 vs u/1.
@@ -225,7 +225,7 @@ function LocationInput({ value, onChange }: { value: string; onChange: (v: strin
             width: '100%', background: BRAND.card, border: `1px solid ${BRAND.border}`,
             borderRadius: open ? '2px 2px 0 0' : '2px',
             padding: '11px 36px 11px 14px', color: BRAND.text, fontSize: '15px',
-            fontFamily: 'Georgia, serif', outline: 'none', boxSizing: 'border-box',
+            fontFamily: "'Space Grotesk', sans-serif", outline: 'none', boxSizing: 'border-box',
           }}
         />
         {loading && (
@@ -242,7 +242,7 @@ function LocationInput({ value, onChange }: { value: string; onChange: (v: strin
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: BRAND.card, border: `1px solid ${BRAND.accent}`, borderTop: 'none', borderRadius: '0 0 2px 2px', overflow: 'hidden' }}>
           {suggestions.map((s, i) => (
             <div key={i} onMouseDown={() => handleSelect(s)}
-              style={{ padding: '11px 14px', fontSize: '14px', color: BRAND.text, cursor: 'pointer', borderBottom: i < suggestions.length - 1 ? `1px solid ${BRAND.border}` : 'none', fontFamily: 'Georgia, serif' }}
+              style={{ padding: '11px 14px', fontSize: '14px', color: BRAND.text, cursor: 'pointer', borderBottom: i < suggestions.length - 1 ? `1px solid ${BRAND.border}` : 'none', fontFamily: "'Space Grotesk', sans-serif" }}
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = BRAND.surface)}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
             >
@@ -376,7 +376,7 @@ export default function ProspectPipeline() {
               border: `1px solid ${vertical?.id === v.id ? BRAND.accent : BRAND.border}`,
               borderRadius: '2px', padding: '12px 10px', cursor: 'pointer',
               color: vertical?.id === v.id ? BRAND.text : BRAND.muted,
-              fontFamily: 'Georgia, serif', fontSize: '13px',
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: '13px',
               display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left',
             }}>
               <span style={{ fontSize: '18px' }}>{v.icon}</span>

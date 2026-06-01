@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 const SPARSE_PRODUCT_THRESHOLD = 5
 
-// Poursona admin recipients for onboarding alerts. Falls back to the team table.
+// CuvAi admin recipients for onboarding alerts. Falls back to the team table.
 async function getAdminEmails(): Promise<string[]> {
   const envAdmin = process.env.POURSONA_ADMIN_EMAIL
   if (envAdmin) return envAdmin.split(',').map(e => e.trim()).filter(Boolean)
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       const issues: string[] = []
       if (products.length < SPARSE_PRODUCT_THRESHOLD) issues.push(`Only ${products.length} product(s) extracted`)
       if (!draft?.logo_url) issues.push('No logo detected')
-      if (!draft?.brand_color || draft.brand_color === '#C9A84C') issues.push('No brand color detected (using default)')
+      if (!draft?.brand_color || draft.brand_color === '#3FC6D4') issues.push('No brand color detected (using default)')
       if (products.length > 0 && products.every((p: any) => p.price == null)) issues.push('No prices on any product')
 
       if (issues.length > 0) {

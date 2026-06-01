@@ -27,67 +27,67 @@ export default function SetupPage() {
     }catch(err:any){setError(err.message)}
     setLoading(false)
   }
-  const inp = {width:'100%',padding:'13px 16px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(201,168,76,.2)',borderRadius:10,color:'#F5ECD7',fontFamily:'Georgia, serif',fontSize:15,outline:'none',boxSizing:'border-box' as const}
-  const btn = {padding:'13px 20px',border:'none',borderRadius:10,background:'linear-gradient(135deg,#C9A84C,#a07830)',color:'#0a0603',fontWeight:700,cursor:'pointer',fontFamily:'Georgia, serif',fontSize:13}
+  const inp = {width:'100%',padding:'13px 16px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(63,198,212,.2)',borderRadius:10,color:'#E8EDF2',fontFamily:"'Space Grotesk', sans-serif",fontSize:15,outline:'none',boxSizing:'border-box' as const}
+  const btn = {padding:'13px 20px',border:'none',borderRadius:10,background:'linear-gradient(135deg,#3FC6D4,#2A9BA8)',color:'#0A0E15',fontWeight:700,cursor:'pointer',fontFamily:"'Space Grotesk', sans-serif",fontSize:13}
   if(published)return(
-    <div style={{minHeight:'100vh',background:'#0a0603',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Georgia, serif'}}>
+    <div style={{minHeight:'100vh',background:'#0A0E15',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Space Grotesk', sans-serif"}}>
       <div style={{maxWidth:480,width:'100%',padding:'0 24px',textAlign:'center'}}>
         <div style={{fontSize:48,marginBottom:16}}>✦</div>
-        <div style={{color:'#C9A84C',fontSize:11,letterSpacing:'.3em',textTransform:'uppercase',marginBottom:8}}>Live</div>
-        <div style={{color:'#F5ECD7',fontSize:28,fontWeight:700,marginBottom:8}}>{published.retailer?.name}</div>
-        <div style={{color:'#6a5a3a',marginBottom:32}}>Your Poursona experience is live.</div>
+        <div style={{color:'#3FC6D4',fontSize:11,letterSpacing:'.3em',textTransform:'uppercase',marginBottom:8}}>Live</div>
+        <div style={{color:'#E8EDF2',fontSize:28,fontWeight:700,marginBottom:8}}>{published.retailer?.name}</div>
+        <div style={{color:'#6B7588',marginBottom:32}}>Your CuvAi experience is live.</div>
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           <a href={published.links.storefront} target="_blank" style={{...btn,display:'block',textAlign:'center',textDecoration:'none'}}>View Customer Experience →</a>
-          <a href={published.links.qr} download style={{display:'block',padding:'12px',border:'1px solid rgba(201,168,76,.2)',borderRadius:10,color:'#C9A84C',textAlign:'center',textDecoration:'none',fontSize:13}}>⊞ Download QR Code</a>
-          <a href="/admin" style={{display:'block',padding:'12px',border:'1px solid rgba(201,168,76,.2)',borderRadius:10,color:'#C9A84C',textAlign:'center',textDecoration:'none',fontSize:13}}>◈ Go to Admin Portal</a>
+          <a href={published.links.qr} download style={{display:'block',padding:'12px',border:'1px solid rgba(63,198,212,.2)',borderRadius:10,color:'#3FC6D4',textAlign:'center',textDecoration:'none',fontSize:13}}>⊞ Download QR Code</a>
+          <a href="/admin" style={{display:'block',padding:'12px',border:'1px solid rgba(63,198,212,.2)',borderRadius:10,color:'#3FC6D4',textAlign:'center',textDecoration:'none',fontSize:13}}>◈ Go to Admin Portal</a>
         </div>
       </div>
     </div>
   )
   return(
-    <div style={{minHeight:'100vh',background:'#0a0603',color:'#F5ECD7',padding:'48px 24px',fontFamily:'Georgia, serif'}}>
+    <div style={{minHeight:'100vh',background:'#0A0E15',color:'#E8EDF2',padding:'48px 24px',fontFamily:"'Space Grotesk', sans-serif"}}>
       <div style={{maxWidth:960,margin:'0 auto'}}>
         <div style={{marginBottom:40}}>
-          <div style={{color:'#C9A84C',fontSize:10,letterSpacing:'.35em',textTransform:'uppercase',marginBottom:8}}>Poursona</div>
+          <div style={{color:'#3FC6D4',fontSize:10,letterSpacing:'.35em',textTransform:'uppercase',marginBottom:8}}><span style={{ color: '#E8EDF2' }}>Cuv</span><span style={{ color: '#3FC6D4' }}>Ai</span></div>
           <div style={{fontSize:34,fontWeight:700,marginBottom:8}}>Vendor Setup</div>
-          <div style={{color:'#6a5a3a',fontSize:15,lineHeight:1.7}}>Paste your website URL. Poursona reads your menu, branding, and catalog — then builds your AI guide automatically.</div>
+          <div style={{color:'#6B7588',fontSize:15,lineHeight:1.7}}>Paste your website URL. CuvAi reads your menu, branding, and catalog — then builds your AI guide automatically.</div>
         </div>
         {!draft?(
           <form onSubmit={buildDraft} style={{maxWidth:640}}>
-            <div style={{marginBottom:16}}><label style={{color:'#C9A84C',fontSize:10,letterSpacing:'.2em',textTransform:'uppercase',display:'block',marginBottom:8}}>Business Website URL</label><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://yourbrewery.com" style={inp} required/></div>
-            <div style={{marginBottom:24}}><label style={{color:'#C9A84C',fontSize:10,letterSpacing:'.2em',textTransform:'uppercase',display:'block',marginBottom:8}}>Your Email (for admin access)</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@yourbrewery.com" style={inp}/></div>
+            <div style={{marginBottom:16}}><label style={{color:'#3FC6D4',fontSize:10,letterSpacing:'.2em',textTransform:'uppercase',display:'block',marginBottom:8}}>Business Website URL</label><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://yourbrewery.com" style={inp} required/></div>
+            <div style={{marginBottom:24}}><label style={{color:'#3FC6D4',fontSize:10,letterSpacing:'.2em',textTransform:'uppercase',display:'block',marginBottom:8}}>Your Email (for admin access)</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@yourbrewery.com" style={inp}/></div>
             {error&&<div style={{color:'#e07070',marginBottom:16,fontSize:13}}>{error}</div>}
             <button type="submit" disabled={!url||loading} style={{...btn,opacity:!url||loading?.5:1}}>{loading?'Reading your website…':'Build My AI Guide →'}</button>
           </form>
         ):(
           <div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:24}}>
-              <div style={{background:'rgba(255,255,255,.03)',border:'1px solid rgba(201,168,76,.15)',borderRadius:14,padding:24}}>
-                <div style={{color:'#F5ECD7',fontSize:14,fontWeight:700,marginBottom:16}}>Detected Business</div>
+              <div style={{background:'rgba(255,255,255,.03)',border:'1px solid rgba(63,198,212,.15)',borderRadius:14,padding:24}}>
+                <div style={{color:'#E8EDF2',fontSize:14,fontWeight:700,marginBottom:16}}>Detected Business</div>
                 {draft.logo_url&&<img src={draft.logo_url} alt="logo" style={{height:48,marginBottom:12,borderRadius:6}}/>}
-                {[['Name',draft.name],['URL','/r/'+draft.slug],['Type',draft.vertical],['Location',draft.location],['Tagline',draft.tagline]].map(([k,v])=>v?(<div key={k} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid rgba(201,168,76,.07)'}}><span style={{color:'#4a3a1a',fontSize:12}}>{k}</span><span style={{color:'#C9A84C',fontSize:12}}>{v}</span></div>):null)}
-                {draft.brand_color&&<div style={{marginTop:12,display:'flex',alignItems:'center',gap:8}}><div style={{width:20,height:20,borderRadius:4,background:draft.brand_color,border:'1px solid rgba(255,255,255,.1)'}}/><span style={{color:'#6a5a3a',fontSize:12}}>{draft.brand_color}</span></div>}
+                {[['Name',draft.name],['URL','/r/'+draft.slug],['Type',draft.vertical],['Location',draft.location],['Tagline',draft.tagline]].map(([k,v])=>v?(<div key={k} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid rgba(63,198,212,.07)'}}><span style={{color:'#3A4456',fontSize:12}}>{k}</span><span style={{color:'#3FC6D4',fontSize:12}}>{v}</span></div>):null)}
+                {draft.brand_color&&<div style={{marginTop:12,display:'flex',alignItems:'center',gap:8}}><div style={{width:20,height:20,borderRadius:4,background:draft.brand_color,border:'1px solid rgba(255,255,255,.1)'}}/><span style={{color:'#6B7588',fontSize:12}}>{draft.brand_color}</span></div>}
               </div>
-              <div style={{background:'rgba(255,255,255,.03)',border:'1px solid rgba(201,168,76,.15)',borderRadius:14,padding:24}}>
-                <div style={{color:'#F5ECD7',fontSize:14,fontWeight:700,marginBottom:4}}>Menu Items</div>
-                <div style={{color:'#4a3a1a',fontSize:12,marginBottom:12}}>{(draft.menu_json||[]).length} products detected</div>
+              <div style={{background:'rgba(255,255,255,.03)',border:'1px solid rgba(63,198,212,.15)',borderRadius:14,padding:24}}>
+                <div style={{color:'#E8EDF2',fontSize:14,fontWeight:700,marginBottom:4}}>Menu Items</div>
+                <div style={{color:'#3A4456',fontSize:12,marginBottom:12}}>{(draft.menu_json||[]).length} products detected</div>
                 <div style={{maxHeight:280,overflowY:'auto'}}>
                   {(draft.menu_json||[]).map((p:any,i:number)=>(
-                    <div key={i} style={{padding:'8px 0',borderBottom:'1px solid rgba(201,168,76,.06)'}}>
-                      <div style={{color:'#F5ECD7',fontSize:13}}>{p.name}</div>
-                      <div style={{color:'#4a3a1a',fontSize:11}}>{[p.category,p.style,p.price!=null?'$'+p.price:null].filter(Boolean).join(' · ')}</div>
+                    <div key={i} style={{padding:'8px 0',borderBottom:'1px solid rgba(63,198,212,.06)'}}>
+                      <div style={{color:'#E8EDF2',fontSize:13}}>{p.name}</div>
+                      <div style={{color:'#3A4456',fontSize:11}}>{[p.category,p.style,p.price!=null?'$'+p.price:null].filter(Boolean).join(' · ')}</div>
                     </div>
                   ))}
                 </div>
               </div>
               {(draft.flight_json||[]).length>0&&(
-                <div style={{background:'rgba(255,255,255,.03)',border:'1px solid rgba(201,168,76,.15)',borderRadius:14,padding:24,gridColumn:'1/-1'}}>
-                  <div style={{color:'#F5ECD7',fontSize:14,fontWeight:700,marginBottom:12}}>Suggested Flights</div>
+                <div style={{background:'rgba(255,255,255,.03)',border:'1px solid rgba(63,198,212,.15)',borderRadius:14,padding:24,gridColumn:'1/-1'}}>
+                  <div style={{color:'#E8EDF2',fontSize:14,fontWeight:700,marginBottom:12}}>Suggested Flights</div>
                   <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
                     {(draft.flight_json||[]).map((f:any,i:number)=>(
-                      <div key={i} style={{background:'rgba(201,168,76,.07)',border:'1px solid rgba(201,168,76,.15)',borderRadius:10,padding:'12px 16px'}}>
-                        <div style={{color:'#C9A84C',fontSize:13,fontWeight:700}}>{f.name}</div>
-                        <div style={{color:'#4a3a1a',fontSize:11,marginTop:2}}>{f.count} × {f.pour_size}{f.price != null ? ' · $' + Number(f.price).toFixed(2) : ''}</div>
+                      <div key={i} style={{background:'rgba(63,198,212,.07)',border:'1px solid rgba(63,198,212,.15)',borderRadius:10,padding:'12px 16px'}}>
+                        <div style={{color:'#3FC6D4',fontSize:13,fontWeight:700}}>{f.name}</div>
+                        <div style={{color:'#3A4456',fontSize:11,marginTop:2}}>{f.count} × {f.pour_size}{f.price != null ? ' · $' + Number(f.price).toFixed(2) : ''}</div>
                       </div>
                     ))}
                   </div>
@@ -97,7 +97,7 @@ export default function SetupPage() {
             {error&&<div style={{color:'#e07070',marginBottom:16,fontSize:13}}>{error}</div>}
             <div style={{display:'flex',gap:12}}>
               <button onClick={publish} disabled={loading} style={{...btn,opacity:loading?.5:1}}>{loading?'Publishing…':'✦ Publish — Go Live'}</button>
-              <button onClick={()=>setDraft(null)} style={{padding:'13px 20px',background:'transparent',border:'1px solid rgba(201,168,76,.2)',borderRadius:10,color:'#6a5a3a',cursor:'pointer',fontFamily:'Georgia, serif',fontSize:13}}>← Try Different URL</button>
+              <button onClick={()=>setDraft(null)} style={{padding:'13px 20px',background:'transparent',border:'1px solid rgba(63,198,212,.2)',borderRadius:10,color:'#6B7588',cursor:'pointer',fontFamily:"'Space Grotesk', sans-serif",fontSize:13}}>← Try Different URL</button>
             </div>
           </div>
         )}

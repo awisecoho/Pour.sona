@@ -13,7 +13,7 @@ const EVENT_KEYWORDS = ['events','calendar','happenings','upcoming','whats-on','
 async function fetchPage(url: string): Promise<string> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
+      headers: { 'User-Agent': 'Mozilla/5.0 CuvAiBot/1.0' },
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return ''
@@ -183,7 +183,7 @@ async function insertRetailerDraft(params: {
       normalized.retailer.location || null,
       normalized.retailer.tagline || null,
       normalized.retailer.logo_url || null,
-      normalized.retailer.brand_color || '#C9A84C',
+      normalized.retailer.brand_color || '#3FC6D4',
       url,
       JSON.stringify(normalized.products),
       JSON.stringify(normalized.flights),
@@ -345,7 +345,7 @@ function extractMenuAssetUrls(html: string, baseUrl: string): string[] {
 async function fetchMenuAsset(url: string): Promise<MenuAsset | null> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
+      headers: { 'User-Agent': 'Mozilla/5.0 CuvAiBot/1.0' },
       signal: AbortSignal.timeout(15000),
     })
     if (!res.ok) return null
@@ -453,12 +453,12 @@ VERTICAL DETECTION:
 - coffee/roaster/espresso → "coffee"
 NEVER default to brewery.
 
-COLORS: ${signals.brandColor ? `primary = ${signals.brandColor}` : 'use #C9A84C'}
+COLORS: ${signals.brandColor ? `primary = ${signals.brandColor}` : 'use #3FC6D4'}
 LOGO: ${signals.logoUrl || 'not detected'}
 
 Return ONLY valid JSON:
 {
-  "retailer": { "name": "", "slug": "", "vertical": "", "location": "", "tagline": "", "logo_url": "${signals.logoUrl || ''}", "brand_color": "${signals.brandColor || '#C9A84C'}" },
+  "retailer": { "name": "", "slug": "", "vertical": "", "location": "", "tagline": "", "logo_url": "${signals.logoUrl || ''}", "brand_color": "${signals.brandColor || '#3FC6D4'}" },
   "products": [{ "name": "", "description": "", "category": "", "flavor_notes": "", "price": null, "style": "", "abv": "", "ibu": "", "in_stock": true, "sort_order": 0 }],
   "flights": [{ "name": "", "description": "", "count": 4, "pour_size": "4oz", "price": 0, "active": true, "sort_order": 0 }]
 }
@@ -519,7 +519,7 @@ ${signals.menuText}`
   // Defensive normalization — Claude may omit keys when no data exists
   catalog.products = Array.isArray(catalog.products) ? catalog.products : []
   catalog.flights = Array.isArray(catalog.flights) ? catalog.flights : []
-  if (catalog.retailer && !catalog.retailer.brand_color) catalog.retailer.brand_color = signals.brandColor || '#C9A84C'
+  if (catalog.retailer && !catalog.retailer.brand_color) catalog.retailer.brand_color = signals.brandColor || '#3FC6D4'
   if (catalog.retailer && !catalog.retailer.logo_url) catalog.retailer.logo_url = signals.logoUrl || ''
 
   const eventsData = signals.eventsText
@@ -696,7 +696,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
         draft.location,
         draft.tagline,
         draft.logo_url,
-        draft.brand_color || '#C9A84C',
+        draft.brand_color || '#3FC6D4',
         finalOwnerEmail,
         draft.story   || null,
         draft.culture || null,

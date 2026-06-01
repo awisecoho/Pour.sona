@@ -4,8 +4,8 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { cssVars } from '@/lib/theme'
 
 export const metadata: Metadata = {
-  title: 'Poursona — Guided Discovery',
-  description: 'Your personal coffee, beer, and wine guide',
+  title: 'CuvAi — Guided Beverage Discovery',
+  description: 'AI-guided beverage discovery for breweries, wineries, distilleries, and coffee shops.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -16,9 +16,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
         <style dangerouslySetInnerHTML={{ __html: cssVars }} />
       </head>
-      <body style={{ margin: 0, padding: 0, background: 'var(--black-soft)' }}>
+      <body style={{ margin: 0, padding: 0, background: 'var(--black-soft)', fontFamily: "'Space Grotesk', sans-serif" }}>
         {hasClerkEnv ? <ClerkProvider>{children}</ClerkProvider> : children}
       </body>
     </html>

@@ -41,8 +41,8 @@ export default function QRPage() {
   }
 
   const card: React.CSSProperties = {
-    background: 'linear-gradient(145deg,#0e0b06,#0a0805)',
-    border: '1px solid rgba(201,168,76,.15)',
+    background: 'linear-gradient(145deg,#161C28,#10141D)',
+    border: '1px solid rgba(63,198,212,.15)',
     borderRadius: 14,
     padding: '24px 20px',
   }
@@ -50,15 +50,15 @@ export default function QRPage() {
     padding: '12px 22px',
     borderRadius: 10,
     cursor: 'pointer',
-    fontFamily: 'Georgia, serif',
+    fontFamily: "'Space Grotesk', sans-serif",
     fontSize: 13,
     fontWeight: 700,
-    background: v === 'outline' ? 'rgba(201,168,76,.08)' : 'linear-gradient(135deg,#C9A84C,#a07830)',
-    color: v === 'outline' ? '#C9A84C' : '#060403',
-    border: v === 'outline' ? '1px solid rgba(201,168,76,.25)' : 'none',
+    background: v === 'outline' ? 'rgba(63,198,212,.08)' : 'linear-gradient(135deg,#3FC6D4,#2A9BA8)',
+    color: v === 'outline' ? '#3FC6D4' : '#0C1018',
+    border: v === 'outline' ? '1px solid rgba(63,198,212,.25)' : 'none',
   })
 
-  if (loading) return <div style={{ color: '#C9A84C', padding: 24 }}>Loading…</div>
+  if (loading) return <div style={{ color: '#3FC6D4', padding: 24 }}>Loading…</div>
 
   const guideUrl = retailer?.slug ? storefrontUrl(retailer.slug) : ''
   const qrSrc = retailer?.slug ? `/api/qr?slug=${encodeURIComponent(retailer.slug)}` : ''
@@ -66,9 +66,9 @@ export default function QRPage() {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>QR Code</div>
-        <div style={{ color: '#F5ECD7', fontSize: 24, fontWeight: 700 }}>Your Table QR Code</div>
-        <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 6 }}>Print and place on every table. Guests scan to start their guided experience.</div>
+        <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>QR Code</div>
+        <div style={{ color: '#E8EDF2', fontSize: 24, fontWeight: 700 }}>Your Table QR Code</div>
+        <div style={{ color: '#3A4456', fontSize: 13, marginTop: 6 }}>Print and place on every table. Guests scan to start their guided experience.</div>
       </div>
 
       {error && (
@@ -97,10 +97,10 @@ export default function QRPage() {
               </div>
             </div>
 
-            <div style={{ color: '#4a3a1a', fontSize: 12, textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ color: '#3A4456', fontSize: 12, textAlign: 'center', marginBottom: 20 }}>
               {retailer.logo_url ? '✓ Logo embedded' : '⚠ No logo — add one in Settings'}
               {' · '}
-              <a href={guideUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#C9A84C', textDecoration: 'none' }}>{guideUrl}</a>
+              <a href={guideUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3FC6D4', textDecoration: 'none' }}>{guideUrl}</a>
             </div>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 20 }}>
@@ -108,9 +108,9 @@ export default function QRPage() {
               <button onClick={downloadSVG} style={btn('outline')}>⋇ Download SVG</button>
             </div>
 
-            <div style={{ padding: 14, background: 'rgba(201,168,76,.06)', borderRadius: 10, border: '1px solid rgba(201,168,76,.1)' }}>
-              <div style={{ color: '#C9A84C', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Printing tip</div>
-              <div style={{ color: '#4a3a1a', fontSize: 12, lineHeight: 1.7 }}>
+            <div style={{ padding: 14, background: 'rgba(63,198,212,.06)', borderRadius: 10, border: '1px solid rgba(63,198,212,.1)' }}>
+              <div style={{ color: '#3FC6D4', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Printing tip</div>
+              <div style={{ color: '#3A4456', fontSize: 12, lineHeight: 1.7 }}>
                 Download PNG at 300 DPI minimum. 3×3 inches minimum on table cards. Staples or Office Depot can laminate same-day.
               </div>
             </div>

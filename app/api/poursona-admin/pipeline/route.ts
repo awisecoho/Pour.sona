@@ -88,7 +88,7 @@ const IN_PERSON_BY_VERTICAL: Record<string, string> = {
 const SCREEN_AND_MSG_PROMPT = (name: string, url: string, pageText: string, verticalId: string) => {
   const persona = PERSONA_BY_VERTICAL[verticalId] || 'AI Sommelier'
   const inPerson = IN_PERSON_BY_VERTICAL[verticalId] || 'in-person experience'
-  return `You are evaluating a beverage business as a sales prospect for Poursona, then drafting outreach.
+  return `You are evaluating a beverage business as a sales prospect for CuvAi, then drafting outreach.
 
 Business: ${name} (${url})
 Category: ${verticalId}
@@ -96,23 +96,23 @@ ${pageText
     ? `Website content (truncated):\n"""\n${pageText}\n"""`
     : `(Their website could not be read automatically — judge from the name/URL and note that manual review is needed.)`}
 
-Poursona: A vendor-specific AI guide that lives at a QR code. Each venue gets its own digitalized "${persona}" trained on their actual menu, brand story, and tone — not a generic chatbot. Customers scan, have a natural conversation about their taste, and get a recommendation that feels like talking to the venue's own expert. ~10 minute setup; runs on the vendor's own product offerings.
+CuvAi: A vendor-specific AI guide that lives at a QR code. Each venue gets its own digitalized "${persona}" trained on their actual menu, brand story, and tone — not a generic chatbot. Customers scan, have a natural conversation about their taste, and get a recommendation that feels like talking to the venue's own expert. ~10 minute setup; runs on the vendor's own product offerings.
 
 Step 1 — Score the prospect:
   hot  = has a product menu AND (online ordering OR a tasting room/taproom)
   warm = has a menu only, OR the site couldn't be read (needs manual review)
   skip = clearly no catalog, or a national chain/franchise
 
-Step 2 — If hot or warm, write a contact-form message from the founder of Poursona that:
+Step 2 — If hot or warm, write a contact-form message from the founder of CuvAi that:
   • Opens with ONE specific genuine observation about THIS business (something you saw on their site — not generic praise)
-  • Bridges that observation to what Poursona does for them, NOT what Poursona is in the abstract
+  • Bridges that observation to what CuvAi does for them, NOT what CuvAi is in the abstract
   • Uses possessive "your" language to make it feel custom-built for them: "your customers", "your personal digitalized ${persona}", "your personalized offerings", "your ${inPerson}"
   • Names the persona explicitly: "their personal digitalized ${persona}" — this is the brand-specific guide we'd build for them
   • Closes with TWO asks layered together: (1) a soft demo question, (2) a low-friction offer to BUILD them a personal experience to try ("I'd be happy to spin up a personal experience for you to test")
   • 90-130 words for the BODY (excluding the sign-off block below), sounds like a real founder talking — warm, specific, confident
   • No buzzwords, no subject line inside the body
 
-  THEN end with the SIGN-OFF block exactly as shown — two short lines, on their own, after a blank line. Always include these TWO links verbatim so the recipient has a one-click path to try Poursona and to learn more:
+  THEN end with the SIGN-OFF block exactly as shown — two short lines, on their own, after a blank line. Always include these TWO links verbatim so the recipient has a one-click path to try CuvAi and to learn more:
 
   ---
   Try Now → https://pour-sona.com/signup
@@ -124,7 +124,7 @@ Step 2 — If hot or warm, write a contact-form message from the founder of Pour
   If skip, use an empty string for message.
 
   STRUCTURE TEMPLATE (rewrite the body naturally, don't copy verbatim; sign-off stays as shown):
-  "I noticed [specific observation about their site/offering]. That [hands-on / craft / curated quality] is exactly what Poursona does digitally. Your customers scan a personalized QR code, have a natural conversation about their taste with your personal digitalized ${persona}, and get a recommendation that fits THEM before ordering. It takes about 10 minutes to set up and runs on your personalized offerings. Would you be open to a quick demo to see how it could work alongside your ${inPerson}? I'd be happy to spin up a personal experience for you to try.
+  "I noticed [specific observation about their site/offering]. That [hands-on / craft / curated quality] is exactly what CuvAi does digitally. Your customers scan a personalized QR code, have a natural conversation about their taste with your personal digitalized ${persona}, and get a recommendation that fits THEM before ordering. It takes about 10 minutes to set up and runs on your personalized offerings. Would you be open to a quick demo to see how it could work alongside your ${inPerson}? I'd be happy to spin up a personal experience for you to try.
 
   Try Now → https://pour-sona.com/signup
   https://pour-sona.com"
@@ -217,7 +217,7 @@ async function fetchSite(url: string, maxChars = 6000): Promise<{ text: string; 
   const empty: SiteContacts = { email: null, instagram: null, facebook: null, linkedin: null, twitter: null, contactPage: null }
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
+      headers: { 'User-Agent': 'Mozilla/5.0 CuvAiBot/1.0' },
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return { text: '', contacts: empty }

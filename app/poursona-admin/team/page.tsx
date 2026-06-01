@@ -28,7 +28,7 @@ export default function TeamPage() {
         setViewerRole(null)
         setLoadMessage(
           me?.error === 'forbidden'
-            ? 'This Clerk account is not linked to a Poursona internal team member.'
+            ? 'This Clerk account is not linked to a CuvAi internal team member.'
             : 'Team access could not be loaded right now.'
         )
         setLoading(false)
@@ -81,8 +81,8 @@ export default function TeamPage() {
     load()
   }
 
-  if (loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
-  if (loadMessage) return <div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 14 }}>{loadMessage}</div>
+  if (loading) return <div style={{ color: '#3FC6D4' }}>Loading…</div>
+  if (loadMessage) return <div style={{ color: '#E8EDF2', fontFamily: "'Space Grotesk', sans-serif", fontSize: 14 }}>{loadMessage}</div>
 
   return (
     <div>
@@ -98,7 +98,7 @@ export default function TeamPage() {
           .team-header .add-btn { padding: 10px 14px !important; font-size: 11px !important; }
           .team-table-wrap { display: none; }
           .team-cards { display: flex; flex-direction: column; gap: 10px; }
-          .team-card { padding: 14px 16px; background: linear-gradient(145deg,#0e0b06,#0a0805); border: 1px solid rgba(201,168,76,.12); border-radius: 12px; }
+          .team-card { padding: 14px 16px; background: linear-gradient(145deg,#161C28,#10141D); border: 1px solid rgba(63,198,212,.12); border-radius: 12px; }
           .team-card-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
           .team-card-row:last-child { margin-bottom: 0; }
           .team-modal { padding: 16px !important; }
@@ -112,9 +112,9 @@ export default function TeamPage() {
 
       <div className="team-header">
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Poursona Internal</div>
-          <h2 style={{ color: '#F5ECD7', fontSize: 26, fontWeight: 700, margin: 0 }}>Team Members</h2>
-          <div style={{ color: '#9a8a64', fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>
+          <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>CuvAi Internal</div>
+          <h2 style={{ color: '#E8EDF2', fontSize: 26, fontWeight: 700, margin: 0 }}>Team Members</h2>
+          <div style={{ color: '#8A95A5', fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>
             These people have access to this portal.
             {viewerRole ? ` You are signed in as ${viewerRole}.` : ''}
           </div>
@@ -122,50 +122,50 @@ export default function TeamPage() {
         <button
           onClick={() => setAdding(true)}
           className="add-btn"
-          style={{ padding: '10px 20px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+          style={{ padding: '10px 20px', background: 'linear-gradient(135deg,#3FC6D4,#2A9BA8)', border: 'none', borderRadius: 8, color: '#0C1018', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
         >+ Add Member</button>
       </div>
 
       {/* Desktop / tablet: table layout */}
-      <div className="team-table-wrap" style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.12)', borderRadius: 14, overflow: 'hidden' }}>
+      <div className="team-table-wrap" style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.12)', borderRadius: 14, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
-            <thead><tr style={{ borderBottom: '1px solid rgba(201,168,76,.1)' }}>{['Name','Email','Role','Added',''].map(h => <th key={h} style={{ padding: '12px 20px', textAlign: 'left', color: '#4a3a1a', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>)}</tr></thead>
+            <thead><tr style={{ borderBottom: '1px solid rgba(63,198,212,.1)' }}>{['Name','Email','Role','Added',''].map(h => <th key={h} style={{ padding: '12px 20px', textAlign: 'left', color: '#3A4456', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>)}</tr></thead>
             <tbody>{team.map(m => (
-              <tr key={m.id} style={{ borderBottom: '1px solid rgba(201,168,76,.05)' }}>
-                <td style={{ padding: '14px 20px', color: '#F5ECD7', fontSize: 13 }}>{m.name || '—'}</td>
-                <td style={{ padding: '14px 20px', color: '#C9A84C', fontSize: 13, wordBreak: 'break-all' }}>{m.email}</td>
-                <td style={{ padding: '14px 20px' }}><span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10, background: m.role === 'owner' ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.05)', color: m.role === 'owner' ? '#C9A84C' : '#6a5a3a' }}>{m.role}</span></td>
-                <td style={{ padding: '14px 20px', color: '#4a3a1a', fontSize: 12, whiteSpace: 'nowrap' }}>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                <td style={{ padding: '14px 20px' }}>{m.role !== 'owner' && <button onClick={() => removeMember(m.email)} style={{ background: 'transparent', border: '1px solid rgba(255,100,100,.2)', borderRadius: 6, padding: '4px 11px', color: '#e07070', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 11 }}>Remove</button>}</td>
+              <tr key={m.id} style={{ borderBottom: '1px solid rgba(63,198,212,.05)' }}>
+                <td style={{ padding: '14px 20px', color: '#E8EDF2', fontSize: 13 }}>{m.name || '—'}</td>
+                <td style={{ padding: '14px 20px', color: '#3FC6D4', fontSize: 13, wordBreak: 'break-all' }}>{m.email}</td>
+                <td style={{ padding: '14px 20px' }}><span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10, background: m.role === 'owner' ? 'rgba(63,198,212,.15)' : 'rgba(255,255,255,.05)', color: m.role === 'owner' ? '#3FC6D4' : '#6B7588' }}>{m.role}</span></td>
+                <td style={{ padding: '14px 20px', color: '#3A4456', fontSize: 12, whiteSpace: 'nowrap' }}>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                <td style={{ padding: '14px 20px' }}>{m.role !== 'owner' && <button onClick={() => removeMember(m.email)} style={{ background: 'transparent', border: '1px solid rgba(255,100,100,.2)', borderRadius: 6, padding: '4px 11px', color: '#e07070', cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif", fontSize: 11 }}>Remove</button>}</td>
               </tr>
             ))}</tbody>
           </table>
         </div>
-        {team.length === 0 && <div style={{ padding: '32px', textAlign: 'center', color: '#4a3a1a', fontSize: 13 }}>No team members yet.</div>}
+        {team.length === 0 && <div style={{ padding: '32px', textAlign: 'center', color: '#3A4456', fontSize: 13 }}>No team members yet.</div>}
       </div>
 
       {/* Mobile: stacked card layout */}
       <div className="team-cards">
         {team.length === 0 ? (
-          <div style={{ padding: '32px 16px', textAlign: 'center', color: '#4a3a1a', fontSize: 13, background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.12)', borderRadius: 12 }}>
+          <div style={{ padding: '32px 16px', textAlign: 'center', color: '#3A4456', fontSize: 13, background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.12)', borderRadius: 12 }}>
             No team members yet.
           </div>
         ) : team.map(m => (
           <div key={m.id} className="team-card">
             <div className="team-card-row">
-              <div style={{ color: '#F5ECD7', fontSize: 15, fontWeight: 600, minWidth: 0, flex: 1 }}>{m.name || '—'}</div>
-              <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10, background: m.role === 'owner' ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.05)', color: m.role === 'owner' ? '#C9A84C' : '#6a5a3a', flexShrink: 0, textTransform: 'capitalize' }}>{m.role}</span>
+              <div style={{ color: '#E8EDF2', fontSize: 15, fontWeight: 600, minWidth: 0, flex: 1 }}>{m.name || '—'}</div>
+              <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10, background: m.role === 'owner' ? 'rgba(63,198,212,.15)' : 'rgba(255,255,255,.05)', color: m.role === 'owner' ? '#3FC6D4' : '#6B7588', flexShrink: 0, textTransform: 'capitalize' }}>{m.role}</span>
             </div>
             <div className="team-card-row" style={{ marginBottom: 8 }}>
-              <div style={{ color: '#C9A84C', fontSize: 12, wordBreak: 'break-all', flex: 1 }}>{m.email}</div>
+              <div style={{ color: '#3FC6D4', fontSize: 12, wordBreak: 'break-all', flex: 1 }}>{m.email}</div>
             </div>
             <div className="team-card-row">
-              <div style={{ color: '#4a3a1a', fontSize: 11 }}>
+              <div style={{ color: '#3A4456', fontSize: 11 }}>
                 Added {new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </div>
               {m.role !== 'owner' && (
-                <button onClick={() => removeMember(m.email)} style={{ background: 'transparent', border: '1px solid rgba(255,100,100,.2)', borderRadius: 6, padding: '6px 12px', color: '#e07070', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 11 }}>
+                <button onClick={() => removeMember(m.email)} style={{ background: 'transparent', border: '1px solid rgba(255,100,100,.2)', borderRadius: 6, padding: '6px 12px', color: '#e07070', cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif", fontSize: 11 }}>
                   Remove
                 </button>
               )}
@@ -175,25 +175,25 @@ export default function TeamPage() {
       </div>
       {adding && (
         <div className="team-modal" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 24 }}>
-          <div className="team-modal-inner" style={{ background: '#0e0b06', border: '1px solid rgba(201,168,76,.2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 420 }}>
-            <div style={{ color: '#F5ECD7', fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Add Team Member</div>
+          <div className="team-modal-inner" style={{ background: '#161C28', border: '1px solid rgba(63,198,212,.2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 420 }}>
+            <div style={{ color: '#E8EDF2', fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Add Team Member</div>
             <form onSubmit={addMember}>
               {[{ k: 'newEmail', l: 'Email *', t: 'email', v: newEmail, s: setNewEmail }, { k: 'newName', l: 'Name', t: 'text', v: newName, s: setNewName }].map(({ k, l, t, v, s }) => (
                 <div key={k} style={{ marginBottom: 14 }}>
-                  <label style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{l}</label>
-                  <input type={t} value={v} onChange={e => s(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 8, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+                  <label style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{l}</label>
+                  <input type={t} value={v} onChange={e => s(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 8, color: '#E8EDF2', fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
                 </div>
               ))}
               <div style={{ marginBottom: 20 }}>
-                <label style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Role</label>
-                <select value={newRole} onChange={e => setNewRole(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: '#0e0b06', border: '1px solid rgba(201,168,76,.15)', borderRadius: 8, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 13, outline: 'none' }}>
+                <label style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Role</label>
+                <select value={newRole} onChange={e => setNewRole(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: '#161C28', border: '1px solid rgba(63,198,212,.15)', borderRadius: 8, color: '#E8EDF2', fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, outline: 'none' }}>
                   <option value="staff">Staff</option>
                   <option value="owner">Owner</option>
                 </select>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button type="submit" disabled={saving || !newEmail} style={{ flex: 1, padding: '11px', background: 'linear-gradient(135deg,#C9A84C,#a07830)', border: 'none', borderRadius: 8, color: '#060403', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Adding…' : 'Add Member'}</button>
-                <button type="button" onClick={() => setAdding(false)} style={{ padding: '11px 16px', background: 'transparent', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#6a5a3a', fontFamily: 'Georgia, serif', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" disabled={saving || !newEmail} style={{ flex: 1, padding: '11px', background: 'linear-gradient(135deg,#3FC6D4,#2A9BA8)', border: 'none', borderRadius: 8, color: '#0C1018', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Adding…' : 'Add Member'}</button>
+                <button type="button" onClick={() => setAdding(false)} style={{ padding: '11px 16px', background: 'transparent', border: '1px solid rgba(63,198,212,.2)', borderRadius: 8, color: '#6B7588', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, cursor: 'pointer' }}>Cancel</button>
               </div>
             </form>
           </div>

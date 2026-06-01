@@ -27,7 +27,7 @@ function DailyChart({ data }: { data: DailyPoint[] }) {
               <g key={d.day}>
                 <rect x={x} y={72 - convH} width={barW} height={convH} fill="rgba(255,255,255,0.08)" rx={1} />
                 {d.orders > 0 && (
-                  <rect x={x} y={72 - ordH} width={barW} height={ordH} fill="rgba(201,168,76,0.65)" rx={1} />
+                  <rect x={x} y={72 - ordH} width={barW} height={ordH} fill="rgba(63,198,212,0.65)" rx={1} />
                 )}
               </g>
             )
@@ -36,15 +36,15 @@ function DailyChart({ data }: { data: DailyPoint[] }) {
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
         {data.filter((_, i) => i === 0 || i === data.length - 1 || i % labelEvery === 0).map(d => (
-          <span key={d.day} style={{ color: '#3a2a0a', fontSize: 9 }}>{d.day.slice(5)}</span>
+          <span key={d.day} style={{ color: '#2A3242', fontSize: 9 }}>{d.day.slice(5)}</span>
         ))}
       </div>
       <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#4a3a1a', fontSize: 10 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#3A4456', fontSize: 10 }}>
           <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(255,255,255,0.08)', display: 'inline-block' }} />Sessions
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#C9A84C', fontSize: 10 }}>
-          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(201,168,76,0.65)', display: 'inline-block' }} />Orders
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#3FC6D4', fontSize: 10 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(63,198,212,0.65)', display: 'inline-block' }} />Orders
         </span>
       </div>
     </div>
@@ -62,32 +62,32 @@ function OnboardingChecklist({ retailerSlug, onDismiss }: { retailerSlug: string
   const completedCount = CHECKLIST.filter(s => done[s.id]).length
 
   return (
-    <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.25)', borderRadius: 14, padding: '28px 28px 20px', marginBottom: 32 }}>
+    <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.25)', borderRadius: 14, padding: '28px 28px 20px', marginBottom: 32 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
-          <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', marginBottom: 4 }}>Getting started</div>
-          <div style={{ color: '#F5ECD7', fontSize: 18, fontWeight: 700 }}>You&apos;re almost live</div>
-          <div style={{ color: '#4a3a1a', fontSize: 13, marginTop: 4 }}>3 quick steps to start guiding guests.</div>
+          <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', marginBottom: 4 }}>Getting started</div>
+          <div style={{ color: '#E8EDF2', fontSize: 18, fontWeight: 700 }}>You&apos;re almost live</div>
+          <div style={{ color: '#3A4456', fontSize: 13, marginTop: 4 }}>3 quick steps to start guiding guests.</div>
         </div>
-        <button onClick={onDismiss} style={{ background: 'none', border: 'none', color: '#3a2a0a', cursor: 'pointer', fontSize: 18, padding: '0 4px', lineHeight: 1 }} title="Dismiss">×</button>
+        <button onClick={onDismiss} style={{ background: 'none', border: 'none', color: '#2A3242', cursor: 'pointer', fontSize: 18, padding: '0 4px', lineHeight: 1 }} title="Dismiss">×</button>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
         {CHECKLIST.map((step, i) => (
-          <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: 'rgba(255,255,255,.03)', borderRadius: 10, border: '1px solid rgba(201,168,76,.08)' }}>
-            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A84C', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+          <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: 'rgba(255,255,255,.03)', borderRadius: 10, border: '1px solid rgba(63,198,212,.08)' }}>
+            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(63,198,212,.1)', border: '1px solid rgba(63,198,212,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3FC6D4', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
               {i + 1}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: '#F5ECD7', fontSize: 13, fontWeight: 700 }}>{step.label}</div>
-              <div style={{ color: '#4a3a1a', fontSize: 12, marginTop: 2 }}>{step.desc}</div>
+              <div style={{ color: '#E8EDF2', fontSize: 13, fontWeight: 700 }}>{step.label}</div>
+              <div style={{ color: '#3A4456', fontSize: 12, marginTop: 2 }}>{step.desc}</div>
             </div>
             {step.href ? (
-              <Link href={step.href} style={{ padding: '6px 14px', background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#C9A84C', fontSize: 11, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              <Link href={step.href} style={{ padding: '6px 14px', background: 'rgba(63,198,212,.1)', border: '1px solid rgba(63,198,212,.2)', borderRadius: 8, color: '#3FC6D4', fontSize: 11, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                 {step.cta}
               </Link>
             ) : (
-              <a href={`/r/${retailerSlug}`} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 14px', background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 8, color: '#C9A84C', fontSize: 11, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              <a href={`/r/${retailerSlug}`} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 14px', background: 'rgba(63,198,212,.1)', border: '1px solid rgba(63,198,212,.2)', borderRadius: 8, color: '#3FC6D4', fontSize: 11, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                 Preview Guide →
               </a>
             )}
@@ -96,10 +96,10 @@ function OnboardingChecklist({ retailerSlug, onDismiss }: { retailerSlug: string
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ flex: 1, height: 3, background: 'rgba(201,168,76,.1)', borderRadius: 2 }}>
-          <div style={{ width: `${(completedCount / CHECKLIST.length) * 100}%`, height: '100%', background: '#C9A84C', borderRadius: 2, transition: 'width .3s' }} />
+        <div style={{ flex: 1, height: 3, background: 'rgba(63,198,212,.1)', borderRadius: 2 }}>
+          <div style={{ width: `${(completedCount / CHECKLIST.length) * 100}%`, height: '100%', background: '#3FC6D4', borderRadius: 2, transition: 'width .3s' }} />
         </div>
-        <div style={{ color: '#4a3a1a', fontSize: 11, whiteSpace: 'nowrap' }}>{completedCount}/{CHECKLIST.length} done</div>
+        <div style={{ color: '#3A4456', fontSize: 11, whiteSpace: 'nowrap' }}>{completedCount}/{CHECKLIST.length} done</div>
       </div>
     </div>
   )
@@ -107,12 +107,12 @@ function OnboardingChecklist({ retailerSlug, onDismiss }: { retailerSlug: string
 
 const ICONS: Record<string, string> = { brewery: '🍺', winery: '🍷', distillery: '🥃', coffee: '☕' }
 
-function Stat({ label, value, sub, color = '#C9A84C' }: any) {
+function Stat({ label, value, sub, color = '#3FC6D4' }: any) {
   return (
-    <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '24px 20px' }}>
-      <div style={{ color: '#4a3a1a', fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</div>
+    <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 14, padding: '24px 20px' }}>
+      <div style={{ color: '#3A4456', fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</div>
       <div style={{ color, fontSize: 36, fontWeight: 700, lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ color: '#6a5a3a', fontSize: 12, marginTop: 6 }}>{sub}</div>}
+      {sub && <div style={{ color: '#6B7588', fontSize: 12, marginTop: 6 }}>{sub}</div>}
     </div>
   )
 }
@@ -196,8 +196,8 @@ export default function Dashboard() {
     window.location.href = '/api/admin/dashboard?' + p
   }
 
-  if (retailerLoading || loading) return <div style={{ color: '#C9A84C' }}>Loading…</div>
-  if (message) return <div style={{ color: '#F5ECD7', fontFamily: 'Georgia, serif' }}>{message}</div>
+  if (retailerLoading || loading) return <div style={{ color: '#3FC6D4' }}>Loading…</div>
+  if (message) return <div style={{ color: '#E8EDF2', fontFamily: "'Space Grotesk', sans-serif" }}>{message}</div>
 
   const rate     = stats.convos > 0 ? Math.round((stats.recs   / stats.convos) * 100) : 0
   const ordRate  = stats.convos > 0 ? Math.round((stats.orders / stats.convos) * 100) : 0
@@ -206,8 +206,8 @@ export default function Dashboard() {
   const rangeLabel = hasRange
     ? `${fromDate || '…'} → ${toDate || 'today'}`
     : 'All time'
-  const inp: React.CSSProperties = { padding: '7px 10px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 7, color: '#F5ECD7', fontFamily: 'Georgia, serif', fontSize: 12, outline: 'none' }
-  const btn = (v?: 'outline'): React.CSSProperties => ({ padding: '7px 14px', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, background: v === 'outline' ? 'transparent' : 'linear-gradient(135deg,#C9A84C,#a07830)', color: v === 'outline' ? '#C9A84C' : '#060403', ...(v === 'outline' ? { border: '1px solid rgba(201,168,76,.25)' } : {}) })
+  const inp: React.CSSProperties = { padding: '7px 10px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(63,198,212,.2)', borderRadius: 7, color: '#E8EDF2', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, outline: 'none' }
+  const btn = (v?: 'outline'): React.CSSProperties => ({ padding: '7px 14px', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, background: v === 'outline' ? 'transparent' : 'linear-gradient(135deg,#3FC6D4,#2A9BA8)', color: v === 'outline' ? '#3FC6D4' : '#0C1018', ...(v === 'outline' ? { border: '1px solid rgba(63,198,212,.25)' } : {}) })
 
   return (
     <div>
@@ -226,17 +226,17 @@ export default function Dashboard() {
       `}</style>
 
       <div style={{ marginBottom: 28 }}>
-        <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Dashboard</div>
+        <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Dashboard</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {retailer?.logo_url
             ? <img src={retailer.logo_url} alt="" style={{ height: 36, objectFit: 'contain', borderRadius: 4 }} />
             : <span style={{ fontSize: 28 }}>{icon}</span>}
-          <div style={{ color: '#F5ECD7', fontSize: 22, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{retailer?.name}</div>
+          <div style={{ color: '#E8EDF2', fontSize: 22, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{retailer?.name}</div>
         </div>
-        <div style={{ color: '#4a3a1a', fontSize: 12, marginTop: 6, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ color: '#3A4456', fontSize: 12, marginTop: 6, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ textTransform: 'capitalize' }}>{retailer?.vertical}</span>
           {retailer?.location && <span>{retailer.location}</span>}
-          <a href={'/r/' + retailer?.slug} target="_blank" style={{ color: '#C9A84C', textDecoration: 'none' }}>↗ /r/{retailer?.slug}</a>
+          <a href={'/r/' + retailer?.slug} target="_blank" style={{ color: '#3FC6D4', textDecoration: 'none' }}>↗ /r/{retailer?.slug}</a>
         </div>
       </div>
 
@@ -246,7 +246,7 @@ export default function Dashboard() {
 
       {/* Date range controls */}
       <div className="dash-date-row">
-        <span style={{ color: '#4a3a1a', fontSize: 11 }}>{rangeLabel}</span>
+        <span style={{ color: '#3A4456', fontSize: 11 }}>{rangeLabel}</span>
         <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} onKeyDown={e => e.key === 'Enter' && applyDateRange()} style={inp} title="From" />
         <input type="date" value={toDate}   onChange={e => setToDate(e.target.value)}   onKeyDown={e => e.key === 'Enter' && applyDateRange()} style={inp} title="To" />
         <button onClick={applyDateRange} style={btn()}>Apply</button>
@@ -266,15 +266,15 @@ export default function Dashboard() {
 
       {/* AI usage this month */}
       {aiUsage && (
-        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '16px 20px', marginBottom: 20 }}>
+        <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 14, padding: '16px 20px', marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
-            <div style={{ color: '#F5ECD7', fontSize: 13, fontWeight: 700 }}>AI Usage This Month</div>
-            <div style={{ color: aiUsage.pct >= 100 ? '#e07070' : aiUsage.pct >= 80 ? '#C9A84C' : '#4a3a1a', fontSize: 12 }}>
+            <div style={{ color: '#E8EDF2', fontSize: 13, fontWeight: 700 }}>AI Usage This Month</div>
+            <div style={{ color: aiUsage.pct >= 100 ? '#e07070' : aiUsage.pct >= 80 ? '#3FC6D4' : '#3A4456', fontSize: 12 }}>
               ${aiUsage.costUsd.toFixed(2)} / ${aiUsage.budgetUsd.toFixed(0)} · {aiUsage.pct}%
             </div>
           </div>
           <div style={{ height: 6, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ width: aiUsage.pct + '%', height: '100%', background: aiUsage.pct >= 100 ? '#e07070' : aiUsage.pct >= 80 ? '#C9A84C' : '#5ecf8a', transition: 'width .3s' }} />
+            <div style={{ width: aiUsage.pct + '%', height: '100%', background: aiUsage.pct >= 100 ? '#e07070' : aiUsage.pct >= 80 ? '#3FC6D4' : '#5ecf8a', transition: 'width .3s' }} />
           </div>
           {aiUsage.pct >= 100 && (
             <div style={{ color: '#a07a3a', fontSize: 11, marginTop: 8 }}>
@@ -286,23 +286,23 @@ export default function Dashboard() {
 
       {/* Daily trend chart */}
       {daily.length > 1 && (
-        <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, padding: '20px 20px', marginBottom: 32 }}>
+        <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 14, padding: '20px 20px', marginBottom: 32 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 6 }}>
-            <div style={{ color: '#F5ECD7', fontSize: 13, fontWeight: 700 }}>Daily Activity</div>
-            <div style={{ color: '#3a2a0a', fontSize: 10 }}>{range?.chartFrom} → {range?.chartTo}</div>
+            <div style={{ color: '#E8EDF2', fontSize: 13, fontWeight: 700 }}>Daily Activity</div>
+            <div style={{ color: '#2A3242', fontSize: 10 }}>{range?.chartFrom} → {range?.chartTo}</div>
           </div>
           <DailyChart data={daily} />
         </div>
       )}
 
       {/* Recent Sessions — table on desktop, cards on mobile */}
-      <div style={{ background: 'linear-gradient(145deg,#0e0b06,#0a0805)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(201,168,76,.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ color: '#F5ECD7', fontSize: 14, fontWeight: 700 }}>Recent Sessions</div>
-          <div style={{ color: '#4a3a1a', fontSize: 11 }}>{retailer?.name}</div>
+      <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(63,198,212,.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ color: '#E8EDF2', fontSize: 14, fontWeight: 700 }}>Recent Sessions</div>
+          <div style={{ color: '#3A4456', fontSize: 11 }}>{retailer?.name}</div>
         </div>
         {recent.length === 0 ? (
-          <div style={{ padding: '32px 20px', textAlign: 'center', color: '#4a3a1a', fontSize: 13 }}>
+          <div style={{ padding: '32px 20px', textAlign: 'center', color: '#3A4456', fontSize: 13 }}>
             No sessions yet — share your QR code to get started.
           </div>
         ) : (
@@ -311,21 +311,21 @@ export default function Dashboard() {
             <div className="dash-sessions-table">
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(201,168,76,.08)' }}>
-                    {['Session','Status','Date'].map(h => <th key={h} style={{ padding: '10px 20px', textAlign: 'left', color: '#4a3a1a', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>)}
+                  <tr style={{ borderBottom: '1px solid rgba(63,198,212,.08)' }}>
+                    {['Session','Status','Date'].map(h => <th key={h} style={{ padding: '10px 20px', textAlign: 'left', color: '#3A4456', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {recent.map((s: any) => (
-                    <tr key={s.id} style={{ borderBottom: '1px solid rgba(201,168,76,.05)' }}>
-                      <td style={{ padding: '12px 20px', color: '#6a5a3a', fontSize: 12 }}>{s.id.substring(0,8)}…</td>
+                    <tr key={s.id} style={{ borderBottom: '1px solid rgba(63,198,212,.05)' }}>
+                      <td style={{ padding: '12px 20px', color: '#6B7588', fontSize: 12 }}>{s.id.substring(0,8)}…</td>
                       <td style={{ padding: '12px 20px' }}>
                         <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11,
-                          background: s.order_status==='ordered'?'rgba(94,207,138,.15)':s.order_status==='recommended'?'rgba(201,168,76,.15)':'rgba(255,255,255,.05)',
-                          color: s.order_status==='ordered'?'#5ecf8a':s.order_status==='recommended'?'#C9A84C':'#6a5a3a'
+                          background: s.order_status==='ordered'?'rgba(94,207,138,.15)':s.order_status==='recommended'?'rgba(63,198,212,.15)':'rgba(255,255,255,.05)',
+                          color: s.order_status==='ordered'?'#5ecf8a':s.order_status==='recommended'?'#3FC6D4':'#6B7588'
                         }}>{s.order_status}</span>
                       </td>
-                      <td style={{ padding: '12px 20px', color: '#6a5a3a', fontSize: 12 }}>
+                      <td style={{ padding: '12px 20px', color: '#6B7588', fontSize: 12 }}>
                         {new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
                       </td>
                     </tr>
@@ -336,15 +336,15 @@ export default function Dashboard() {
             {/* Mobile cards */}
             <div className="dash-sessions-cards" style={{ padding: '12px' }}>
               {recent.map((s: any) => (
-                <div key={s.id} style={{ padding: '14px 16px', background: 'rgba(255,255,255,.02)', border: '1px solid rgba(201,168,76,.07)', borderRadius: 10 }}>
+                <div key={s.id} style={{ padding: '14px 16px', background: 'rgba(255,255,255,.02)', border: '1px solid rgba(63,198,212,.07)', borderRadius: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ color: '#6a5a3a', fontSize: 12 }}>{s.id.substring(0,8)}…</span>
+                    <span style={{ color: '#6B7588', fontSize: 12 }}>{s.id.substring(0,8)}…</span>
                     <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11,
-                      background: s.order_status==='ordered'?'rgba(94,207,138,.15)':s.order_status==='recommended'?'rgba(201,168,76,.15)':'rgba(255,255,255,.05)',
-                      color: s.order_status==='ordered'?'#5ecf8a':s.order_status==='recommended'?'#C9A84C':'#6a5a3a'
+                      background: s.order_status==='ordered'?'rgba(94,207,138,.15)':s.order_status==='recommended'?'rgba(63,198,212,.15)':'rgba(255,255,255,.05)',
+                      color: s.order_status==='ordered'?'#5ecf8a':s.order_status==='recommended'?'#3FC6D4':'#6B7588'
                     }}>{s.order_status}</span>
                   </div>
-                  <div style={{ color: '#4a3a1a', fontSize: 11 }}>
+                  <div style={{ color: '#3A4456', fontSize: 11 }}>
                     {new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
                   </div>
                 </div>

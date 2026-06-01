@@ -15,7 +15,7 @@ const base64url = (b: Buffer) =>
 export async function GET(req: NextRequest, { params }: { params: { platform: string } }) {
   const origin = req.nextUrl.origin
 
-  // Auth: must be a Poursona team member (Clerk cookies travel with this nav).
+  // Auth: must be a CuvAi team member (Clerk cookies travel with this nav).
   const identity = await getAuthenticatedIdentity()
   if (!identity?.email || !(await getInternalMemberByEmail(identity.email))) {
     return back(origin, 'error=forbidden')
