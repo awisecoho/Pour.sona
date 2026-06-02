@@ -32,6 +32,7 @@ function AdminLoginInner() {
             <SignIn
               path="/admin/login"
               routing="path"
+              signUpUrl="/admin/signup"
               forceRedirectUrl="/admin"
               fallbackRedirectUrl="/admin"
               initialValues={initialEmail ? { emailAddress: initialEmail } : undefined}

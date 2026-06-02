@@ -57,7 +57,7 @@ function LoadingScreen() {
 function ClaimBanner({ draftId, theme, font, visible }: { draftId: string; theme: ReturnType<typeof useTheme>; font: string; visible: boolean }) {
   function claim() {
     if (typeof window !== 'undefined') localStorage.setItem('pending_draft_id', draftId)
-    window.location.href = '/admin/login'
+    window.location.href = '/admin/signup'
   }
   if (!visible) return null
   return (
@@ -94,7 +94,7 @@ function WelcomeScreen({ retailer, onStart, theme, font, draftId }: { retailer: 
   const noun = VERTICAL_NOUN[retailer.vertical] || 'Selection'
   function claim() {
     if (typeof window !== 'undefined') localStorage.setItem('pending_draft_id', draftId)
-    window.location.href = '/admin/login'
+    window.location.href = '/admin/signup'
   }
   return (
     <div style={{ minHeight:'100vh',background:'linear-gradient(170deg,#0A0E15 0%,#101622 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'56px 28px',textAlign:'center',position:'relative',boxSizing:'border-box' }}>
@@ -157,7 +157,7 @@ function DemoRecommendationCard({ rec,retailer,ctas,onTryAnother,theme,font,draf
 
   function claim() {
     if (typeof window !== 'undefined') localStorage.setItem('pending_draft_id', draftId)
-    window.location.href = '/admin/login'
+    window.location.href = '/admin/signup'
   }
 
   return (
