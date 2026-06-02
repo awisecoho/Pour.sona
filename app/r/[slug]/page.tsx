@@ -124,9 +124,9 @@ function WelcomeScreen({
   const hasLogo = Boolean(retailer.logo_url)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(170deg,#0A0E15 0%,#101622 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-      {/* Ambient glow */}
-      <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, rgba(${theme.rgbStr},.08) 0%, transparent 70%)`, pointerEvents: 'none' }} />
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(170deg,#0A0E15 0%,#101622 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '56px 28px', textAlign: 'center', position: 'relative', boxSizing: 'border-box' }}>
+      {/* Ambient glow — fixed so it never expands the scroll area or clips the top on short viewports */}
+      <div style={{ position: 'fixed', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, rgba(${theme.rgbStr},.08) 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
       {/* Logo or icon */}
       <div style={{ marginBottom: 24, position: 'relative' }}>
@@ -644,6 +644,16 @@ function RecommendationCard({
             {ctas.secondary}
           </button>
         </div>
+
+        {/* Vendor website — let guests explore the full brand */}
+        {retailer.source_url && (
+          <div style={{ padding: '0 20px 4px', textAlign: 'center' }}>
+            <a href={retailer.source_url} target="_blank" rel="noopener noreferrer"
+              style={{ color: '#6B7588', fontSize: 12, textDecoration: 'none', fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
+              Visit {retailer.name} ↗
+            </a>
+          </div>
+        )}
 
         {/* Pairing + upsell — small secondary touches, not the focus */}
         {(rec.pairing || rec.upsellSuggestion) && (

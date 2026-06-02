@@ -50,6 +50,7 @@ export interface Retailer {
   location?: string
   tagline?: string
   logo_url?: string
+  source_url?: string | null
   brand_color: string
   owner_email: string
   subscription_status: SubscriptionStatus

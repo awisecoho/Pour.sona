@@ -59,6 +59,7 @@ export async function GET(
     location:             draft.location || null,
     tagline:              draft.tagline  || null,
     logo_url:             draft.logo_url || null,
+    source_url:           draft.source_url || null,
     brand_color:          draft.brand_color || '#3FC6D4',
     brand_secondary_color: vb.brand_secondary_color || null,
     brand_accent_color:   vb.brand_accent_color    || null,

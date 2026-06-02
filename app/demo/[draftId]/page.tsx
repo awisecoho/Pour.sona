@@ -97,8 +97,8 @@ function WelcomeScreen({ retailer, onStart, theme, font, draftId }: { retailer: 
     window.location.href = '/admin/signup'
   }
   return (
-    <div style={{ minHeight:'100vh',background:'linear-gradient(170deg,#0A0E15 0%,#101622 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 28px',textAlign:'center',position:'relative',overflow:'hidden' }}>
-      <div style={{ position:'absolute',top:'30%',left:'50%',transform:'translate(-50%,-50%)',width:320,height:320,borderRadius:'50%',background:`radial-gradient(circle,rgba(${theme.rgbStr},.08) 0%,transparent 70%)`,pointerEvents:'none' }} />
+    <div style={{ minHeight:'100vh',background:'linear-gradient(170deg,#0A0E15 0%,#101622 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'56px 28px',textAlign:'center',position:'relative',boxSizing:'border-box' }}>
+      <div style={{ position:'fixed',top:'30%',left:'50%',transform:'translate(-50%,-50%)',width:320,height:320,borderRadius:'50%',background:`radial-gradient(circle,rgba(${theme.rgbStr},.08) 0%,transparent 70%)`,pointerEvents:'none' }} />
 
       {/* Demo badge */}
       <div style={{ position:'absolute',top:20,right:20,background:`rgba(${theme.rgbStr},.12)`,border:`1px solid rgba(${theme.rgbStr},.3)`,borderRadius:20,padding:'5px 12px',color:theme.primary,fontSize:11,fontFamily:`'${font}','Space Grotesk', sans-serif`,letterSpacing:'.1em' }}>
@@ -207,6 +207,12 @@ function DemoRecommendationCard({ rec,retailer,ctas,onTryAnother,theme,font,draf
         <button onClick={onTryAnother} style={{ padding:'12px',borderRadius:14,background:'transparent',border:`1px solid rgba(${theme.rgbStr},.28)`,cursor:'pointer',color:theme.primary,fontSize:12,fontWeight:600,letterSpacing:'.06em',fontFamily:`'${font}','Space Grotesk', sans-serif` }}>
           {ctas.secondary}
         </button>
+        {retailer.source_url && (
+          <a href={retailer.source_url} target="_blank" rel="noopener noreferrer"
+            style={{ textAlign:'center',color:'#6B7588',fontSize:12,textDecoration:'none',fontFamily:`'${font}','Space Grotesk', sans-serif`,paddingTop:2 }}>
+            Visit {retailer.name} ↗
+          </a>
+        )}
       </div>
     </div>
   )
