@@ -44,11 +44,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body style={{ margin: 0, padding: 0, background: 'var(--black-soft)', fontFamily: "'Space Grotesk', sans-serif" }}>
         {hasClerkEnv ? (
-          // Tell Clerk the app owns these paths so the embedded <SignUp>/<SignIn>
-          // render in-app instead of redirecting to the hosted Account Portal.
-          // (Vendor flow is the public sign-up path; internal /poursona-admin
-          // login uses its own dedicated <SignIn path=...> component.)
-          <ClerkProvider signInUrl="/admin/login" signUpUrl="/admin/signup">
+          // This Clerk instance uses the combined flow: sign-up happens INSIDE the
+          // <SignIn> component (unknown email → inline account creation). Pointing
+          // at /admin/login lets that flow run; we intentionally do NOT set
+          // signUpUrl (a standalone <SignUp> page redirects back into <SignIn>).
+          <ClerkProvider signInUrl="/admin/login">
             {children}
           </ClerkProvider>
         ) : children}
