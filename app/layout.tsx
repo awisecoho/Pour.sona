@@ -43,7 +43,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <style dangerouslySetInnerHTML={{ __html: cssVars }} />
       </head>
       <body style={{ margin: 0, padding: 0, background: 'var(--black-soft)', fontFamily: "'Space Grotesk', sans-serif" }}>
-        {hasClerkEnv ? <ClerkProvider>{children}</ClerkProvider> : children}
+        {hasClerkEnv ? (
+          // Tell Clerk the app owns these paths so the embedded <SignUp>/<SignIn>
+          // render in-app instead of redirecting to the hosted Account Portal.
+          // (Vendor flow is the public sign-up path; internal /poursona-admin
+          // login uses its own dedicated <SignIn path=...> component.)
+          <ClerkProvider signInUrl="/admin/login" signUpUrl="/admin/signup">
+            {children}
+          </ClerkProvider>
+        ) : children}
       </body>
     </html>
   )
