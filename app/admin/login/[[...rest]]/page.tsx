@@ -35,6 +35,7 @@ function AdminLoginInner() {
               signUpUrl="/admin/signup"
               forceRedirectUrl="/admin"
               fallbackRedirectUrl="/admin"
+              signUpForceRedirectUrl="/admin"
               initialValues={initialEmail ? { emailAddress: initialEmail } : undefined}
             />
           ) : (

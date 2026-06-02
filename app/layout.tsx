@@ -44,11 +44,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body style={{ margin: 0, padding: 0, background: 'var(--black-soft)', fontFamily: "'Space Grotesk', sans-serif" }}>
         {hasClerkEnv ? (
-          // Vendor auth lives at app paths. The /admin/signup page uses a
-          // hash-routed <SignUp> so it renders in-place instead of redirecting.
-          <ClerkProvider signInUrl="/admin/login" signUpUrl="/admin/signup">
-            {children}
-          </ClerkProvider>
+          // Bare provider: lets Clerk resolve sign-up to its working hosted
+          // Account Portal (the embedded <SignUp> redirects on this instance).
+          // /admin/signup calls redirectToSignUp({forceRedirect:/admin}) to send
+          // vendors to the hosted form and bring them back to claim their draft.
+          <ClerkProvider>{children}</ClerkProvider>
         ) : children}
       </body>
     </html>
