@@ -137,7 +137,7 @@ async function applyRateLimit(req: NextRequest) {
 }
 
 const isVendorAdminPage = createRouteMatcher(['/admin', '/admin/(.*)'])
-const isVendorAdminPublicPage = createRouteMatcher(['/admin/login(.*)', '/admin/auth(.*)'])
+const isVendorAdminPublicPage = createRouteMatcher(['/admin/login(.*)', '/admin/signup(.*)', '/admin/auth(.*)'])
 const isInternalAdminPage = createRouteMatcher(['/poursona-admin', '/poursona-admin/(.*)'])
 const isInternalAdminPublicPage = createRouteMatcher(['/poursona-admin/login(.*)'])
 const isProtectedApiRoute = createRouteMatcher([
