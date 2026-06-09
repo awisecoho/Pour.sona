@@ -219,13 +219,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div
         style={{
           minHeight: '100vh',
-          background: '#0A0E15',
+          background: '#12111A',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <div style={{ color: '#3FC6D4', fontFamily: "'Space Grotesk', sans-serif" }}>Loading...</div>
+        <div style={{ color: '#D67A31', fontFamily: 'var(--font-inter), system-ui, sans-serif' }}>Loading...</div>
       </div>
     )
   }
@@ -235,14 +235,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div
         style={{
           minHeight: '100vh',
-          background: '#0A0E15',
+          background: '#12111A',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           padding: 24,
         }}
       >
-        <div style={{ color: '#E8EDF2', fontFamily: "'Space Grotesk', sans-serif" }}>
+        <div style={{ color: '#F5F2E8', fontFamily: 'var(--font-inter), system-ui, sans-serif' }}>
           Redirecting to admin login...
         </div>
       </div>
@@ -254,33 +254,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div
         style={{
           minHeight: '100vh',
-          background: '#0A0E15',
+          background: '#12111A',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           padding: 24,
-          fontFamily: "'Space Grotesk', sans-serif",
+          fontFamily: 'var(--font-inter), system-ui, sans-serif',
         }}
       >
         <div style={{ maxWidth: 420, textAlign: 'center' }}>
-          <div style={{ fontSize: 32, marginBottom: 16 }}>✦</div>
-          <div style={{ color: '#3FC6D4', fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 8 }}>Account not found</div>
-          <div style={{ color: '#E8EDF2', fontSize: 18, fontWeight: 700, marginBottom: 12 }}>No venue linked to this account</div>
-          <div style={{ color: '#6B7588', fontSize: 13, lineHeight: 1.7, marginBottom: 28 }}>
-            The email you signed in with is not linked to any CuvAi venue.
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-source.png" alt="Poursona" style={{ height: 56, width: 'auto', display: 'block', margin: '0 auto 16px' }} />
+          <div style={{ color: '#D67A31', fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 8 }}>Account not found</div>
+          <div style={{ color: '#F5F2E8', fontSize: 18, fontWeight: 700, marginBottom: 12 }}>No venue linked to this account</div>
+          <div style={{ color: '#6A6080', fontSize: 13, lineHeight: 1.7, marginBottom: 28 }}>
+            The email you signed in with is not linked to any Poursona venue.
             This can happen if you used a different email than the one you signed up with.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <a href="/signup" style={{ padding: '13px 24px', background: 'linear-gradient(135deg,#3FC6D4,#2A9BA8)', borderRadius: 10, color: '#0C1018', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'block' }}>
+            <a href="/signup" style={{ padding: '13px 24px', background: 'linear-gradient(135deg,#D67A31,#612A86)', borderRadius: 10, color: '#12111A', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'block' }}>
               Create a new venue →
             </a>
             <button
               onClick={handleSignOut}
-              style={{ padding: '12px 24px', background: 'transparent', border: '1px solid rgba(63,198,212,.2)', borderRadius: 10, color: '#6B7588', fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, cursor: 'pointer' }}
+              style={{ padding: '12px 24px', background: 'transparent', border: '1px solid rgba(97,42,134,.2)', borderRadius: 10, color: '#6A6080', fontFamily: 'var(--font-inter), system-ui, sans-serif', fontSize: 13, cursor: 'pointer' }}
             >
               Sign in with a different account
             </button>
-            <a href="mailto:hello@pour-sona.com" style={{ color: '#3A4456', fontSize: 12, textDecoration: 'none', marginTop: 4 }}>
+            <a href="mailto:hello@pour-sona.com" style={{ color: '#3A3450', fontSize: 12, textDecoration: 'none', marginTop: 4 }}>
               Need help? hello@pour-sona.com
             </a>
           </div>
@@ -295,8 +296,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const sidebarContent = (
     <>
-      <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid rgba(63,198,212,.1)', position: 'relative' }}>
-        <div style={{ color: '#3FC6D4', fontSize: 9, letterSpacing: '.35em', textTransform: 'uppercase', marginBottom: 8 }}><span style={{ color: '#E8EDF2' }}>Cuv</span><span style={{ color: '#3FC6D4' }}>Ai</span></div>
+      <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid rgba(97,42,134,.1)', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-source.png" alt="Poursona" style={{ height: 24, width: 'auto', display: 'block' }} />
+          <span style={{ color: '#D67A31', fontSize: 9, letterSpacing: '.32em', textTransform: 'uppercase', fontWeight: 600 }}>Poursona</span>
+        </div>
         <button
           onClick={() => allRetailers.length > 1 && setSwitching(!switching)}
           style={{ width: '100%', background: 'transparent', border: 'none', padding: 0, cursor: allRetailers.length > 1 ? 'pointer' : 'default', textAlign: 'left' }}
@@ -304,31 +309,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 18 }}>{VERTICAL_ICONS[retailer?.vertical] || 'R'}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: '#E8EDF2', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ color: '#F5F2E8', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {retailer?.name || 'Select Retailer'}
               </div>
-              <div style={{ color: '#3A4456', fontSize: 10, marginTop: 1, textTransform: 'capitalize' }}>
+              <div style={{ color: '#3A3450', fontSize: 10, marginTop: 1, textTransform: 'capitalize' }}>
                 {retailer?.vertical || ''} {retailer?.vertical ? '·' : ''} {retailer?.subscription_status || 'trial'}
               </div>
             </div>
-            {allRetailers.length > 1 && <div style={{ color: '#3A4456', fontSize: 10 }}>v</div>}
+            {allRetailers.length > 1 && <div style={{ color: '#3A3450', fontSize: 10 }}>v</div>}
           </div>
         </button>
 
         {switching && (
-          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#161C28', border: '1px solid rgba(63,198,212,.2)', borderTop: 'none', zIndex: 30, maxHeight: 240, overflowY: 'auto' }}>
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1C1A2A', border: '1px solid rgba(97,42,134,.2)', borderTop: 'none', zIndex: 30, maxHeight: 240, overflowY: 'auto' }}>
             {allRetailers.map((r) => (
               <button
                 key={r.id}
                 onClick={() => { switchRetailer(r); setSidebarOpen(false) }}
-                style={{ width: '100%', padding: '12px 16px', background: r.id === retailer?.id ? 'rgba(63,198,212,.1)' : 'transparent', border: 'none', borderBottom: '1px solid rgba(63,198,212,.06)', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}
+                style={{ width: '100%', padding: '12px 16px', background: r.id === retailer?.id ? 'rgba(97,42,134,.1)' : 'transparent', border: 'none', borderBottom: '1px solid rgba(97,42,134,.06)', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}
               >
                 <span style={{ fontSize: 16 }}>{VERTICAL_ICONS[r.vertical] || 'R'}</span>
                 <div>
-                  <div style={{ color: r.id === retailer?.id ? '#3FC6D4' : '#E8EDF2', fontSize: 12, fontWeight: 600 }}>{r.name}</div>
-                  <div style={{ color: '#3A4456', fontSize: 10, textTransform: 'capitalize' }}>{r.vertical}</div>
+                  <div style={{ color: r.id === retailer?.id ? '#D67A31' : '#F5F2E8', fontSize: 12, fontWeight: 600 }}>{r.name}</div>
+                  <div style={{ color: '#3A3450', fontSize: 10, textTransform: 'capitalize' }}>{r.vertical}</div>
                 </div>
-                {r.id === retailer?.id && <span style={{ marginLeft: 'auto', color: '#3FC6D4', fontSize: 12 }}>✓</span>}
+                {r.id === retailer?.id && <span style={{ marginLeft: 'auto', color: '#D67A31', fontSize: 12 }}>✓</span>}
               </button>
             ))}
           </div>
@@ -336,9 +341,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {isTrial && daysLeft <= 7 && (
-        <Link href="/admin/billing" style={{ margin: '10px 12px 0', padding: '10px 12px', background: daysLeft <= 3 ? 'rgba(255,100,100,.1)' : 'rgba(63,198,212,.08)', border: '1px solid ' + (daysLeft <= 3 ? 'rgba(255,100,100,.25)' : 'rgba(63,198,212,.2)'), borderRadius: 8, textDecoration: 'none', display: 'block' }}>
-          <div style={{ color: daysLeft <= 3 ? '#e07070' : '#3FC6D4', fontSize: 11, fontWeight: 700 }}>{daysLeft === 0 ? 'Trial expired' : daysLeft + 'd left in trial'}</div>
-          <div style={{ color: '#3A4456', fontSize: 10, marginTop: 2 }}>Upgrade to keep access →</div>
+        <Link href="/admin/billing" style={{ margin: '10px 12px 0', padding: '10px 12px', background: daysLeft <= 3 ? 'rgba(255,100,100,.1)' : 'rgba(97,42,134,.08)', border: '1px solid ' + (daysLeft <= 3 ? 'rgba(255,100,100,.25)' : 'rgba(97,42,134,.2)'), borderRadius: 8, textDecoration: 'none', display: 'block' }}>
+          <div style={{ color: daysLeft <= 3 ? '#e07070' : '#D67A31', fontSize: 11, fontWeight: 700 }}>{daysLeft === 0 ? 'Trial expired' : daysLeft + 'd left in trial'}</div>
+          <div style={{ color: '#3A3450', fontSize: 10, marginTop: 2 }}>Upgrade to keep access →</div>
         </Link>
       )}
 
@@ -346,25 +351,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {NAV.map((item) => {
           const active = pathname === item.href
           return (
-            <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px', borderRadius: 8, marginBottom: 2, background: active ? 'rgba(63,198,212,.12)' : 'transparent', border: active ? '1px solid rgba(63,198,212,.2)' : '1px solid transparent', color: active ? '#3FC6D4' : '#6B7588', textDecoration: 'none', fontSize: 14 }}>
+            <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px', borderRadius: 8, marginBottom: 2, background: active ? 'rgba(97,42,134,.12)' : 'transparent', border: active ? '1px solid rgba(97,42,134,.2)' : '1px solid transparent', color: active ? '#D67A31' : '#6A6080', textDecoration: 'none', fontSize: 14 }}>
               <span style={{ fontSize: 15 }}>{item.icon}</span>{item.label}
             </Link>
           )
         })}
       </nav>
 
-      <div style={{ padding: '12px', borderTop: '1px solid rgba(63,198,212,.1)' }}>
+      <div style={{ padding: '12px', borderTop: '1px solid rgba(97,42,134,.1)' }}>
         {retailer?.slug && (
-          <a href={'/r/' + retailer.slug} target="_blank" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, marginBottom: 6, background: 'rgba(63,198,212,.06)', border: '1px solid rgba(63,198,212,.12)', color: '#6B7588', textDecoration: 'none', fontSize: 12 }}>
+          <a href={'/r/' + retailer.slug} target="_blank" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, marginBottom: 6, background: 'rgba(97,42,134,.06)', border: '1px solid rgba(97,42,134,.12)', color: '#6A6080', textDecoration: 'none', fontSize: 12 }}>
             → Preview Guide
           </a>
         )}
         {retailer?.slug && (
-          <a href={'/api/qr?slug=' + retailer.slug + '&format=png'} download={'qr-' + retailer.slug + '.png'} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, marginBottom: 6, background: 'rgba(63,198,212,.06)', border: '1px solid rgba(63,198,212,.12)', color: '#6B7588', textDecoration: 'none', fontSize: 12 }}>
+          <a href={'/api/qr?slug=' + retailer.slug + '&format=png'} download={'qr-' + retailer.slug + '.png'} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, marginBottom: 6, background: 'rgba(97,42,134,.06)', border: '1px solid rgba(97,42,134,.12)', color: '#6A6080', textDecoration: 'none', fontSize: 12 }}>
             QR Download
           </a>
         )}
-        <button onClick={handleSignOut} style={{ width: '100%', padding: '10px 12px', background: 'transparent', border: '1px solid rgba(63,198,212,.1)', borderRadius: 8, color: '#3A4456', cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, textAlign: 'left' }}>
+        <button onClick={handleSignOut} style={{ width: '100%', padding: '10px 12px', background: 'transparent', border: '1px solid rgba(97,42,134,.1)', borderRadius: 8, color: '#3A3450', cursor: 'pointer', fontFamily: 'var(--font-inter), system-ui, sans-serif', fontSize: 12, textAlign: 'left' }}>
           ← Sign Out
         </button>
       </div>
@@ -372,13 +377,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   )
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0A0E15', fontFamily: "'Space Grotesk', sans-serif" }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#12111A', fontFamily: 'var(--font-inter), system-ui, sans-serif' }}>
       <style>{`
         /* Desktop: fixed sidebar, main has left margin */
         .admin-sidebar {
           width: 224px; flex-shrink: 0;
-          background: linear-gradient(180deg,#0d0904,#0A0E15);
-          border-right: 1px solid rgba(63,198,212,.12);
+          background: linear-gradient(180deg,#0d0904,#12111A);
+          border-right: 1px solid rgba(97,42,134,.12);
           display: flex; flex-direction: column;
           position: fixed; top: 0; left: 0; bottom: 0; z-index: 20;
           transition: transform 0.25s ease;
@@ -397,7 +402,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           .admin-topbar {
             display: flex; align-items: center; justify-content: space-between;
             position: fixed; top: 0; left: 0; right: 0; height: 52px; z-index: 19;
-            background: #0d0904; border-bottom: 1px solid rgba(63,198,212,.12);
+            background: #0d0904; border-bottom: 1px solid rgba(97,42,134,.12);
             padding: 0 16px;
           }
           .admin-main { margin-left: 0; padding: 72px 16px 24px; }
@@ -409,11 +414,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="admin-topbar">
         <button
           onClick={() => setSidebarOpen(true)}
-          style={{ background: 'none', border: 'none', color: '#3FC6D4', cursor: 'pointer', padding: '8px 4px', fontSize: 20, lineHeight: 1 }}
+          style={{ background: 'none', border: 'none', color: '#D67A31', cursor: 'pointer', padding: '8px 4px', fontSize: 20, lineHeight: 1 }}
           aria-label="Open menu"
         >☰</button>
-        <div style={{ color: '#3FC6D4', fontSize: 13, fontWeight: 700, letterSpacing: '.05em' }}>
-          {retailer?.name || 'CuvAi'}
+        <div style={{ color: '#D67A31', fontSize: 13, fontWeight: 700, letterSpacing: '.05em' }}>
+          {retailer?.name || 'Poursona'}
         </div>
         <div style={{ width: 32 }} />
       </div>
