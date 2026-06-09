@@ -145,8 +145,8 @@ export default function RetailerDetail() {
     window.open('/admin', '_blank')
   }
 
-  if (loading) return <div style={{ color: '#3FC6D4' }}>Loading...</div>
-  if (loadError) return <div style={{ color: '#E8EDF2' }}>{loadError}</div>
+  if (loading) return <div style={{ color: '#D67A31' }}>Loading...</div>
+  if (loadError) return <div style={{ color: '#F5F2E8' }}>{loadError}</div>
   if (!retailer) return <div style={{ color: '#e07070' }}>Retailer not found.</div>
 
   const trialEnds = retailer.trial_ends_at ? new Date(retailer.trial_ends_at) : null
@@ -155,14 +155,14 @@ export default function RetailerDetail() {
 
   const s = {
     card: {
-      background: 'linear-gradient(145deg,#161C28,#10141D)',
-      border: '1px solid rgba(63,198,212,.15)',
+      background: 'linear-gradient(145deg,#1C1A2A,#161423)',
+      border: '1px solid rgba(97,42,134,.15)',
       borderRadius: 14,
       padding: '20px',
       marginBottom: 16,
     } as React.CSSProperties,
     label: {
-      color: '#3FC6D4',
+      color: '#D67A31',
       fontSize: 10,
       letterSpacing: '.15em',
       textTransform: 'uppercase' as const,
@@ -173,10 +173,10 @@ export default function RetailerDetail() {
       width: '100%',
       padding: '11px 12px',
       background: 'rgba(255,255,255,.05)',
-      border: '1px solid rgba(63,198,212,.2)',
+      border: '1px solid rgba(97,42,134,.2)',
       borderRadius: 8,
-      color: '#E8EDF2',
-      fontFamily: "'Space Grotesk', sans-serif",
+      color: '#F5F2E8',
+      fontFamily: "var(--font-inter), system-ui, sans-serif",
       fontSize: 14,
       outline: 'none',
       boxSizing: 'border-box' as const,
@@ -186,20 +186,20 @@ export default function RetailerDetail() {
       borderRadius: '8px 8px 0 0',
       border: 'none',
       cursor: 'pointer',
-      fontFamily: "'Space Grotesk', sans-serif",
+      fontFamily: "var(--font-inter), system-ui, sans-serif",
       fontSize: 12,
       fontWeight: 700,
-      background: active ? 'rgba(63,198,212,.15)' : 'transparent',
-      color: active ? '#3FC6D4' : '#3A4456',
-      borderBottom: active ? '2px solid #3FC6D4' : '2px solid transparent',
+      background: active ? 'rgba(97,42,134,.15)' : 'transparent',
+      color: active ? '#D67A31' : '#3A3450',
+      borderBottom: active ? '2px solid #D67A31' : '2px solid transparent',
     } as React.CSSProperties),
     rescanBtn: (color: string) => ({
       padding: '12px 18px',
       border: 'none',
       borderRadius: 8,
       background: color,
-      color: '#0C1018',
-      fontFamily: "'Space Grotesk', sans-serif",
+      color: '#12111A',
+      fontFamily: "var(--font-inter), system-ui, sans-serif",
       fontSize: 12,
       fontWeight: 700,
       cursor: rescanning ? 'wait' : 'pointer',
@@ -211,34 +211,34 @@ export default function RetailerDetail() {
       borderRadius: 8,
       border: 'none',
       cursor: 'pointer',
-      fontFamily: "'Space Grotesk', sans-serif",
+      fontFamily: "var(--font-inter), system-ui, sans-serif",
       fontSize: 12,
       fontWeight: 700,
-      background: v === 'danger' ? 'rgba(255,100,100,.15)' : v === 'green' ? 'rgba(94,207,138,.15)' : 'linear-gradient(135deg,#3FC6D4,#2A9BA8)',
-      color: v === 'danger' ? '#e07070' : v === 'green' ? '#5ecf8a' : '#0C1018',
+      background: v === 'danger' ? 'rgba(255,100,100,.15)' : v === 'green' ? 'rgba(94,207,138,.15)' : 'linear-gradient(135deg,#D67A31,#612A86)',
+      color: v === 'danger' ? '#e07070' : v === 'green' ? '#5ecf8a' : '#12111A',
     } as React.CSSProperties),
   }
 
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <Link href="/poursona-admin" style={{ color: '#3A4456', fontSize: 12, textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>← Back</Link>
+        <Link href="/poursona-admin" style={{ color: '#3A3450', fontSize: 12, textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>← Back</Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 10, background: retailer.brand_color || '#3FC6D4', flexShrink: 0 }} />
+          <div style={{ width: 48, height: 48, borderRadius: 10, background: retailer.brand_color || '#D67A31', flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
-            <div style={{ color: '#E8EDF2', fontSize: 22, fontWeight: 700 }}>{retailer.name}</div>
-            <div style={{ color: '#3A4456', fontSize: 12, marginTop: 2, textTransform: 'capitalize' }}>{retailer.vertical} · /r/{retailer.slug}</div>
+            <div style={{ color: '#F5F2E8', fontSize: 22, fontWeight: 700 }}>{retailer.name}</div>
+            <div style={{ color: '#3A3450', fontSize: 12, marginTop: 2, textTransform: 'capitalize' }}>{retailer.vertical} · /r/{retailer.slug}</div>
           </div>
-          {saving && <div style={{ color: '#3FC6D4', fontSize: 11 }}>Saving...</div>}
+          {saving && <div style={{ color: '#D67A31', fontSize: 11 }}>Saving...</div>}
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const }}>
-        <a href={'/r/' + retailer.slug} target="_blank" style={{ padding: '10px 16px', background: 'linear-gradient(135deg,#3FC6D4,#2A9BA8)', borderRadius: 8, color: '#0C1018', textDecoration: 'none', fontSize: 12, fontWeight: 700 }}>Preview</a>
-        <button onClick={openVendorAdmin} style={{ padding: '10px 16px', background: 'rgba(63,198,212,.1)', border: '1px solid rgba(63,198,212,.2)', borderRadius: 8, color: '#3FC6D4', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif" }}>Vendor Admin</button>
+        <a href={'/r/' + retailer.slug} target="_blank" style={{ padding: '10px 16px', background: 'linear-gradient(135deg,#D67A31,#612A86)', borderRadius: 8, color: '#12111A', textDecoration: 'none', fontSize: 12, fontWeight: 700 }}>Preview</a>
+        <button onClick={openVendorAdmin} style={{ padding: '10px 16px', background: 'rgba(97,42,134,.1)', border: '1px solid rgba(97,42,134,.2)', borderRadius: 8, color: '#D67A31', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "var(--font-inter), system-ui, sans-serif" }}>Vendor Admin</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 0, borderBottom: '1px solid rgba(63,198,212,.1)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 2, marginBottom: 0, borderBottom: '1px solid rgba(97,42,134,.1)', flexWrap: 'wrap' }}>
         {(['overview', 'products', 'billing', 'rescan', 'invite'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={s.tabBtn(tab === t)}>
             {t === 'rescan' ? 'Re-scan' : t.charAt(0).toUpperCase() + t.slice(1)}
@@ -257,7 +257,7 @@ export default function RetailerDetail() {
               </div>
             )}
             <div style={s.card}>
-              <div style={{ color: '#E8EDF2', fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Details</div>
+              <div style={{ color: '#F5F2E8', fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Details</div>
               {[
                 { label: 'Name', field: 'name', value: retailer.name },
                 { label: 'Location', field: 'location', value: retailer.location || '' },
@@ -269,7 +269,7 @@ export default function RetailerDetail() {
                   <label style={s.label}>{label}</label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     {field === 'brand_color' && (
-                      <div style={{ width: 32, height: 32, borderRadius: 6, background: retailer.brand_color || '#3FC6D4', flexShrink: 0, border: '1px solid rgba(255,255,255,.1)' }} />
+                      <div style={{ width: 32, height: 32, borderRadius: 6, background: retailer.brand_color || '#D67A31', flexShrink: 0, border: '1px solid rgba(255,255,255,.1)' }} />
                     )}
                     <input defaultValue={value} onBlur={e => saveField(field, e.target.value)} style={s.inp} />
                   </div>
@@ -278,21 +278,21 @@ export default function RetailerDetail() {
             </div>
             {(retailer.story || retailer.culture || retailer.region) && (
               <div style={s.card}>
-                <div style={{ color: '#E8EDF2', fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Brand Story</div>
+                <div style={{ color: '#F5F2E8', fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Brand Story</div>
                 {retailer.story && <div style={{ marginBottom: 14 }}><label style={s.label}>Story</label><textarea defaultValue={retailer.story} onBlur={e => saveField('story', e.target.value)} rows={3} style={{ ...s.inp, resize: 'vertical' as const }} /></div>}
                 {retailer.culture && <div style={{ marginBottom: 14 }}><label style={s.label}>Culture / Vibe</label><textarea defaultValue={retailer.culture} onBlur={e => saveField('culture', e.target.value)} rows={3} style={{ ...s.inp, resize: 'vertical' as const }} /></div>}
                 {retailer.region && <div style={{ marginBottom: 14 }}><label style={s.label}>Region</label><textarea defaultValue={retailer.region} onBlur={e => saveField('region', e.target.value)} rows={2} style={{ ...s.inp, resize: 'vertical' as const }} /></div>}
               </div>
             )}
             <div style={s.card}>
-              <div style={{ color: '#E8EDF2', fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Recent Sessions</div>
+              <div style={{ color: '#F5F2E8', fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Recent Sessions</div>
               {sessions.length === 0
-                ? <div style={{ color: '#3A4456', fontSize: 13 }}>No sessions yet.</div>
+                ? <div style={{ color: '#3A3450', fontSize: 13 }}>No sessions yet.</div>
                 : sessions.map(sess => (
-                  <div key={sess.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(63,198,212,.06)' }}>
-                    <span style={{ color: '#6B7588', fontSize: 12 }}>{sess.id.substring(0, 8)}...</span>
-                    <span style={{ color: sess.order_status === 'ordered' ? '#5ecf8a' : sess.order_status === 'recommended' ? '#3FC6D4' : '#3A4456', fontSize: 12 }}>{sess.order_status}</span>
-                    <span style={{ color: '#3A4456', fontSize: 11 }}>{new Date(sess.created_at).toLocaleDateString()}</span>
+                  <div key={sess.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(97,42,134,.06)' }}>
+                    <span style={{ color: '#6A6080', fontSize: 12 }}>{sess.id.substring(0, 8)}...</span>
+                    <span style={{ color: sess.order_status === 'ordered' ? '#5ecf8a' : sess.order_status === 'recommended' ? '#D67A31' : '#3A3450', fontSize: 12 }}>{sess.order_status}</span>
+                    <span style={{ color: '#3A3450', fontSize: 11 }}>{new Date(sess.created_at).toLocaleDateString()}</span>
                   </div>
                 ))}
             </div>
@@ -301,22 +301,22 @@ export default function RetailerDetail() {
 
         {tab === 'products' && (
           <div style={s.card}>
-            <div style={{ color: '#E8EDF2', fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Products ({products.length})</div>
+            <div style={{ color: '#F5F2E8', fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Products ({products.length})</div>
             {products.map(p => (
-              <div key={p.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(63,198,212,.06)' }}>
-                <div style={{ color: '#E8EDF2', fontSize: 14 }}>{p.name}</div>
-                <div style={{ color: '#3A4456', fontSize: 11, marginTop: 2 }}>
+              <div key={p.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(97,42,134,.06)' }}>
+                <div style={{ color: '#F5F2E8', fontSize: 14 }}>{p.name}</div>
+                <div style={{ color: '#3A3450', fontSize: 11, marginTop: 2 }}>
                   {[p.category, p.style, p.abv ? p.abv + ' ABV' : null, p.price ? '$' + p.price : null].filter(Boolean).join(' · ')}
                 </div>
               </div>
             ))}
             {flights.length > 0 && (
               <>
-                <div style={{ color: '#E8EDF2', fontSize: 14, fontWeight: 700, margin: '20px 0 14px' }}>Flights ({flights.length})</div>
+                <div style={{ color: '#F5F2E8', fontSize: 14, fontWeight: 700, margin: '20px 0 14px' }}>Flights ({flights.length})</div>
                 {flights.map(f => (
-                  <div key={f.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(63,198,212,.06)' }}>
-                    <div style={{ color: '#E8EDF2', fontSize: 14 }}>{f.name}</div>
-                    <div style={{ color: '#3A4456', fontSize: 11, marginTop: 2 }}>{f.count} × {f.pour_size} · ${f.price}</div>
+                  <div key={f.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(97,42,134,.06)' }}>
+                    <div style={{ color: '#F5F2E8', fontSize: 14 }}>{f.name}</div>
+                    <div style={{ color: '#3A3450', fontSize: 11, marginTop: 2 }}>{f.count} × {f.pour_size} · ${f.price}</div>
                   </div>
                 ))}
               </>
@@ -328,21 +328,21 @@ export default function RetailerDetail() {
           <div>
             {/* Current status card */}
             <div style={s.card}>
-              <div style={{ color: '#E8EDF2', fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Subscription Status</div>
+              <div style={{ color: '#F5F2E8', fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Subscription Status</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <span style={{
                   padding: '5px 14px',
                   borderRadius: 20,
                   fontSize: 13,
                   fontWeight: 700,
-                  background: retailer.subscription_status === 'active' ? 'rgba(94,207,138,.15)' : trialExpired ? 'rgba(255,100,100,.12)' : 'rgba(63,198,212,.12)',
-                  color: retailer.subscription_status === 'active' ? '#5ecf8a' : trialExpired ? '#e07070' : '#3FC6D4',
-                  border: '1px solid ' + (retailer.subscription_status === 'active' ? 'rgba(94,207,138,.3)' : trialExpired ? 'rgba(255,100,100,.3)' : 'rgba(63,198,212,.25)'),
+                  background: retailer.subscription_status === 'active' ? 'rgba(94,207,138,.15)' : trialExpired ? 'rgba(255,100,100,.12)' : 'rgba(97,42,134,.12)',
+                  color: retailer.subscription_status === 'active' ? '#5ecf8a' : trialExpired ? '#e07070' : '#D67A31',
+                  border: '1px solid ' + (retailer.subscription_status === 'active' ? 'rgba(94,207,138,.3)' : trialExpired ? 'rgba(255,100,100,.3)' : 'rgba(97,42,134,.25)'),
                 }}>
                   {retailer.subscription_status || 'trial'}
                 </span>
                 {trialEnds && (
-                  <span style={{ color: trialExpired ? '#e07070' : '#3A4456', fontSize: 13 }}>
+                  <span style={{ color: trialExpired ? '#e07070' : '#3A3450', fontSize: 13 }}>
                     {trialExpired
                       ? 'Expired ' + trialEnds.toLocaleDateString()
                       : daysLeft + ' days left · ' + trialEnds.toLocaleDateString()}
@@ -368,8 +368,8 @@ export default function RetailerDetail() {
 
             {/* Extend trial card */}
             <div style={s.card}>
-              <div style={{ color: '#E8EDF2', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Extend Trial</div>
-              <div style={{ color: '#3A4456', fontSize: 13, marginBottom: 18, lineHeight: 1.6 }}>
+              <div style={{ color: '#F5F2E8', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Extend Trial</div>
+              <div style={{ color: '#3A3450', fontSize: 13, marginBottom: 18, lineHeight: 1.6 }}>
                 Adds days from today (or from current expiry if not yet expired). Resets status to trial.
               </div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -380,11 +380,11 @@ export default function RetailerDetail() {
                     style={{
                       padding: '8px 14px',
                       borderRadius: 8,
-                      border: '1px solid rgba(63,198,212,' + (extendDays === d ? '.6' : '.2') + ')',
-                      background: extendDays === d ? 'rgba(63,198,212,.15)' : 'transparent',
-                      color: extendDays === d ? '#3FC6D4' : '#3A4456',
+                      border: '1px solid rgba(97,42,134,' + (extendDays === d ? '.6' : '.2') + ')',
+                      background: extendDays === d ? 'rgba(97,42,134,.15)' : 'transparent',
+                      color: extendDays === d ? '#D67A31' : '#3A3450',
                       cursor: 'pointer',
-                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontFamily: "var(--font-inter), system-ui, sans-serif",
                       fontSize: 12,
                       fontWeight: 700,
                     }}>
@@ -415,8 +415,8 @@ export default function RetailerDetail() {
 
             {/* Stripe placeholder */}
             <div style={{ ...s.card, opacity: .45 }}>
-              <div style={{ color: '#E8EDF2', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Stripe (coming soon)</div>
-              <div style={{ color: '#3A4456', fontSize: 13 }}>Customer ID: {retailer.stripe_customer_id || 'Not connected'}</div>
+              <div style={{ color: '#F5F2E8', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Stripe (coming soon)</div>
+              <div style={{ color: '#3A3450', fontSize: 13 }}>Customer ID: {retailer.stripe_customer_id || 'Not connected'}</div>
             </div>
           </div>
         )}
@@ -424,8 +424,8 @@ export default function RetailerDetail() {
         {tab === 'rescan' && (
           <div>
             <div style={s.card}>
-              <div style={{ color: '#E8EDF2', fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Re-scan Website</div>
-              <div style={{ color: '#3A4456', fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
+              <div style={{ color: '#F5F2E8', fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Re-scan Website</div>
+              <div style={{ color: '#3A3450', fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
                 Update this retailer&apos;s data by re-reading their website.
               </div>
               <div style={{ marginBottom: 20 }}>
@@ -433,27 +433,27 @@ export default function RetailerDetail() {
                 <input type="url" value={rescanUrl} onChange={e => setRescanUrl(e.target.value)} placeholder="https://theirwebsite.com" style={s.inp} autoCapitalize="none" autoCorrect="off" />
               </div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-                <button onClick={() => runRescan('catalog')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('rgba(63,198,212,.3)')}>{rescanning ? '...' : 'Catalog Only'}</button>
-                <button onClick={() => runRescan('branding')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('rgba(63,198,212,.3)')}>{rescanning ? '...' : 'Branding Only'}</button>
-                <button onClick={() => runRescan('full')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('linear-gradient(135deg,#3FC6D4,#2A9BA8)')}>{rescanning ? 'Scanning...' : 'Full Rescan'}</button>
+                <button onClick={() => runRescan('catalog')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('rgba(97,42,134,.3)')}>{rescanning ? '...' : 'Catalog Only'}</button>
+                <button onClick={() => runRescan('branding')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('rgba(97,42,134,.3)')}>{rescanning ? '...' : 'Branding Only'}</button>
+                <button onClick={() => runRescan('full')} disabled={!rescanUrl.trim() || rescanning} style={s.rescanBtn('linear-gradient(135deg,#D67A31,#612A86)')}>{rescanning ? 'Scanning...' : 'Full Rescan'}</button>
               </div>
-              <div style={{ color: '#3A4456', fontSize: 11, lineHeight: 1.7 }}>
-                <strong style={{ color: '#6B7588' }}>Catalog Only</strong> — adds new products, keeps manual edits<br />
-                <strong style={{ color: '#6B7588' }}>Branding Only</strong> — updates colors, logo, story, tagline<br />
-                <strong style={{ color: '#6B7588' }}>Full Rescan</strong> — replaces all products, updates all branding
+              <div style={{ color: '#3A3450', fontSize: 11, lineHeight: 1.7 }}>
+                <strong style={{ color: '#6A6080' }}>Catalog Only</strong> — adds new products, keeps manual edits<br />
+                <strong style={{ color: '#6A6080' }}>Branding Only</strong> — updates colors, logo, story, tagline<br />
+                <strong style={{ color: '#6A6080' }}>Full Rescan</strong> — replaces all products, updates all branding
               </div>
             </div>
             {rescanning && (
               <div style={{ ...s.card, textAlign: 'center', padding: '32px' }}>
-                <div style={{ color: '#3FC6D4', fontSize: 14, marginBottom: 8 }}>Reading website...</div>
-                <div style={{ color: '#3A4456', fontSize: 12 }}>20-40 seconds. AI is extracting colors, story, and products.</div>
+                <div style={{ color: '#D67A31', fontSize: 14, marginBottom: 8 }}>Reading website...</div>
+                <div style={{ color: '#3A3450', fontSize: 12 }}>20-40 seconds. AI is extracting colors, story, and products.</div>
               </div>
             )}
             {rescanResult && (
               <div style={{ ...s.card, border: '1px solid rgba(94,207,138,.25)' }}>
                 <div style={{ color: '#5ecf8a', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Rescan Complete</div>
-                <div style={{ color: '#E8EDF2', fontSize: 13, marginBottom: 8 }}>Mode: <span style={{ color: '#3FC6D4' }}>{rescanResult.mode}</span></div>
-                {rescanResult.newProducts > 0 && <div style={{ color: '#E8EDF2', fontSize: 13 }}>{rescanResult.newProducts} new products added</div>}
+                <div style={{ color: '#F5F2E8', fontSize: 13, marginBottom: 8 }}>Mode: <span style={{ color: '#D67A31' }}>{rescanResult.mode}</span></div>
+                {rescanResult.newProducts > 0 && <div style={{ color: '#F5F2E8', fontSize: 13 }}>{rescanResult.newProducts} new products added</div>}
               </div>
             )}
             {rescanError && <div style={{ color: '#e07070', fontSize: 13, padding: '12px', background: 'rgba(255,100,100,.08)', borderRadius: 8 }}>{rescanError}</div>}
@@ -462,17 +462,17 @@ export default function RetailerDetail() {
 
         {tab === 'invite' && (
           <div style={s.card}>
-            <div style={{ color: '#E8EDF2', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Send Admin Access</div>
-            <div style={{ color: '#3A4456', fontSize: 13, marginBottom: 20 }}>Send a login link so the vendor can access their portal.</div>
+            <div style={{ color: '#F5F2E8', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Send Admin Access</div>
+            <div style={{ color: '#3A3450', fontSize: 13, marginBottom: 20 }}>Send a login link so the vendor can access their portal.</div>
             <label style={s.label}>Vendor Email</label>
             <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="owner@theirplace.com" style={{ ...s.inp, marginBottom: 14 }} />
-            <button onClick={sendInvite} disabled={!inviteEmail || inviting} style={{ padding: '12px 22px', background: 'linear-gradient(135deg,#3FC6D4,#2A9BA8)', border: 'none', borderRadius: 8, color: '#0C1018', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: !inviteEmail || inviting ? .5 : 1 }}>
+            <button onClick={sendInvite} disabled={!inviteEmail || inviting} style={{ padding: '12px 22px', background: 'linear-gradient(135deg,#D67A31,#612A86)', border: 'none', borderRadius: 8, color: '#12111A', fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: !inviteEmail || inviting ? .5 : 1 }}>
               {inviting ? 'Sending...' : 'Send Invite'}
             </button>
             {inviteResult && <div style={{ color: inviteResult.startsWith('Error') ? '#e07070' : '#5ecf8a', fontSize: 13, marginTop: 12 }}>{inviteResult}</div>}
-            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(63,198,212,.1)' }}>
-              <div style={{ color: '#3A4456', fontSize: 11, marginBottom: 6 }}>Customer link</div>
-              <div style={{ color: '#3FC6D4', fontSize: 13 }}>{storefrontUrl(retailer.slug)}</div>
+            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(97,42,134,.1)' }}>
+              <div style={{ color: '#3A3450', fontSize: 11, marginBottom: 6 }}>Customer link</div>
+              <div style={{ color: '#D67A31', fontSize: 13 }}>{storefrontUrl(retailer.slug)}</div>
             </div>
           </div>
         )}
