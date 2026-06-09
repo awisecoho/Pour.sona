@@ -18,6 +18,7 @@ DO $$ BEGIN
   BEGIN ALTER TABLE retailers ADD COLUMN stripe_customer_id text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN subscription_tier text DEFAULT 'starter'; EXCEPTION WHEN duplicate_column THEN NULL; END;
   -- vendor builder columns (AI persona, extended brand palette, take-home / featured items)
+  BEGIN ALTER TABLE retailers ADD COLUMN host_persona text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN chat_system_prompt text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN brand_secondary_color text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN brand_accent_color text; EXCEPTION WHEN duplicate_column THEN NULL; END;
