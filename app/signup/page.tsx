@@ -103,15 +103,15 @@ export default function SignupPage() {
 
   const inp: React.CSSProperties = {
     width: '100%', padding: '14px 16px',
-    background: 'rgba(255,255,255,.06)', border: '1px solid rgba(63,198,212,.25)',
-    borderRadius: 10, color: '#E8EDF2', fontFamily: "'Space Grotesk', sans-serif", fontSize: 15,
+    background: 'rgba(255,255,255,.06)', border: '1px solid rgba(97,42,134,.25)',
+    borderRadius: 10, color: '#F5F2E8', fontFamily: 'var(--font-inter), system-ui, sans-serif', fontSize: 15,
     outline: 'none', boxSizing: 'border-box',
   }
   const btn: React.CSSProperties = {
     width: '100%', padding: '16px',
-    background: 'linear-gradient(135deg,#3FC6D4,#2A9BA8)',
-    border: 'none', borderRadius: 10, color: '#0C1018',
-    fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700,
+    background: 'linear-gradient(135deg,#D67A31,#612A86)',
+    border: 'none', borderRadius: 10, color: '#12111A',
+    fontFamily: 'var(--font-inter), system-ui, sans-serif', fontSize: 15, fontWeight: 700,
     cursor: 'pointer', letterSpacing: '.05em',
   }
 
@@ -119,12 +119,16 @@ export default function SignupPage() {
   const stepNum = step === 'url' || step === 'extracting' ? 1 : step === 'preview' || step === 'finalizing' ? 2 : 3
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0C1018', fontFamily: "'Space Grotesk', sans-serif", color: '#E8EDF2', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: '#12111A', fontFamily: 'var(--font-inter), system-ui, sans-serif', color: '#F5F2E8', display: 'flex', flexDirection: 'column' }}>
 
       {/* Nav */}
-      <nav style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(63,198,212,.1)' }}>
-        <Link href="/" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '.05em', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7 }}><span style={{ color: '#3FC6D4' }}>✦</span><span><span style={{ color: '#E8EDF2' }}>Cuv</span><span style={{ color: '#3FC6D4' }}>Ai</span></span></Link>
-        <Link href="/admin/login" style={{ color: '#3A4456', fontSize: 13, textDecoration: 'none' }}>Already have an account →</Link>
+      <nav style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(97,42,134,.1)' }}>
+        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-source.png" alt="Poursona" style={{ height: 36, width: 'auto', display: 'block' }} />
+          <span style={{ fontFamily: 'var(--font-sora), system-ui, sans-serif', fontSize: 18, fontWeight: 700, letterSpacing: '.02em', color: '#F5F2E8' }}>Poursona</span>
+        </Link>
+        <Link href="/admin/login" style={{ color: '#3A3450', fontSize: 13, textDecoration: 'none' }}>Already have an account →</Link>
       </nav>
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 24px' }}>
@@ -139,12 +143,12 @@ export default function SignupPage() {
               return (
                 <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, background: done ? '#3FC6D4' : active ? 'rgba(63,198,212,.2)' : 'rgba(255,255,255,.05)', color: done ? '#0C1018' : active ? '#3FC6D4' : '#2A3242', border: active ? '1px solid rgba(63,198,212,.5)' : '1px solid transparent' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, background: done ? '#D67A31' : active ? 'rgba(97,42,134,.2)' : 'rgba(255,255,255,.05)', color: done ? '#12111A' : active ? '#D67A31' : '#3A3450', border: active ? '1px solid rgba(97,42,134,.5)' : '1px solid transparent' }}>
                       {done ? '✓' : n}
                     </div>
-                    <span style={{ fontSize: 12, color: active ? '#3FC6D4' : done ? '#6B7588' : '#2A3242' }}>{label}</span>
+                    <span style={{ fontSize: 12, color: active ? '#D67A31' : done ? '#6A6080' : '#3A3450' }}>{label}</span>
                   </div>
-                  {i < 2 && <div style={{ width: 32, height: 1, background: 'rgba(63,198,212,.15)' }} />}
+                  {i < 2 && <div style={{ width: 32, height: 1, background: 'rgba(97,42,134,.15)' }} />}
                 </div>
               )
             })}
@@ -159,12 +163,12 @@ export default function SignupPage() {
 
           {/* Step 1 — URL */}
           {(step === 'url' || step === 'extracting') && (
-            <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 18, padding: '40px 36px' }}>
-              <div style={{ color: '#3FC6D4', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12 }}>Step 1 of 3</div>
+            <div style={{ background: 'linear-gradient(145deg,#1C1A2A,#161423)', border: '1px solid rgba(97,42,134,.15)', borderRadius: 18, padding: '40px 36px' }}>
+              <div style={{ color: '#D67A31', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12 }}>Step 1 of 3</div>
               <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 12px', lineHeight: 1.2 }}>
                 {step === 'extracting' ? 'Reading your menu…' : 'Add your venue website'}
               </h1>
-              <p style={{ color: '#3A4456', fontSize: 14, lineHeight: 1.7, margin: '0 0 28px' }}>
+              <p style={{ color: '#3A3450', fontSize: 14, lineHeight: 1.7, margin: '0 0 28px' }}>
                 {step === 'extracting'
                   ? extractMsg
                   : 'Paste your website URL and we\'ll extract your menu, branding, and story automatically.'}
@@ -173,7 +177,7 @@ export default function SignupPage() {
               {step === 'extracting' ? (
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'center', padding: '20px 0' }}>
                   {[0, 1, 2].map(i => (
-                    <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: '#3FC6D4', opacity: 0.4 + i * 0.3, animation: 'pulse 1.2s ease-in-out infinite', animationDelay: `${i * 0.2}s` }} />
+                    <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: '#D67A31', opacity: 0.4 + i * 0.3, animation: 'pulse 1.2s ease-in-out infinite', animationDelay: `${i * 0.2}s` }} />
                   ))}
                 </div>
               ) : (
@@ -190,7 +194,7 @@ export default function SignupPage() {
                   <button onClick={analyze} style={btn}>
                     Analyze My Menu →
                   </button>
-                  <div style={{ textAlign: 'center', color: '#2A3242', fontSize: 12, marginTop: 16 }}>
+                  <div style={{ textAlign: 'center', color: '#3A3450', fontSize: 12, marginTop: 16 }}>
                     Works best with public menus and tap lists
                   </div>
                 </>
@@ -200,48 +204,48 @@ export default function SignupPage() {
 
           {/* Step 2 — Preview + details */}
           {(step === 'preview' || step === 'finalizing') && draft && (
-            <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 18, padding: '40px 36px' }}>
-              <div style={{ color: '#3FC6D4', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12 }}>Step 2 of 3</div>
+            <div style={{ background: 'linear-gradient(145deg,#1C1A2A,#161423)', border: '1px solid rgba(97,42,134,.15)', borderRadius: 18, padding: '40px 36px' }}>
+              <div style={{ color: '#D67A31', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12 }}>Step 2 of 3</div>
               <h2 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 6px' }}>Does this look right?</h2>
 
               {/* Extracted summary */}
-              <div style={{ background: 'rgba(63,198,212,.06)', border: '1px solid rgba(63,198,212,.12)', borderRadius: 12, padding: '20px', margin: '20px 0 24px' }}>
+              <div style={{ background: 'rgba(97,42,134,.06)', border: '1px solid rgba(97,42,134,.12)', borderRadius: 12, padding: '20px', margin: '20px 0 24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div>
-                    <div style={{ color: '#E8EDF2', fontSize: 18, fontWeight: 700 }}>{draft.name}</div>
-                    {draft.location && <div style={{ color: '#3A4456', fontSize: 13, marginTop: 2 }}>{draft.location}</div>}
+                    <div style={{ color: '#F5F2E8', fontSize: 18, fontWeight: 700 }}>{draft.name}</div>
+                    {draft.location && <div style={{ color: '#3A3450', fontSize: 13, marginTop: 2 }}>{draft.location}</div>}
                   </div>
                   {draft.vertical && (
-                    <span style={{ padding: '4px 12px', borderRadius: 20, background: 'rgba(63,198,212,.12)', border: '1px solid rgba(63,198,212,.25)', color: '#3FC6D4', fontSize: 11 }}>
+                    <span style={{ padding: '4px 12px', borderRadius: 20, background: 'rgba(97,42,134,.12)', border: '1px solid rgba(97,42,134,.25)', color: '#D67A31', fontSize: 11 }}>
                       {VERTICAL_LABEL[draft.vertical] || draft.vertical}
                     </span>
                   )}
                 </div>
                 {draft.tagline && (
-                  <div style={{ color: '#6B7588', fontSize: 13, fontStyle: 'italic', marginBottom: 12 }}>&ldquo;{draft.tagline}&rdquo;</div>
+                  <div style={{ color: '#6A6080', fontSize: 13, fontStyle: 'italic', marginBottom: 12 }}>&ldquo;{draft.tagline}&rdquo;</div>
                 )}
-                <div style={{ color: '#3A4456', fontSize: 12, marginBottom: 8 }}>
+                <div style={{ color: '#3A3450', fontSize: 12, marginBottom: 8 }}>
                   {products.length} product{products.length !== 1 ? 's' : ''} extracted
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {products.slice(0, 6).map((p: any, i: number) => (
-                    <span key={i} style={{ padding: '3px 10px', borderRadius: 20, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(63,198,212,.1)', color: '#c8bfa8', fontSize: 11 }}>
+                    <span key={i} style={{ padding: '3px 10px', borderRadius: 20, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(97,42,134,.1)', color: '#F5F2E8', fontSize: 11 }}>
                       {p.name}
                     </span>
                   ))}
                   {products.length > 6 && (
-                    <span style={{ padding: '3px 10px', borderRadius: 20, color: '#3A4456', fontSize: 11 }}>
+                    <span style={{ padding: '3px 10px', borderRadius: 20, color: '#3A3450', fontSize: 11 }}>
                       +{products.length - 6} more
                     </span>
                   )}
                 </div>
               </div>
 
-              <div style={{ color: '#3A4456', fontSize: 12, marginBottom: 4 }}>Not quite right? <button onClick={() => { setStep('url'); setDraft(null) }} style={{ background: 'none', border: 'none', color: '#3FC6D4', fontSize: 12, cursor: 'pointer', padding: 0, fontFamily: "'Space Grotesk', sans-serif" }}>Re-enter your URL</button></div>
+              <div style={{ color: '#3A3450', fontSize: 12, marginBottom: 4 }}>Not quite right? <button onClick={() => { setStep('url'); setDraft(null) }} style={{ background: 'none', border: 'none', color: '#D67A31', fontSize: 12, cursor: 'pointer', padding: 0, fontFamily: 'var(--font-inter), system-ui, sans-serif' }}>Re-enter your URL</button></div>
 
               {/* Email + name */}
               <div style={{ marginTop: 24 }}>
-                <label style={{ display: 'block', color: '#3FC6D4', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 6 }}>Business Email</label>
+                <label style={{ display: 'block', color: '#D67A31', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 6 }}>Business Email</label>
                 <input
                   value={email}
                   onChange={e => setEmail(e.target.value)}
@@ -252,14 +256,14 @@ export default function SignupPage() {
                 {/* Subtle hint when we pre-filled from the scan, so the user knows
                     where the value came from and can override confidently. */}
                 {email && (
-                  <div style={{ color: '#2A3242', fontSize: 11, marginBottom: 12, fontStyle: 'italic' }}>
+                  <div style={{ color: '#3A3450', fontSize: 11, marginBottom: 12, fontStyle: 'italic' }}>
                     Pre-filled from your website. Edit if needed.
                   </div>
                 )}
                 {!email && <div style={{ marginBottom: 12 }} />}
 
-                <label style={{ display: 'block', color: '#3FC6D4', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 6 }}>
-                  Personal Email <span style={{ color: '#2A3242', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+                <label style={{ display: 'block', color: '#D67A31', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Personal Email <span style={{ color: '#3A3450', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
                 </label>
                 <input
                   value={personalEmail}
@@ -268,15 +272,15 @@ export default function SignupPage() {
                   type="text"
                   style={{ ...inp, marginBottom: 12 }}
                 />
-                <label style={{ display: 'block', color: '#3FC6D4', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 6 }}>Your Name <span style={{ color: '#2A3242', textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
+                <label style={{ display: 'block', color: '#D67A31', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 6 }}>Your Name <span style={{ color: '#3A3450', textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="Alex" type="text" style={{ ...inp, marginBottom: 20 }} />
 
                 <button onClick={finalize} disabled={!email.trim() || step === 'finalizing'} style={{ ...btn, opacity: (!email.trim() || step === 'finalizing') ? 0.6 : 1, cursor: (!email.trim() || step === 'finalizing') ? 'not-allowed' : 'pointer' }}>
                   {step === 'finalizing' ? 'Creating your account…' : 'Create My Guide — Free Trial →'}
                 </button>
-                <div style={{ textAlign: 'center', color: '#2A3242', fontSize: 12, marginTop: 14 }}>
+                <div style={{ textAlign: 'center', color: '#3A3450', fontSize: 12, marginTop: 14 }}>
                   14-day free trial · then $79/mo · No credit card required ·{' '}
-                  <a href="/pricing" target="_blank" style={{ color: '#3A4456', textDecoration: 'underline' }}>See what&apos;s included</a>
+                  <a href="/pricing" target="_blank" style={{ color: '#3A3450', textDecoration: 'underline' }}>See what&apos;s included</a>
                 </div>
               </div>
             </div>
@@ -284,18 +288,18 @@ export default function SignupPage() {
 
           {/* Step 3 — Done */}
           {step === 'done' && retailer && (
-            <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(94,207,138,.2)', borderRadius: 18, padding: '48px 36px', textAlign: 'center' }}>
+            <div style={{ background: 'linear-gradient(145deg,#1C1A2A,#161423)', border: '1px solid rgba(94,207,138,.2)', borderRadius: 18, padding: '48px 36px', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 16 }}>✦</div>
               <div style={{ color: '#5ecf8a', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12 }}>You&rsquo;re in</div>
               <h2 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 12px' }}>{retailer.name} is live</h2>
-              <p style={{ color: '#3A4456', fontSize: 14, lineHeight: 1.7, margin: '0 0 32px' }}>
-                We sent a login link to <strong style={{ color: '#3FC6D4' }}>{retailer.owner_email}</strong>. Click it to access your dashboard, grab your QR code, and start guiding guests.
+              <p style={{ color: '#3A3450', fontSize: 14, lineHeight: 1.7, margin: '0 0 32px' }}>
+                We sent a login link to <strong style={{ color: '#D67A31' }}>{retailer.owner_email}</strong>. Click it to access your dashboard, grab your QR code, and start guiding guests.
               </p>
               {/* Carry the just-signed-up email forward so /admin/login can
                   pre-fill the Clerk sign-in form. Also pin this specific
                   retailer in localStorage so the admin layout opens the right
                   venue immediately — even for users who have access to multiple
-                  retailers (e.g. CuvAi team members testing the flow). */}
+                  retailers (e.g. Poursona team members testing the flow). */}
               <Link
                 href={`/admin/login?email=${encodeURIComponent(retailer.owner_email)}`}
                 onClick={() => {
@@ -303,12 +307,12 @@ export default function SignupPage() {
                     localStorage.setItem('poursona_active_retailer', retailer.id)
                   }
                 }}
-                style={{ display: 'inline-block', padding: '16px 36px', background: 'linear-gradient(135deg,#3FC6D4,#2A9BA8)', borderRadius: 10, color: '#0C1018', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}
+                style={{ display: 'inline-block', padding: '16px 36px', background: 'linear-gradient(135deg,#D67A31,#612A86)', borderRadius: 10, color: '#12111A', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}
               >
                 Go to Dashboard →
               </Link>
-              <div style={{ marginTop: 16, color: '#2A3242', fontSize: 12 }}>
-                Sign in with <strong style={{ color: '#3A4456' }}>{retailer.owner_email}</strong>
+              <div style={{ marginTop: 16, color: '#3A3450', fontSize: 12 }}>
+                Sign in with <strong style={{ color: '#3A3450' }}>{retailer.owner_email}</strong>
               </div>
             </div>
           )}
@@ -316,8 +320,8 @@ export default function SignupPage() {
         </div>
       </div>
 
-      <footer style={{ borderTop: '1px solid rgba(63,198,212,.08)', padding: '24px 40px', textAlign: 'center' }}>
-        <div style={{ color: '#2A3242', fontSize: 12 }}>© 2026 CuvAi · <a href="mailto:hello@pour-sona.com" style={{ color: '#2A3242', textDecoration: 'none' }}>Contact</a></div>
+      <footer style={{ borderTop: '1px solid rgba(97,42,134,.08)', padding: '24px 40px', textAlign: 'center' }}>
+        <div style={{ color: '#3A3450', fontSize: 12 }}>© 2026 Poursona · <a href="mailto:hello@pour-sona.com" style={{ color: '#3A3450', textDecoration: 'none' }}>Contact</a></div>
       </footer>
 
       <style>{`

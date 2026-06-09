@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { BRAND, BRAND_RGB, FONT } from '@/lib/brand'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — CuvAi',
-  description: 'How CuvAi handles data for venues and their guests.',
+  title: 'Privacy Policy — Poursona',
+  description: 'How Poursona handles data for venues and their guests.',
 }
 
 const EFFECTIVE = 'May 20, 2026'
@@ -12,7 +13,7 @@ const SECTIONS: Array<{ h: string; body: string[] }> = [
   {
     h: '1. Overview',
     body: [
-      'CuvAi provides an AI-powered guest recommendation experience for beverage venues (breweries, wineries, distilleries, and coffee shops). This policy explains what we collect and how we use it. We have designed the guest experience to be anonymous by default.',
+      'Poursona provides an AI-powered guest recommendation experience for beverage venues (breweries, wineries, distilleries, and coffee shops). This policy explains what we collect and how we use it. We have designed the guest experience to be anonymous by default.',
     ],
   },
   {
@@ -38,7 +39,7 @@ const SECTIONS: Array<{ h: string; body: string[] }> = [
   {
     h: '5. Sharing',
     body: [
-      'We share data with service providers that help us run CuvAi — including Anthropic (AI model), Stripe (payments), Resend (email), and our hosting/database providers — only as needed to deliver the service. We do not sell personal information.',
+      'We share data with service providers that help us run Poursona — including Anthropic (AI model), Stripe (payments), Resend (email), and our hosting/database providers — only as needed to deliver the service. We do not sell personal information.',
     ],
   },
   {
@@ -63,41 +64,49 @@ const SECTIONS: Array<{ h: string; body: string[] }> = [
 
 export default function PrivacyPage() {
   return (
-    <div style={{ background: '#0C1018', minHeight: '100vh', fontFamily: "'Space Grotesk', sans-serif", color: '#E8EDF2' }}>
-      <nav style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(63,198,212,.1)' }}>
-        <Link href="/" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '.05em', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7 }}><span style={{ color: '#3FC6D4' }}>✦</span><span><span style={{ color: '#E8EDF2' }}>Cuv</span><span style={{ color: '#3FC6D4' }}>Ai</span></span></Link>
+    <div style={{ background: BRAND.darkBg, minHeight: '100vh', fontFamily: FONT.marketing, color: BRAND.textPrimary }}>
+      <nav style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid rgba(${BRAND_RGB.plum},.15)` }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-source.png" alt="Poursona" style={{ height: 36, width: 'auto', display: 'block' }} />
+          <span style={{ fontFamily: FONT.brand, fontSize: 18, fontWeight: 700, letterSpacing: '.02em', color: BRAND.textPrimary }}>Poursona</span>
+        </Link>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-          <Link href="/" style={{ color: '#3A4456', fontSize: 13, textDecoration: 'none' }}>Home</Link>
-          <Link href="/pricing" style={{ color: '#3A4456', fontSize: 13, textDecoration: 'none' }}>Pricing</Link>
+          <Link href="/" style={{ color: BRAND.textSecondary, fontSize: 13, textDecoration: 'none', fontFamily: FONT.ui }}>Home</Link>
+          <Link href="/pricing" style={{ color: BRAND.textSecondary, fontSize: 13, textDecoration: 'none', fontFamily: FONT.ui }}>Pricing</Link>
         </div>
       </nav>
 
       <main style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px 100px' }}>
-        <h1 style={{ fontSize: 'clamp(28px,5vw,40px)', fontWeight: 700, margin: '0 0 8px' }}>Privacy Policy</h1>
-        <div style={{ color: '#3A4456', fontSize: 13, marginBottom: 40 }}>Effective {EFFECTIVE}</div>
+        <h1 style={{ fontFamily: FONT.brand, fontSize: 'clamp(28px,5vw,40px)', fontWeight: 800, margin: '0 0 8px', letterSpacing: '-.02em' }}>Privacy Policy</h1>
+        <div style={{ color: BRAND.textMuted, fontSize: 13, marginBottom: 40, fontFamily: FONT.ui }}>Effective {EFFECTIVE}</div>
 
         {SECTIONS.map(s => (
           <section key={s.h} style={{ marginBottom: 28 }}>
-            <h2 style={{ color: '#3FC6D4', fontSize: 18, fontWeight: 700, margin: '0 0 10px' }}>{s.h}</h2>
+            <h2 style={{ color: BRAND.copperAmber, fontSize: 18, fontWeight: 700, margin: '0 0 10px', fontFamily: FONT.brand }}>{s.h}</h2>
             {s.body.map((p, i) => (
-              <p key={i} style={{ color: '#c8bfa8', fontSize: 15, lineHeight: 1.75, margin: '0 0 12px' }}>{p}</p>
+              <p key={i} style={{ color: BRAND.textPrimary, fontSize: 15, lineHeight: 1.75, margin: '0 0 12px', fontFamily: FONT.marketing }}>{p}</p>
             ))}
           </section>
         ))}
 
-        <p style={{ color: '#2A3242', fontSize: 12, lineHeight: 1.7, marginTop: 40, borderTop: '1px solid rgba(63,198,212,.1)', paddingTop: 20 }}>
-          This page is provided for transparency and is not legal advice. CuvAi will update this policy as the product evolves.
+        <p style={{ color: BRAND.textFaint, fontSize: 12, lineHeight: 1.7, marginTop: 40, borderTop: `1px solid rgba(${BRAND_RGB.plum},.15)`, paddingTop: 20, fontFamily: FONT.ui }}>
+          This page is provided for transparency and is not legal advice. Poursona will update this policy as the product evolves.
         </p>
       </main>
 
-      <footer style={{ borderTop: '1px solid rgba(63,198,212,.08)', padding: '32px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-        <Link href="/" style={{ fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ color: '#3FC6D4' }}>✦</span><span><span style={{ color: '#E8EDF2' }}>Cuv</span><span style={{ color: '#3FC6D4' }}>Ai</span></span></Link>
+      <footer style={{ borderTop: `1px solid rgba(${BRAND_RGB.plum},.12)`, padding: '32px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-source.png" alt="Poursona" style={{ height: 26, width: 'auto', display: 'block' }} />
+          <span style={{ fontFamily: FONT.brand, color: BRAND.textPrimary, fontWeight: 700, fontSize: 14 }}>Poursona</span>
+        </Link>
         <div style={{ display: 'flex', gap: 24 }}>
-          <Link href="/pricing" style={{ color: '#2A3242', fontSize: 12, textDecoration: 'none' }}>Pricing</Link>
-          <Link href="/terms" style={{ color: '#2A3242', fontSize: 12, textDecoration: 'none' }}>Terms</Link>
-          <a href="mailto:hello@pour-sona.com" style={{ color: '#2A3242', fontSize: 12, textDecoration: 'none' }}>Contact</a>
+          <Link href="/pricing" style={{ color: BRAND.textMuted, fontSize: 12, textDecoration: 'none', fontFamily: FONT.ui }}>Pricing</Link>
+          <Link href="/terms" style={{ color: BRAND.textMuted, fontSize: 12, textDecoration: 'none', fontFamily: FONT.ui }}>Terms</Link>
+          <a href="mailto:hello@pour-sona.com" style={{ color: BRAND.textMuted, fontSize: 12, textDecoration: 'none', fontFamily: FONT.ui }}>Contact</a>
         </div>
-        <div style={{ color: '#2A3242', fontSize: 12 }}>© 2026 CuvAi</div>
+        <div style={{ color: BRAND.textMuted, fontSize: 12, fontFamily: FONT.ui }}>© 2026 Poursona</div>
       </footer>
     </div>
   )
