@@ -2,9 +2,9 @@
 import { useState, useRef, useEffect } from 'react'
 
 const BRAND = {
-  bg: '#0a0a08', surface: '#111110', card: '#181816', border: '#2a2a26',
-  accent: '#c8a96e', accentDim: '#8a6f3e', text: '#e8e4dc', muted: '#7a7568',
-  hop: '#4a7c4e', warm: '#c8743a',
+  bg: '#12111A', surface: '#161423', card: '#1C1A2A', border: '#3A3450',
+  accent: '#D67A31', accentDim: '#612A86', text: '#F5F2E8', muted: '#6A6080',
+  hop: '#5ECF8A', warm: '#C04D86',
 }
 
 interface Vertical { id: string; label: string; icon: string; query: string }
@@ -225,7 +225,7 @@ function LocationInput({ value, onChange }: { value: string; onChange: (v: strin
             width: '100%', background: BRAND.card, border: `1px solid ${BRAND.border}`,
             borderRadius: open ? '2px 2px 0 0' : '2px',
             padding: '11px 36px 11px 14px', color: BRAND.text, fontSize: '15px',
-            fontFamily: "'Space Grotesk', sans-serif", outline: 'none', boxSizing: 'border-box',
+            fontFamily: "var(--font-inter), system-ui, sans-serif", outline: 'none', boxSizing: 'border-box',
           }}
         />
         {loading && (
@@ -242,7 +242,7 @@ function LocationInput({ value, onChange }: { value: string; onChange: (v: strin
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: BRAND.card, border: `1px solid ${BRAND.accent}`, borderTop: 'none', borderRadius: '0 0 2px 2px', overflow: 'hidden' }}>
           {suggestions.map((s, i) => (
             <div key={i} onMouseDown={() => handleSelect(s)}
-              style={{ padding: '11px 14px', fontSize: '14px', color: BRAND.text, cursor: 'pointer', borderBottom: i < suggestions.length - 1 ? `1px solid ${BRAND.border}` : 'none', fontFamily: "'Space Grotesk', sans-serif" }}
+              style={{ padding: '11px 14px', fontSize: '14px', color: BRAND.text, cursor: 'pointer', borderBottom: i < suggestions.length - 1 ? `1px solid ${BRAND.border}` : 'none', fontFamily: "var(--font-inter), system-ui, sans-serif" }}
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = BRAND.surface)}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
             >
@@ -360,7 +360,7 @@ export default function ProspectPipeline() {
   const canRun = !running && !!vertical && !!location.trim()
 
   const logColor: Record<LogEntry['type'], string> = {
-    success: BRAND.hop, error: '#c84a4a', warn: BRAND.warm, muted: BRAND.muted, info: BRAND.muted,
+    success: BRAND.hop, error: '#E07070', warn: BRAND.warm, muted: BRAND.muted, info: BRAND.muted,
   }
 
   return (
@@ -376,7 +376,7 @@ export default function ProspectPipeline() {
               border: `1px solid ${vertical?.id === v.id ? BRAND.accent : BRAND.border}`,
               borderRadius: '2px', padding: '12px 10px', cursor: 'pointer',
               color: vertical?.id === v.id ? BRAND.text : BRAND.muted,
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: '13px',
+              fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: '13px',
               display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left',
             }}>
               <span style={{ fontSize: '18px' }}>{v.icon}</span>

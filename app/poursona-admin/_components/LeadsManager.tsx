@@ -11,9 +11,9 @@
 import { useEffect, useState } from 'react'
 
 const BRAND = {
-  bg: '#0a0a08', surface: '#111110', card: '#181816', border: '#2a2a26',
-  accent: '#c8a96e', accentDim: '#8a6f3e', text: '#e8e4dc', muted: '#7a7568',
-  hop: '#4a7c4e', warm: '#c8743a', red: '#c84a4a',
+  bg: '#12111A', surface: '#161423', card: '#1C1A2A', border: '#3A3450',
+  accent: '#D67A31', accentDim: '#612A86', text: '#F5F2E8', muted: '#6A6080',
+  hop: '#5ECF8A', warm: '#C04D86', red: '#E07070',
 }
 
 const STATUS_OPTIONS = [
@@ -130,7 +130,7 @@ export default function LeadsManager() {
             onChange={e => setQ(e.target.value)}
             onKeyDown={handleSearch}
             placeholder="Search name, email, or URL — press Enter"
-            style={{ width: '100%', background: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: 2, padding: '10px 12px', color: BRAND.text, fontSize: 13, fontFamily: "'Space Grotesk', sans-serif", outline: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', background: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: 2, padding: '10px 12px', color: BRAND.text, fontSize: 13, fontFamily: "var(--font-inter), system-ui, sans-serif", outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
 
@@ -179,9 +179,9 @@ function LeadRow({ lead, active, onClick }: { lead: Lead; active: boolean; onCli
     <button
       onClick={onClick}
       style={{
-        width: '100%', textAlign: 'left', background: active ? 'rgba(200,169,110,.08)' : BRAND.card,
+        width: '100%', textAlign: 'left', background: active ? 'rgba(214,122,49,.08)' : BRAND.card,
         border: `1px solid ${active ? BRAND.accent : BRAND.border}`, borderRadius: 2,
-        padding: '12px 14px', cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif",
+        padding: '12px 14px', cursor: 'pointer', fontFamily: "var(--font-inter), system-ui, sans-serif",
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
@@ -437,7 +437,7 @@ function chipStyle(active: boolean, color: string = BRAND.accent): React.CSSProp
 function inputStyle(): React.CSSProperties {
   return {
     flex: 1, background: BRAND.surface, border: `1px solid ${BRAND.border}`, borderRadius: 2,
-    padding: '8px 10px', color: BRAND.text, fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
+    padding: '8px 10px', color: BRAND.text, fontSize: 13, fontFamily: "var(--font-inter), system-ui, sans-serif",
     outline: 'none', boxSizing: 'border-box', width: '100%',
   }
 }
