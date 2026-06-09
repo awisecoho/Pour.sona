@@ -19,9 +19,9 @@ export default function AdminSignUpRedirect() {
   }, [clerk, clerk?.loaded])
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0A0E15', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8A95A5', fontFamily: "'Space Grotesk', sans-serif", fontSize: 14 }}>
+    <div style={{ minHeight: '100vh', background: '#12111A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A89FB8', fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 14 }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-        <div style={{ fontSize: 28, color: '#3FC6D4' }}>✦</div>
+        <div style={{ fontSize: 28, color: '#D67A31' }}>✦</div>
         <div>Taking you to sign-up…</div>
       </div>
     </div>

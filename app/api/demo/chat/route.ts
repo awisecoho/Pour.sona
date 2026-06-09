@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       vertical:             draft.vertical || 'brewery',
       location:             draft.location || null,
       tagline:              draft.tagline  || null,
-      brand_color:          draft.brand_color || '#3FC6D4',
+      brand_color:          draft.brand_color || '#D67A31',
       story:                draft.story   || null,
       culture:              draft.culture || null,
       region:               draft.region  || null,

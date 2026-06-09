@@ -183,7 +183,7 @@ async function insertRetailerDraft(params: {
       normalized.retailer.location || null,
       normalized.retailer.tagline || null,
       normalized.retailer.logo_url || null,
-      normalized.retailer.brand_color || '#3FC6D4',
+      normalized.retailer.brand_color || '#D67A31',
       url,
       JSON.stringify(normalized.products),
       JSON.stringify(normalized.flights),
@@ -453,12 +453,12 @@ VERTICAL DETECTION:
 - coffee/roaster/espresso → "coffee"
 NEVER default to brewery.
 
-COLORS: ${signals.brandColor ? `primary = ${signals.brandColor}` : 'use #3FC6D4'}
+COLORS: ${signals.brandColor ? `primary = ${signals.brandColor}` : 'use #D67A31'}
 LOGO: ${signals.logoUrl || 'not detected'}
 
 Return ONLY valid JSON:
 {
-  "retailer": { "name": "", "slug": "", "vertical": "", "location": "", "tagline": "", "logo_url": "${signals.logoUrl || ''}", "brand_color": "${signals.brandColor || '#3FC6D4'}" },
+  "retailer": { "name": "", "slug": "", "vertical": "", "location": "", "tagline": "", "logo_url": "${signals.logoUrl || ''}", "brand_color": "${signals.brandColor || '#D67A31'}" },
   "products": [{ "name": "", "description": "", "category": "", "flavor_notes": "", "price": null, "style": "", "abv": "", "ibu": "", "in_stock": true, "sort_order": 0 }],
   "flights": [{ "name": "", "description": "", "count": 4, "pour_size": "4oz", "price": 0, "active": true, "sort_order": 0 }]
 }
@@ -519,7 +519,7 @@ ${signals.menuText}`
   // Defensive normalization — Claude may omit keys when no data exists
   catalog.products = Array.isArray(catalog.products) ? catalog.products : []
   catalog.flights = Array.isArray(catalog.flights) ? catalog.flights : []
-  if (catalog.retailer && !catalog.retailer.brand_color) catalog.retailer.brand_color = signals.brandColor || '#3FC6D4'
+  if (catalog.retailer && !catalog.retailer.brand_color) catalog.retailer.brand_color = signals.brandColor || '#D67A31'
   if (catalog.retailer && !catalog.retailer.logo_url) catalog.retailer.logo_url = signals.logoUrl || ''
 
   const eventsData = signals.eventsText
@@ -696,7 +696,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
         draft.location,
         draft.tagline,
         draft.logo_url,
-        draft.brand_color || '#3FC6D4',
+        draft.brand_color || '#D67A31',
         finalOwnerEmail,
         draft.story   || null,
         draft.culture || null,

@@ -25,9 +25,9 @@ function hexToRgb(hex: string): [number,number,number] | null {
 }
 function useTheme(retailer: Retailer | null) {
   return useMemo(() => {
-    const primary = retailer?.brand_color || '#3FC6D4'
+    const primary = retailer?.brand_color || '#D67A31'
     const rgb = hexToRgb(primary)
-    const rgbStr = rgb ? `${rgb[0]},${rgb[1]},${rgb[2]}` : '63,198,212'
+    const rgbStr = rgb ? `${rgb[0]},${rgb[1]},${rgb[2]}` : '214,122,49'
     const luminance = rgb ? (0.299*rgb[0]+0.587*rgb[1]+0.114*rgb[2])/255 : 0.5
     return { primary, rgbStr, onPrimary: luminance > 0.55 ? '#0A0E15' : '#E8EDF2' }
   }, [retailer])
@@ -44,9 +44,9 @@ function useFont(retailer: Retailer | null) {
 
 function LoadingScreen() {
   return (
-    <div style={{ minHeight:'100vh',background:'#0A0E15',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:14 }}>
+    <div style={{ minHeight:'100vh',background:'#12111A',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:14 }}>
       <div style={{ display:'flex',gap:7 }}>
-        {[0,1,2].map(i=><div key={i} style={{ width:7,height:7,borderRadius:'50%',background:'#3FC6D4',animation:`ldot 1.3s ease-in-out ${i*.18}s infinite` }}/>)}
+        {[0,1,2].map(i=><div key={i} style={{ width:7,height:7,borderRadius:'50%',background:'#D67A31',animation:`ldot 1.3s ease-in-out ${i*.18}s infinite` }}/>)}
       </div>
       <style>{`@keyframes ldot{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}`}</style>
     </div>
@@ -313,10 +313,10 @@ export default function DemoPage({ params }: { params: { draftId: string } }) {
 
   if (loading) return <LoadingScreen />
   if (notFound || !retailer) return (
-    <div style={{ minHeight:'100vh',background:'#0A0E15',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:10 }}>
-      <div style={{ color:'#3FC6D4',fontSize:32 }}>✦</div>
-      <div style={{ color:'#C4CDD9',fontFamily:"'Space Grotesk', sans-serif",fontSize:18 }}>Demo not found</div>
-      <a href="/signup" style={{ color:'#3FC6D4',fontFamily:"'Space Grotesk', sans-serif",fontSize:14,marginTop:8 }}>Start a new signup →</a>
+    <div style={{ minHeight:'100vh',background:'#12111A',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:10 }}>
+      <div style={{ color:'#D67A31',fontSize:32 }}>✦</div>
+      <div style={{ color:'#F5F2E8',fontFamily:"var(--font-inter), system-ui, sans-serif",fontSize:18 }}>Demo not found</div>
+      <a href="/signup" style={{ color:'#D67A31',fontFamily:"var(--font-inter), system-ui, sans-serif",fontSize:14,marginTop:8 }}>Start a new signup →</a>
     </div>
   )
 
