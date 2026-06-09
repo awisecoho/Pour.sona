@@ -1,8 +1,10 @@
 'use client'
 
 import { SignIn } from '@clerk/nextjs'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import { BRAND, BRAND_RGB, FONT } from '@/lib/brand'
 
 function AdminLoginInner() {
   const hasClerkEnv = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
@@ -15,19 +17,36 @@ function AdminLoginInner() {
   const initialEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailParam) ? emailParam : ''
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#0A0E15,#0F1B26)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Space Grotesk', sans-serif" }}>
+    <div style={{
+      minHeight: '100vh',
+      background: `linear-gradient(160deg, ${BRAND.darkBg} 0%, #1A1530 100%)`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: FONT.ui,
+    }}>
       <div style={{ width: '100%', maxWidth: 460, padding: '0 24px' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>✦</div>
-          <div style={{ color: '#3FC6D4', fontSize: 11, letterSpacing: '.4em', textTransform: 'uppercase' }}><span style={{ color: '#E8EDF2' }}>Cuv</span><span style={{ color: '#3FC6D4' }}>Ai</span></div>
-          <div style={{ color: '#E8EDF2', fontSize: 22, fontWeight: 700, marginTop: 4 }}>Admin Portal</div>
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <Link href="/" style={{ display: 'inline-block', marginBottom: 18, textDecoration: 'none' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo-source.png" alt="Poursona" style={{ height: 88, width: 'auto', display: 'block' }} />
+          </Link>
+          <div style={{ color: BRAND.copperAmber, fontSize: 11, letterSpacing: '.4em', textTransform: 'uppercase', fontFamily: FONT.ui, fontWeight: 600 }}>
+            Poursona
+          </div>
+          <div style={{ color: BRAND.textPrimary, fontSize: 22, fontWeight: 700, marginTop: 6, fontFamily: FONT.brand, letterSpacing: '-.01em' }}>
+            Vendor Portal
+          </div>
           {initialEmail && (
-            <div style={{ color: '#8A95A5', fontSize: 12, marginTop: 14, fontStyle: 'italic' }}>
-              Signing in as <strong style={{ color: '#3FC6D4', fontStyle: 'normal' }}>{initialEmail}</strong>
+            <div style={{ color: BRAND.textSecondary, fontSize: 12, marginTop: 14, fontStyle: 'italic', fontFamily: FONT.marketing }}>
+              Signing in as <strong style={{ color: BRAND.copperAmber, fontStyle: 'normal' }}>{initialEmail}</strong>
             </div>
           )}
         </div>
-        <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 16, padding: '28px 24px' }}>
+        <div style={{
+          background: 'rgba(255,255,255,.025)',
+          border: `1px solid rgba(${BRAND_RGB.plum},.22)`,
+          borderRadius: 16, padding: '28px 24px',
+          boxShadow: `0 16px 48px rgba(0,0,0,.4), 0 0 0 1px rgba(${BRAND_RGB.copperAmber},.04)`,
+        }}>
           {hasClerkEnv ? (
             <SignIn
               path="/admin/login"
@@ -39,12 +58,18 @@ function AdminLoginInner() {
               initialValues={initialEmail ? { emailAddress: initialEmail } : undefined}
             />
           ) : (
-            <div style={{ color: '#E8EDF2', fontSize: 14, lineHeight: 1.6 }}>
+            <div style={{ color: BRAND.textPrimary, fontSize: 14, lineHeight: 1.6, fontFamily: FONT.marketing }}>
               Admin authentication is temporarily unavailable. Add
-              {' '}`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`
+              {' '}<code style={{ color: BRAND.copperAmber }}>NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code> and
+              {' '}<code style={{ color: BRAND.copperAmber }}>CLERK_SECRET_KEY</code>
               {' '}in Vercel to restore sign-in.
             </div>
           )}
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <Link href="/" style={{ color: BRAND.textMuted, fontSize: 12, textDecoration: 'none', fontFamily: FONT.ui }}>
+            ← Back to poursona.com
+          </Link>
         </div>
       </div>
     </div>
@@ -54,7 +79,7 @@ function AdminLoginInner() {
 // useSearchParams requires a Suspense boundary in Next 14 app router.
 export default function AdminLogin() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#0A0E15' }} />}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: BRAND.darkBg }} />}>
       <AdminLoginInner />
     </Suspense>
   )
