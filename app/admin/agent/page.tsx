@@ -126,7 +126,7 @@ export default function AgentProfilePage() {
     }
   }
 
-  if (loading) return <div style={{ color: '#3FC6D4', padding: 24 }}>Loading…</div>
+  if (loading) return <div style={{ color: '#D67A31', padding: 24 }}>Loading…</div>
   if (!profile || !category) {
     return (
       <div style={{ color: '#e07070', padding: 24 }}>
@@ -205,8 +205,8 @@ export default function AgentProfilePage() {
             />
           </Field>
         </div>
-        <div style={{ color: '#3A4456', fontSize: 11, marginTop: 4, marginBottom: 20 }}>
-          Resolved bounds for this retailer: <strong style={{ color: '#3FC6D4' }}>{bounds.min}–{bounds.max} questions</strong>. The assistant stops asking sooner when it has enough.
+        <div style={{ color: '#3A3450', fontSize: 11, marginTop: 4, marginBottom: 20 }}>
+          Resolved bounds for this retailer: <strong style={{ color: '#D67A31' }}>{bounds.min}–{bounds.max} questions</strong>. The assistant stops asking sooner when it has enough.
         </div>
 
         <Field label="Question Themes" hint="Topics the assistant draws from. Uncheck anything that doesn't apply to your guests.">
@@ -241,12 +241,12 @@ export default function AgentProfilePage() {
 function Header({ bounds, category }: { bounds: { min: number; max: number }, category: CategoryTemplate }) {
   return (
     <div style={{ marginBottom: 28 }}>
-      <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Assistant Profile</div>
-      <div style={{ color: '#E8EDF2', fontSize: 26, fontWeight: 700 }}>Your Agent</div>
-      <div style={{ color: '#3A4456', fontSize: 13, marginTop: 6, lineHeight: 1.5, maxWidth: 640 }}>
+      <div style={{ color: '#D67A31', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Assistant Profile</div>
+      <div style={{ color: '#F5F2E8', fontSize: 26, fontWeight: 700 }}>Your Agent</div>
+      <div style={{ color: '#3A3450', fontSize: 13, marginTop: 6, lineHeight: 1.5, maxWidth: 640 }}>
         Tune how the guest-facing chat introduces itself, asks questions, and recommends. Fields left blank use the{' '}
-        <strong style={{ color: '#3FC6D4' }}>{category.vertical}</strong> category default. Current question range:{' '}
-        <strong style={{ color: '#3FC6D4' }}>{bounds.min}–{bounds.max}</strong>.
+        <strong style={{ color: '#D67A31' }}>{category.vertical}</strong> category default. Current question range:{' '}
+        <strong style={{ color: '#D67A31' }}>{bounds.min}–{bounds.max}</strong>.
       </div>
     </div>
   )
@@ -254,9 +254,9 @@ function Header({ bounds, category }: { bounds: { min: number; max: number }, ca
 
 function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 14, padding: '24px 24px 8px', marginBottom: 18 }}>
-      <div style={{ color: '#E8EDF2', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{title}</div>
-      <div style={{ color: '#3A4456', fontSize: 12, marginBottom: 18 }}>{subtitle}</div>
+    <div style={{ background: 'linear-gradient(145deg,#1C1A2A,#161423)', border: '1px solid rgba(97,42,134,.15)', borderRadius: 14, padding: '24px 24px 8px', marginBottom: 18 }}>
+      <div style={{ color: '#F5F2E8', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{title}</div>
+      <div style={{ color: '#3A3450', fontSize: 12, marginBottom: 18 }}>{subtitle}</div>
       {children}
     </div>
   )
@@ -265,8 +265,8 @@ function Section({ title, subtitle, children }: { title: string; subtitle: strin
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 18 }}>
-      <label style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{label}</label>
-      {hint && <div style={{ color: '#3A4456', fontSize: 11, marginBottom: 8, lineHeight: 1.5 }}>{hint}</div>}
+      <label style={{ color: '#D67A31', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{label}</label>
+      {hint && <div style={{ color: '#3A3450', fontSize: 11, marginBottom: 8, lineHeight: 1.5 }}>{hint}</div>}
       {children}
     </div>
   )
@@ -274,14 +274,14 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 function ActionBar({ onSave, onReset, saving }: { onSave: () => void; onReset: () => void; saving: boolean }) {
   return (
-    <div style={{ display: 'flex', gap: 12, marginTop: 8, position: 'sticky', bottom: 0, padding: '16px 0', background: 'linear-gradient(0deg,#0A0E15,#0A0E15 60%,transparent)' }}>
+    <div style={{ display: 'flex', gap: 12, marginTop: 8, position: 'sticky', bottom: 0, padding: '16px 0', background: 'linear-gradient(0deg,#12111A,#12111A 60%,transparent)' }}>
       <button onClick={onSave} disabled={saving} style={{
-        flex: 1, padding: '14px', background: 'linear-gradient(135deg,#3FC6D4,#2A9BA8)', border: 'none', borderRadius: 10,
-        color: '#0A0E15', fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, cursor: saving ? 'wait' : 'pointer',
+        flex: 1, padding: '14px', background: 'linear-gradient(135deg,#D67A31,#612A86)', border: 'none', borderRadius: 10,
+        color: '#12111A', fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 14, fontWeight: 700, cursor: saving ? 'wait' : 'pointer',
       }}>{saving ? 'Saving…' : 'Save Profile'}</button>
       <button onClick={onReset} disabled={saving} style={{
         padding: '14px 22px', background: 'transparent', border: '1px solid rgba(224,112,112,.3)', borderRadius: 10,
-        color: '#e07070', fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, cursor: saving ? 'wait' : 'pointer',
+        color: '#e07070', fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 13, cursor: saving ? 'wait' : 'pointer',
       }}>Reset to Defaults</button>
     </div>
   )
@@ -298,8 +298,8 @@ function SuccessBanner({ text }: { text: string }) {
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,.04)',
-  border: '1px solid rgba(63,198,212,.15)', borderRadius: 8, color: '#E8EDF2',
-  fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, outline: 'none', boxSizing: 'border-box',
+  border: '1px solid rgba(97,42,134,.15)', borderRadius: 8, color: '#F5F2E8',
+  fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 13, outline: 'none', boxSizing: 'border-box',
 }
 
 function TextInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
@@ -317,12 +317,12 @@ function NumberInput({ value, onChange, min, max }: { value: number; onChange: (
 function Select<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value as T)} style={inputStyle}>
-      {options.map((o) => <option key={o.value} value={o.value} style={{ background: '#0A0E15' }}>{o.label}</option>)}
+      {options.map((o) => <option key={o.value} value={o.value} style={{ background: '#12111A' }}>{o.label}</option>)}
     </select>
   )
 }
 
-function TagInput({ values, onChange, placeholder, tagColor = '#3FC6D4' }: { values: string[]; onChange: (v: string[]) => void; placeholder?: string; tagColor?: string }) {
+function TagInput({ values, onChange, placeholder, tagColor = '#D67A31' }: { values: string[]; onChange: (v: string[]) => void; placeholder?: string; tagColor?: string }) {
   const [draft, setDraft] = useState('')
   function add() {
     const v = draft.trim()
@@ -367,11 +367,11 @@ function ThemeChecklist({ themes, selected, onChange }: { themes: QuestionTheme[
       {themes.map((t) => {
         const on = set.has(t.id)
         return (
-          <label key={t.id} style={{ display: 'flex', gap: 12, padding: '12px 14px', borderRadius: 10, border: `1px solid ${on ? 'rgba(63,198,212,.35)' : 'rgba(63,198,212,.1)'}`, background: on ? 'rgba(63,198,212,.06)' : 'transparent', cursor: 'pointer' }}>
-            <input type="checkbox" checked={on} onChange={() => toggle(t.id)} style={{ marginTop: 3, accentColor: '#3FC6D4' }} />
+          <label key={t.id} style={{ display: 'flex', gap: 12, padding: '12px 14px', borderRadius: 10, border: `1px solid ${on ? 'rgba(97,42,134,.35)' : 'rgba(97,42,134,.1)'}`, background: on ? 'rgba(97,42,134,.06)' : 'transparent', cursor: 'pointer' }}>
+            <input type="checkbox" checked={on} onChange={() => toggle(t.id)} style={{ marginTop: 3, accentColor: '#D67A31' }} />
             <div style={{ flex: 1 }}>
-              <div style={{ color: on ? '#3FC6D4' : '#E8EDF2', fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{t.label}</div>
-              <div style={{ color: '#3A4456', fontSize: 11, lineHeight: 1.5, fontStyle: 'italic' }}>
+              <div style={{ color: on ? '#D67A31' : '#F5F2E8', fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{t.label}</div>
+              <div style={{ color: '#3A3450', fontSize: 11, lineHeight: 1.5, fontStyle: 'italic' }}>
                 e.g. &ldquo;{t.example_phrasings[0]}&rdquo;
               </div>
             </div>
@@ -395,28 +395,28 @@ function RulesEditor({ rules, onChange }: { rules: RecommendationRule[]; onChang
   return (
     <div>
       {rules.map((r, i) => (
-        <div key={i} style={{ padding: 14, borderRadius: 10, border: '1px solid rgba(63,198,212,.12)', background: 'rgba(255,255,255,.02)', marginBottom: 10 }}>
+        <div key={i} style={{ padding: 14, borderRadius: 10, border: '1px solid rgba(97,42,134,.12)', background: 'rgba(255,255,255,.02)', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ color: '#3A4456', fontSize: 11 }}>Rule {i + 1}</span>
+            <span style={{ color: '#3A3450', fontSize: 11 }}>Rule {i + 1}</span>
             <button onClick={() => remove(i)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: '#e07070', cursor: 'pointer', fontSize: 12 }}>Remove</button>
           </div>
           <div style={{ marginBottom: 10 }}>
-            <div style={{ color: '#6B7588', fontSize: 11, marginBottom: 6 }}>When the guest says (or signals):</div>
+            <div style={{ color: '#6A6080', fontSize: 11, marginBottom: 6 }}>When the guest says (or signals):</div>
             <input value={r.when_user_says} onChange={(e) => update(i, { when_user_says: e.target.value })} placeholder="e.g. light and sessionable" style={inputStyle} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <div style={{ color: '#6B7588', fontSize: 11, marginBottom: 6 }}>Prioritize categories</div>
+              <div style={{ color: '#6A6080', fontSize: 11, marginBottom: 6 }}>Prioritize categories</div>
               <TagInput values={r.prioritize_categories || []} onChange={(v) => update(i, { prioritize_categories: v })} placeholder="Lager, Pilsner" />
             </div>
             <div>
-              <div style={{ color: '#6B7588', fontSize: 11, marginBottom: 6 }}>Avoid categories</div>
+              <div style={{ color: '#6A6080', fontSize: 11, marginBottom: 6 }}>Avoid categories</div>
               <TagInput values={r.avoid_categories || []} onChange={(v) => update(i, { avoid_categories: v })} placeholder="Imperial IPA" tagColor="#e07070" />
             </div>
           </div>
         </div>
       ))}
-      <button onClick={add} style={{ padding: '10px 16px', background: 'rgba(63,198,212,.08)', border: '1px dashed rgba(63,198,212,.3)', borderRadius: 8, color: '#3FC6D4', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, cursor: 'pointer' }}>
+      <button onClick={add} style={{ padding: '10px 16px', background: 'rgba(97,42,134,.08)', border: '1px dashed rgba(97,42,134,.3)', borderRadius: 8, color: '#D67A31', fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 12, cursor: 'pointer' }}>
         + Add a rule
       </button>
     </div>

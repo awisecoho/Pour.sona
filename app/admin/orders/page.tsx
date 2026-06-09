@@ -26,7 +26,7 @@ type Session = {
 type Pagination = { page: number; limit: number; total: number; totalPages: number }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
-  pending:   { bg: 'rgba(63,198,212,.12)', color: '#3FC6D4', border: 'rgba(63,198,212,.3)' },
+  pending:   { bg: 'rgba(97,42,134,.12)', color: '#D67A31', border: 'rgba(97,42,134,.3)' },
   fulfilled: { bg: 'rgba(94,207,138,.12)', color: '#5ecf8a', border: 'rgba(94,207,138,.3)' },
   cancelled: { bg: 'rgba(224,112,112,.1)', color: '#e07070', border: 'rgba(224,112,112,.3)' },
 }
@@ -219,18 +219,18 @@ export default function OrdersPage() {
   const totalOrders   = orderCount   ?? orderPagination?.total   ?? orders.length
   const totalSessions = sessionCount ?? sessionPagination?.total ?? sessions.length
 
-  const th: React.CSSProperties = { padding: '12px 20px', textAlign: 'left', color: '#3A4456', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400, borderBottom: '1px solid rgba(63,198,212,.1)' }
-  const td: React.CSSProperties = { padding: '14px 20px', fontSize: 13, borderBottom: '1px solid rgba(63,198,212,.05)', verticalAlign: 'top' }
-  const inp: React.CSSProperties = { padding: '7px 10px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(63,198,212,.2)', borderRadius: 7, color: '#E8EDF2', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, outline: 'none' }
+  const th: React.CSSProperties = { padding: '12px 20px', textAlign: 'left', color: '#3A3450', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 400, borderBottom: '1px solid rgba(97,42,134,.1)' }
+  const td: React.CSSProperties = { padding: '14px 20px', fontSize: 13, borderBottom: '1px solid rgba(97,42,134,.05)', verticalAlign: 'top' }
+  const inp: React.CSSProperties = { padding: '7px 10px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(97,42,134,.2)', borderRadius: 7, color: '#F5F2E8', fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 12, outline: 'none' }
   const btn = (v?: 'gold' | 'outline'): React.CSSProperties => ({
     padding: '7px 14px', border: 'none', borderRadius: 7, cursor: 'pointer',
-    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-    background: v === 'outline' ? 'transparent' : 'linear-gradient(135deg,#3FC6D4,#2A9BA8)',
-    color: v === 'outline' ? '#3FC6D4' : '#0C1018',
-    ...(v === 'outline' ? { border: '1px solid rgba(63,198,212,.25)' } : {}),
+    fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 12, fontWeight: 700,
+    background: v === 'outline' ? 'transparent' : 'linear-gradient(135deg,#D67A31,#612A86)',
+    color: v === 'outline' ? '#D67A31' : '#12111A',
+    ...(v === 'outline' ? { border: '1px solid rgba(97,42,134,.25)' } : {}),
   })
 
-  if (loading) return <div style={{ color: '#3FC6D4', fontFamily: "'Space Grotesk', sans-serif" }}>Loading…</div>
+  if (loading) return <div style={{ color: '#D67A31', fontFamily: "var(--font-inter), system-ui, sans-serif" }}>Loading…</div>
 
   const lastUpdatedLabel = lastFetched === null ? null
     : secsSince < 10 ? 'just now'
@@ -240,12 +240,12 @@ export default function OrdersPage() {
     <div>
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <div style={{ color: '#3FC6D4', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Activity</div>
-          <div style={{ color: '#E8EDF2', fontSize: 26, fontWeight: 700 }}>Orders & Sessions</div>
+          <div style={{ color: '#D67A31', fontSize: 10, letterSpacing: '.3em', textTransform: 'uppercase', marginBottom: 4 }}>Activity</div>
+          <div style={{ color: '#F5F2E8', fontSize: 26, fontWeight: 700 }}>Orders & Sessions</div>
         </div>
         {lastUpdatedLabel && (
-          <div style={{ color: '#2A3242', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3FC6D4', opacity: 0.5, display: 'inline-block' }} />
+          <div style={{ color: '#3A3450', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D67A31', opacity: 0.5, display: 'inline-block' }} />
             Updated {lastUpdatedLabel}
           </div>
         )}
@@ -259,7 +259,7 @@ export default function OrdersPage() {
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
         {(['orders', 'sessions'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: tab === t ? 'rgba(63,198,212,.15)' : 'transparent', color: tab === t ? '#3FC6D4' : '#3A4456', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, cursor: 'pointer', textTransform: 'capitalize' }}>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: tab === t ? 'rgba(97,42,134,.15)' : 'transparent', color: tab === t ? '#D67A31' : '#3A3450', fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 12, cursor: 'pointer', textTransform: 'capitalize' }}>
             {t} ({t === 'orders' ? totalOrders : totalSessions})
           </button>
         ))}
@@ -312,10 +312,10 @@ export default function OrdersPage() {
         </div>
       )}
 
-      <div style={{ background: 'linear-gradient(145deg,#161C28,#10141D)', border: '1px solid rgba(63,198,212,.15)', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ background: 'linear-gradient(145deg,#1C1A2A,#161423)', border: '1px solid rgba(97,42,134,.15)', borderRadius: 14, overflow: 'hidden' }}>
         {tab === 'orders' && (
           orders.length === 0
-            ? <div style={{ padding: '48px 24px', textAlign: 'center', color: '#3A4456', fontSize: 13 }}>No orders yet. They&apos;ll appear here when guests place them.</div>
+            ? <div style={{ padding: '48px 24px', textAlign: 'center', color: '#3A3450', fontSize: 13 }}>No orders yet. They&apos;ll appear here when guests place them.</div>
             : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -326,25 +326,25 @@ export default function OrdersPage() {
                     const sc = STATUS_COLORS[o.status] || STATUS_COLORS.pending
                     const isNew = newIds.has(o.id)
                     return (
-                      <tr key={o.id} style={{ transition: 'background .6s', background: isNew ? 'rgba(63,198,212,.07)' : 'transparent' }}>
+                      <tr key={o.id} style={{ transition: 'background .6s', background: isNew ? 'rgba(97,42,134,.07)' : 'transparent' }}>
                         <td style={td}>
-                          <div style={{ color: '#E8EDF2', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {isNew && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3FC6D4', display: 'inline-block', flexShrink: 0 }} />}
+                          <div style={{ color: '#F5F2E8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {isNew && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D67A31', display: 'inline-block', flexShrink: 0 }} />}
                             {new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </div>
-                          <div style={{ color: '#3A4456', fontSize: 11, marginTop: 2 }}>{new Date(o.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+                          <div style={{ color: '#3A3450', fontSize: 11, marginTop: 2 }}>{new Date(o.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
                         </td>
-                        <td style={{ ...td, color: '#E8EDF2' }}>{o.blend_name || '—'}</td>
-                        <td style={{ ...td, color: '#c8bfa8' }}>
+                        <td style={{ ...td, color: '#F5F2E8' }}>{o.blend_name || '—'}</td>
+                        <td style={{ ...td, color: '#F5F2E8' }}>
                           <div>{o.customer_name || '—'}</div>
-                          {o.customer_email && <div style={{ color: '#3A4456', fontSize: 11, marginTop: 2 }}>{o.customer_email}</div>}
+                          {o.customer_email && <div style={{ color: '#3A3450', fontSize: 11, marginTop: 2 }}>{o.customer_email}</div>}
                         </td>
-                        <td style={{ ...td, color: '#6B7588' }}>
+                        <td style={{ ...td, color: '#6A6080' }}>
                           {(o.items || []).map((item, i) => (
                             <div key={i} style={{ fontSize: 12 }}>{item.qty && item.qty > 1 ? `×${item.qty} ` : ''}{item.name}</div>
                           ))}
                         </td>
-                        <td style={{ ...td, color: '#3FC6D4', fontWeight: 600 }}>${(o.subtotal || 0).toFixed(2)}</td>
+                        <td style={{ ...td, color: '#D67A31', fontWeight: 600 }}>${(o.subtotal || 0).toFixed(2)}</td>
                         <td style={td}>
                           <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
                             {o.status}
@@ -355,7 +355,7 @@ export default function OrdersPage() {
                             value={o.status}
                             disabled={updatingId === o.id}
                             onChange={e => updateStatus(o.id, e.target.value)}
-                            style={{ background: '#161C28', border: '1px solid rgba(63,198,212,.2)', borderRadius: 6, color: '#3FC6D4', padding: '5px 8px', fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, cursor: 'pointer' }}
+                            style={{ background: '#1C1A2A', border: '1px solid rgba(97,42,134,.2)', borderRadius: 6, color: '#D67A31', padding: '5px 8px', fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 11, cursor: 'pointer' }}
                           >
                             <option value="pending">Pending</option>
                             <option value="fulfilled">Fulfilled</option>
@@ -372,7 +372,7 @@ export default function OrdersPage() {
 
         {tab === 'sessions' && (
           sessions.length === 0
-            ? <div style={{ padding: '48px 24px', textAlign: 'center', color: '#3A4456', fontSize: 13 }}>No sessions yet.</div>
+            ? <div style={{ padding: '48px 24px', textAlign: 'center', color: '#3A3450', fontSize: 13 }}>No sessions yet.</div>
             : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -381,7 +381,7 @@ export default function OrdersPage() {
                 <tbody>
                   {sessions.map(s => (
                     <tr key={s.id}>
-                      <td style={{ ...td, color: '#6B7588' }}>
+                      <td style={{ ...td, color: '#6A6080' }}>
                         {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </td>
                       <td style={td}>
@@ -389,8 +389,8 @@ export default function OrdersPage() {
                           {s.order_status || 'browsing'}
                         </span>
                       </td>
-                      <td style={{ ...td, color: '#3FC6D4' }}>{s.blend_name || '—'}</td>
-                      <td style={{ ...td, color: '#6B7588' }}>{Array.isArray(s.messages) ? s.messages.length : 0}</td>
+                      <td style={{ ...td, color: '#D67A31' }}>{s.blend_name || '—'}</td>
+                      <td style={{ ...td, color: '#6A6080' }}>{Array.isArray(s.messages) ? s.messages.length : 0}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -407,7 +407,7 @@ export default function OrdersPage() {
             disabled={orderPage <= 1}
             style={{ ...btn('outline'), opacity: orderPage <= 1 ? 0.4 : 1 }}
           >← Prev</button>
-          <span style={{ color: '#3A4456', fontSize: 12 }}>
+          <span style={{ color: '#3A3450', fontSize: 12 }}>
             {orderPage} / {orderPagination.totalPages} &nbsp;·&nbsp; {orderPagination.total} orders
           </span>
           <button
@@ -426,7 +426,7 @@ export default function OrdersPage() {
             disabled={sessionPage <= 1}
             style={{ ...btn('outline'), opacity: sessionPage <= 1 ? 0.4 : 1 }}
           >← Prev</button>
-          <span style={{ color: '#3A4456', fontSize: 12 }}>
+          <span style={{ color: '#3A3450', fontSize: 12 }}>
             {sessionPage} / {sessionPagination.totalPages} &nbsp;·&nbsp; {sessionPagination.total} sessions
           </span>
           <button
