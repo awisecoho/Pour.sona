@@ -13,7 +13,7 @@ const EVENT_KEYWORDS = ['events','calendar','happenings','upcoming','whats-on','
 async function fetchPage(url: string): Promise<string> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 CuvAiBot/1.0' },
+      headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return ''
@@ -345,7 +345,7 @@ function extractMenuAssetUrls(html: string, baseUrl: string): string[] {
 async function fetchMenuAsset(url: string): Promise<MenuAsset | null> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 CuvAiBot/1.0' },
+      headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
       signal: AbortSignal.timeout(15000),
     })
     if (!res.ok) return null

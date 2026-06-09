@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     }
 
     const url = storefrontUrl(slug)
-    const brandColor = retailer.brand_color || '#3FC6D4'
+    const brandColor = retailer.brand_color || '#D67A31'
 
     if (format === 'svg') {
       const svgStr = await QRCode.toString(url, {

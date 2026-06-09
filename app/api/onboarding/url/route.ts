@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 const SPARSE_PRODUCT_THRESHOLD = 5
 
-// CuvAi admin recipients for onboarding alerts. Falls back to the team table.
+// Poursona admin recipients for onboarding alerts. Falls back to the team table.
 async function getAdminEmails(): Promise<string[]> {
   const envAdmin = process.env.POURSONA_ADMIN_EMAIL
   if (envAdmin) return envAdmin.split(',').map(e => e.trim()).filter(Boolean)

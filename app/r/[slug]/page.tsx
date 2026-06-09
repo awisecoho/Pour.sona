@@ -203,7 +203,7 @@ function WelcomeScreen({
           rel="noopener noreferrer"
           style={{ color: '#1E2531', fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, letterSpacing: '.08em', textDecoration: 'none' }}
         >
-          POWERED BY CUVAI
+          POWERED BY POURSONA
         </a>
         <a
           href="/admin/login"

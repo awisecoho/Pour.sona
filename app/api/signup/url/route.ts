@@ -14,7 +14,7 @@ export const maxDuration = 300 // website analysis pipeline: crawl + 5 LLM calls
 async function fetchEmailFromSite(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 CuvAiBot/1.0' },
+      headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
       signal: AbortSignal.timeout(5000),
     })
     if (!res.ok) return null

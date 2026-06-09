@@ -42,7 +42,7 @@ interface ScreenedBusiness extends Business {
   contacts?: Contacts
 }
 
-// Internal mailbox the CuvAi team sends prospect outreach from. Gmail
+// Internal mailbox the Poursona team sends prospect outreach from. Gmail
 // resolves authuser=<address> to whichever account-index that mailbox
 // currently lives at, so swapping in a new team mailbox here Just Works
 // without us needing to know u/0 vs u/1.
