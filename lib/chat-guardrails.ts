@@ -96,6 +96,48 @@ export function validateRecAgainstCatalog(recData: any, products: ProductLike[])
   return recData
 }
 
+/**
+ * Reorder products so the most popular ones come first (by name, case-insensitive),
+ * keeping the original relative order for everything else. `popularNames` is a
+ * priority list, most-popular first. Stable: ties and unranked items fall back to
+ * catalog order. Lets the over-budget fallback surface a genuine guest favorite
+ * instead of whatever happens to sort first.
+ */
+export function rankProductsByPopularity<T extends { name?: string }>(
+  products: T[],
+  popularNames: string[]
+): T[] {
+  if (popularNames.length === 0 || products.length <= 1) return products
+  const rank = new Map<string, number>()
+  popularNames.forEach((n, i) => {
+    const key = String(n || '').trim().toLowerCase()
+    if (key && !rank.has(key)) rank.set(key, i)
+  })
+  const scoreOf = (p: T) => {
+    const r = rank.get(String(p.name || '').trim().toLowerCase())
+    return r === undefined ? Number.POSITIVE_INFINITY : r
+  }
+  // Decorate with original index so the sort is stable (ties keep catalog order).
+  return products
+    .map((p, i) => ({ p, i, s: scoreOf(p) }))
+    .sort((a, b) => a.s - b.s || a.i - b.i)
+    .map(x => x.p)
+}
+
+/**
+ * The SKU names in a rec that do NOT exist in the live in-stock catalog — i.e.
+ * the hallucinations validateRecAgainstCatalog is about to drop. Pure; meant to
+ * be called *before* that destructive step so the route can record telemetry on
+ * what the model invented. Returns [] for a null rec or one with no products.
+ */
+export function droppedHallucinations(recData: any, products: ProductLike[]): string[] {
+  if (!recData || !Array.isArray(recData.selectedProducts)) return []
+  const names = new Set(products.map(p => String(p.name || '').trim().toLowerCase()))
+  return recData.selectedProducts
+    .map((sp: any) => (sp && typeof sp.name === 'string' ? sp.name : null))
+    .filter((n: string | null): n is string => !!n && !names.has(n.trim().toLowerCase()))
+}
+
 /** A no-AI recommendation built straight from the catalog, used when a venue is
  *  over its monthly AI budget so the guest experience never goes dark. */
 export function buildFallbackRecommendation(products: ProductLike[]): any | null {

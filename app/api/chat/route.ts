@@ -16,6 +16,8 @@ import {
   buildFallbackRecommendation,
   selectRelevantProducts,
   validateRecAgainstCatalog,
+  rankProductsByPopularity,
+  droppedHallucinations,
 } from '@/lib/chat-guardrails'
 import { getQuestionBounds, resolveAssistantProfile } from '@/lib/agent/profile'
 import { enrichRecommendationWithCatalog } from '@/lib/recommendation-enrich'
@@ -43,6 +45,38 @@ function degradedResponse(products: any[], retailer?: any): Response {
     },
   })
   return new Response(readable, { headers: SSE_HEADERS })
+}
+
+/**
+ * Order the in-stock catalog by real popularity (most-ordered first over the
+ * trailing 90 days) so the degraded/over-budget fallback surfaces a genuine
+ * guest favorite instead of whatever sorts first. Best-effort: any DB failure
+ * or an empty order history returns the catalog unchanged.
+ */
+async function rankInStockByPopularity(retailerId: string, products: any[]): Promise<any[]> {
+  if (products.length <= 1) return products
+  try {
+    // Pre-filter to array-typed items in the subquery so jsonb_array_elements
+    // never sees a non-array row (older/malformed orders) and throws.
+    const res = await dbQuery<{ name: string }>(
+      `SELECT lower(item->>'name') AS name, COUNT(*)::int AS n
+         FROM (
+           SELECT items FROM orders
+            WHERE retailer_id = $1
+              AND created_at > now() - interval '90 days'
+              AND jsonb_typeof(items) = 'array'
+         ) o
+         CROSS JOIN LATERAL jsonb_array_elements(o.items) item
+        WHERE item->>'name' IS NOT NULL
+        GROUP BY 1
+        ORDER BY n DESC
+        LIMIT 20`,
+      [retailerId]
+    )
+    return rankProductsByPopularity(products, res.rows.map(r => r.name))
+  } catch {
+    return products
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -183,7 +217,8 @@ export async function POST(req: NextRequest) {
             .then(r => { if (!r.ok) console.error('[chat] sendAiCapNotice failed:', r.error) })
         }
       }
-      return degradedResponse(inStockProducts, retailer)
+      const rankedFallback = await rankInStockByPopularity(retailer.id, inStockProducts)
+      return degradedResponse(rankedFallback, retailer)
     }
     // Approaching the cap (>=80%): nudge the owner once per month (best-effort).
     if (monthCost >= 0.8 * AI_MONTHLY_BUDGET_USD && retailer.owner_email) {
@@ -251,12 +286,37 @@ export async function POST(req: NextRequest) {
             [retailer.id, inputTokens, outputTokens]
           ).catch(() => {})
           let recData = null
+          let recParseFailed = false
           const recMatch = fullText.match(/===REC===([\s\S]*?)===END===/)
           if (recMatch) {
-            try { recData = JSON.parse(recMatch[1].trim().replace(/^```json\s*/i,'').replace(/```\s*$/i,'').trim()) } catch {}
+            try { recData = JSON.parse(recMatch[1].trim().replace(/^```json\s*/i,'').replace(/```\s*$/i,'').trim()) } catch { recParseFailed = true }
           }
+          // Telemetry: the model emitted a ===REC=== block but its JSON was
+          // malformed, so the guest silently got no recommendation. Make it
+          // observable instead of swallowing it.
+          if (recParseFailed) {
+            console.warn('[chat] malformed REC JSON', { retailer: retailer.id, session: sessionId })
+            dbQuery(
+              `insert into events (retailer_id, session_id, event_type, payload) values ($1, $2, 'recommendation_parse_failed', '{}'::jsonb)`,
+              [retailer.id, sessionId]
+            ).catch(() => {})
+          }
+          // Snapshot the hallucinated SKUs before the destructive in-stock
+          // validation so we can record what the model invented.
+          const droppedSkus = droppedHallucinations(recData, inStockProducts)
+          const recHadProducts = Array.isArray(recData?.selectedProducts) && recData.selectedProducts.length > 0
           // Hard-constrain the recommendation to real in-stock SKUs (drop hallucinations).
           recData = validateRecAgainstCatalog(recData, inStockProducts)
+          // Telemetry: surface hallucinated SKUs. `discarded` means every product
+          // was off-menu, so the whole recommendation was thrown out.
+          if (droppedSkus.length > 0) {
+            const discarded = recHadProducts && !recData
+            console.warn('[chat] dropped hallucinated SKUs', { retailer: retailer.id, dropped: droppedSkus, discarded })
+            dbQuery(
+              `insert into events (retailer_id, session_id, event_type, payload) values ($1, $2, 'recommendation_hallucination_dropped', $3::jsonb)`,
+              [retailer.id, sessionId, JSON.stringify({ dropped: droppedSkus, discarded })]
+            ).catch(() => {})
+          }
           // Phase 3: enrich each surviving product with image_url / catalog price.
           // The AI never produces URLs; this is where they get joined in.
           recData = enrichRecommendationWithCatalog(recData, inStockProducts)

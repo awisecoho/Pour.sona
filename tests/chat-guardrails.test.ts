@@ -6,6 +6,8 @@ import {
   selectRelevantProducts,
   validateRecAgainstCatalog,
   buildFallbackRecommendation,
+  rankProductsByPopularity,
+  droppedHallucinations,
   AI_MONTHLY_BUDGET_USD,
 } from '@/lib/chat-guardrails'
 
@@ -105,5 +107,43 @@ describe('buildFallbackRecommendation (deterministic, no LLM)', () => {
   })
   it('returns null when the catalog is empty', () => {
     expect(buildFallbackRecommendation([])).toBeNull()
+  })
+})
+
+describe('rankProductsByPopularity', () => {
+  const products = [{ name: 'Stout' }, { name: 'IPA' }, { name: 'Pilsner' }, { name: 'Saison' }]
+
+  it('moves popular items to the front in popularity order, case-insensitively', () => {
+    const out = rankProductsByPopularity(products, ['pilsner', 'SAISON'])
+    expect(out.map(p => p.name)).toEqual(['Pilsner', 'Saison', 'Stout', 'IPA'])
+  })
+  it('keeps catalog order for items not in the popularity list (stable)', () => {
+    const out = rankProductsByPopularity(products, ['ipa'])
+    expect(out.map(p => p.name)).toEqual(['IPA', 'Stout', 'Pilsner', 'Saison'])
+  })
+  it('is a no-op when the popularity list is empty', () => {
+    expect(rankProductsByPopularity(products, [])).toEqual(products)
+  })
+  it('so the catalog-order fallback (products[0]) now surfaces the top seller', () => {
+    const ranked = rankProductsByPopularity(products, ['saison'])
+    const rec = buildFallbackRecommendation(ranked)
+    expect(rec.selectedProducts[0].name).toBe('Saison')
+  })
+})
+
+describe('droppedHallucinations', () => {
+  const catalog = [{ name: 'Smokies Dew Moonshine' }, { name: 'Peach Moonshine' }]
+
+  it('lists only the off-menu SKUs (case-insensitive), preserving the model casing', () => {
+    const rec = { selectedProducts: [{ name: 'smokies dew moonshine' }, { name: 'Imaginary IPA' }] }
+    expect(droppedHallucinations(rec, catalog)).toEqual(['Imaginary IPA'])
+  })
+  it('returns all names when every SKU is hallucinated (the whole rec will be discarded)', () => {
+    const rec = { selectedProducts: [{ name: 'Ghost Whiskey' }, { name: 'Vapor Vodka' }] }
+    expect(droppedHallucinations(rec, catalog)).toEqual(['Ghost Whiskey', 'Vapor Vodka'])
+  })
+  it('returns [] for a null rec or one without products', () => {
+    expect(droppedHallucinations(null, catalog)).toEqual([])
+    expect(droppedHallucinations({}, catalog)).toEqual([])
   })
 })
