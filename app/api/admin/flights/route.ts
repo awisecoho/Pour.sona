@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 import { authorizeRetailer, type Role } from '@/lib/authz'
+import { adminError } from '@/lib/api'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,8 +33,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ ok: true, flights: result.rows })
   } catch (error) {
-    console.error('[api/admin/flights] get failed:', error)
-    return NextResponse.json({ ok: false, error: 'flights lookup failed' }, { status: 500 })
+    return adminError('flights get', error, 'flights lookup failed')
   }
 }
 
@@ -67,8 +67,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, flight: result.rows[0] || null })
   } catch (error) {
-    console.error('[api/admin/flights] create failed:', error)
-    return NextResponse.json({ ok: false, error: 'flight create failed' }, { status: 500 })
+    return adminError('flights create', error, 'flight create failed')
   }
 }
 
@@ -110,8 +109,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ ok: true, flight: result.rows[0] || null })
   } catch (error) {
-    console.error('[api/admin/flights] update failed:', error)
-    return NextResponse.json({ ok: false, error: 'flight update failed' }, { status: 500 })
+    return adminError('flights update', error, 'flight update failed')
   }
 }
 
@@ -131,7 +129,6 @@ export async function DELETE(req: NextRequest) {
     await dbQuery('delete from flights where id = $1 and retailer_id = $2', [id, retailerId])
     return NextResponse.json({ ok: true })
   } catch (error) {
-    console.error('[api/admin/flights] delete failed:', error)
-    return NextResponse.json({ ok: false, error: 'flight delete failed' }, { status: 500 })
+    return adminError('flights delete', error, 'flight delete failed')
   }
 }

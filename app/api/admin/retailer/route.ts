@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 import { authorizeRetailer } from '@/lib/authz'
+import { adminError } from '@/lib/api'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,8 +28,7 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({ ok: true, retailer })
   } catch (error) {
-    console.error('[api/admin/retailer] get failed:', error)
-    return NextResponse.json({ ok: false, error: 'retailer lookup failed' }, { status: 500 })
+    return adminError('retailer get', error, 'retailer lookup failed')
   }
 }
 
@@ -71,7 +71,6 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ ok: true, retailer: result.rows[0] || null })
   } catch (error) {
-    console.error('[api/admin/retailer] update failed:', error)
-    return NextResponse.json({ ok: false, error: 'retailer update failed' }, { status: 500 })
+    return adminError('retailer update', error, 'retailer update failed')
   }
 }

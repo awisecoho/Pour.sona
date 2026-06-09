@@ -20,6 +20,7 @@ import { authorizeRetailer } from '@/lib/authz'
 import { resolveAssistantProfile, getQuestionBounds, ABSOLUTE_MAX_USER_TURNS } from '@/lib/agent/profile'
 import { getCategoryTemplate } from '@/lib/agent/categories'
 import { sanitizePromptInput } from '@/lib/security'
+import { adminError } from '@/lib/api'
 import type { AssistantProfile, BrandTone, ExperienceStyle, RecommendationRule } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -66,8 +67,7 @@ export async function GET(req: NextRequest) {
       absolute_max_questions: ABSOLUTE_MAX_USER_TURNS,
     })
   } catch (error) {
-    console.error('[api/admin/agent-profile] get failed:', error)
-    return NextResponse.json({ ok: false, error: 'agent profile lookup failed' }, { status: 500 })
+    return adminError('agent-profile get', error, 'agent profile lookup failed')
   }
 }
 
@@ -120,8 +120,7 @@ export async function PUT(req: NextRequest) {
       bounds: getQuestionBounds(saved),
     })
   } catch (error) {
-    console.error('[api/admin/agent-profile] update failed:', error)
-    return NextResponse.json({ ok: false, error: 'agent profile update failed' }, { status: 500 })
+    return adminError('agent-profile update', error, 'agent profile update failed')
   }
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
+import { adminError } from '@/lib/api'
 
 export const dynamic = 'force-dynamic'
 
@@ -187,7 +188,6 @@ export async function GET(req: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[api/admin/dashboard] load failed:', error)
-    return NextResponse.json({ ok: false, error: 'dashboard lookup failed' }, { status: 500 })
+    return adminError('dashboard load', error, 'dashboard lookup failed')
   }
 }

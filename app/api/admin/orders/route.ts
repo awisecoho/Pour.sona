@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
+import { adminError } from '@/lib/api'
 
 export const dynamic = 'force-dynamic'
 
@@ -162,8 +163,7 @@ export async function GET(req: NextRequest) {
       pagination: { page, limit, total: totalCount, totalPages: Math.ceil(totalCount / limit) },
     })
   } catch (error) {
-    console.error('[api/admin/orders] get failed:', error)
-    return NextResponse.json({ ok: false, error: 'orders lookup failed' }, { status: 500 })
+    return adminError('orders get', error, 'orders lookup failed')
   }
 }
 
@@ -187,7 +187,6 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ ok: true, order: result.rows[0] || null })
   } catch (error) {
-    console.error('[api/admin/orders] update failed:', error)
-    return NextResponse.json({ ok: false, error: 'order update failed' }, { status: 500 })
+    return adminError('orders update', error, 'order update failed')
   }
 }
