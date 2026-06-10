@@ -62,7 +62,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, url: session.url })
   } catch (err: any) {
-    console.error('Stripe checkout error:', err)
+    // Surface the Stripe error explicitly (message + code + type) so failures
+    // like a mode/account mismatch ("No such price ... a test mode key was used
+    // ... in live mode") are obvious in the logs instead of a generic dump.
+    console.error('Stripe checkout error:', err?.message || String(err), err?.code ? `[${err.code}]` : '', err?.type ? `(${err.type})` : '')
     return NextResponse.json({ error: 'Checkout failed' }, { status: 500 })
   }
 }
