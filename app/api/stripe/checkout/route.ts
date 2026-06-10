@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { authorizeRetailer } from '@/lib/authz'
 import { dbQuery } from '@/lib/db'
 import { PLAN_BY_ID } from '@/lib/billing'
 import { APP_ORIGIN } from '@/lib/urls'
+import { getStripe, resolvePriceId } from '@/lib/stripe'
 export const dynamic = 'force-dynamic'
-
-function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,13 +18,9 @@ export async function POST(req: NextRequest) {
     const tier = PLAN_BY_ID[plan]
     if (!tier) return NextResponse.json({ error: 'invalid plan' }, { status: 400 })
 
-    // Use the tier's test-mode Price ID from PLAN_TIERS, overridable per tier by
-    // a STRIPE_PRICE_<TIER> env var at go-live — but ONLY when that env value is a
-    // real Price ID. A prior Stripe "connect" left these env vars set to Product
-    // IDs (prod_...), which silently overrode the correct Price and broke checkout
-    // with "No such price". Ignore anything that isn't a price_ id.
-    const envPrice = process.env[`STRIPE_PRICE_${tier.id.toUpperCase()}`]
-    const priceId = envPrice?.startsWith('price_') ? envPrice : tier.priceId
+    // Resolve the Price id for the active Stripe mode (test vs live). See
+    // lib/stripe.ts — guards against stale env vars set to prod_ ids.
+    const priceId = resolvePriceId(tier)
     if (!priceId) return NextResponse.json({ error: 'plan price not configured' }, { status: 500 })
 
     const stripe = getStripe()

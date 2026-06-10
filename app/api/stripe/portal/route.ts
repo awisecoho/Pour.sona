@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
 import { dbQuery } from '@/lib/db'
 import { APP_ORIGIN } from '@/lib/urls'
+import { getStripe } from '@/lib/stripe'
 export const dynamic = 'force-dynamic'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
+const stripe = getStripe()
 
 export async function POST(req: NextRequest) {
   try {
