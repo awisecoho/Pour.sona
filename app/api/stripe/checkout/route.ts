@@ -37,6 +37,18 @@ export async function POST(req: NextRequest) {
     if (!retailer) return NextResponse.json({ error: 'retailer not found' }, { status: 404 })
 
     let customerId = retailer.stripe_customer_id
+    // A stored customer ID can be stale — created under a different Stripe
+    // account, or a test-mode customer after the key is switched to live. Verify
+    // it still exists in the current account/mode; if not, drop it and recreate
+    // so checkout self-heals instead of failing with "No such customer".
+    if (customerId) {
+      try {
+        const existing = await stripe.customers.retrieve(customerId)
+        if ((existing as { deleted?: boolean }).deleted) customerId = null
+      } catch {
+        customerId = null
+      }
+    }
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: retailer.owner_email,
