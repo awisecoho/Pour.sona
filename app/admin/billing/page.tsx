@@ -1,30 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-
-const PLANS = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: 79,
-    description: 'Perfect for a single location getting started',
-    features: ['AI guided discovery', 'Unlimited sessions', 'QR code generator', 'Catalog management', 'Basic analytics'],
-  },
-  {
-    id: 'growth',
-    name: 'Growth',
-    price: 99,
-    description: 'For venues ready to grow their customer experience',
-    features: ['Everything in Starter', 'Customer profiles', 'Promo codes', 'Priority support', 'Advanced analytics'],
-    popular: true,
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: 199,
-    description: 'For multi-location or high-volume venues',
-    features: ['Everything in Growth', 'Multiple locations', 'Custom branding', 'API access', 'Dedicated support'],
-  },
-]
+import { PLAN_TIERS } from '@/lib/billing'
 
 export default function BillingPage() {
   const [retailer, setRetailer] = useState<any>(null)
@@ -146,7 +122,7 @@ export default function BillingPage() {
         <>
           <div style={{ color: '#F5F2E8', fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Choose Your Plan</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16, marginBottom: 24 }}>
-            {PLANS.map(plan => (
+            {PLAN_TIERS.map(plan => (
               <div key={plan.id} style={{ background: 'linear-gradient(145deg,#1C1A2A,#161423)', border: plan.popular ? '1px solid rgba(97,42,134,.5)' : '1px solid rgba(97,42,134,.15)', borderRadius: 14, padding: '24px', position: 'relative' }}>
                 {plan.popular && <div style={{ position: 'absolute', top: -10, left: 24, background: 'linear-gradient(135deg,#D67A31,#612A86)', color: '#12111A', fontSize: 10, fontWeight: 700, padding: '3px 12px', borderRadius: 20, letterSpacing: '.1em', textTransform: 'uppercase' }}>Most Popular</div>}
                 <div style={{ color: '#F5F2E8', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{plan.name}</div>
