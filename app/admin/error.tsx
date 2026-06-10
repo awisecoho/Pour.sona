@@ -16,11 +16,12 @@ export default function AdminError({
       fontFamily: "var(--font-inter), system-ui, sans-serif",
       textAlign: 'center',
     }}>
-      <div style={{ color: '#D67A31', fontSize: 28, marginBottom: 4 }}>✦</div>
-      <div style={{ color: '#E8EDF2', fontSize: 18, fontWeight: 700 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/logo-source.png" alt="Poursona" style={{ height: 48, width: 'auto', display: 'block', marginBottom: 4 }} />
+      <div style={{ color: '#F5F2E8', fontSize: 18, fontWeight: 700 }}>
         Dashboard error
       </div>
-      <div style={{ color: '#6B7588', fontSize: 13, maxWidth: 340, lineHeight: 1.7, marginBottom: 16 }}>
+      <div style={{ color: '#6A6080', fontSize: 13, maxWidth: 340, lineHeight: 1.7, marginBottom: 16 }}>
         This section could not be loaded. Your data is safe — try reloading.
       </div>
       <button

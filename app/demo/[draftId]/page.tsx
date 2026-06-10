@@ -39,7 +39,7 @@ function useFont(retailer: Retailer | null) {
     const link = document.createElement('link'); link.id = id; link.rel = 'stylesheet'; link.href = retailer.brand_font_url
     document.head.appendChild(link)
   }, [retailer?.brand_font_url])
-  return retailer?.brand_font_family || 'Space Grotesk'
+  return retailer?.brand_font_family || 'Georgia'
 }
 
 function LoadingScreen() {
