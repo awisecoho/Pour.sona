@@ -3,21 +3,26 @@ import Link from 'next/link'
 import { BRAND, BRAND_RGB, FONT } from '@/lib/brand'
 
 export const metadata: Metadata = {
-  title: { absolute: 'Poursona — Your AI-Powered Guest Guide' },
-  description: 'Turn every QR scan into a personalized recommendation. AI-guided discovery for breweries, wineries, distilleries, and coffee shops.',
+  title: { absolute: 'Poursona — The Beverage Intelligence Platform' },
+  description: 'Help every customer discover their Beverage DNA™. Poursona is the white-label taste-discovery platform that guides guests to the right product — and shows you who your customers really are.',
 }
 
+// Live verticals first; expansion categories shown honestly as "coming soon".
 const VERTICALS = [
-  { icon: '🍺', label: 'Breweries', desc: 'Guide guests to their perfect pint' },
-  { icon: '🍷', label: 'Wineries', desc: 'Match guests to the right varietal' },
-  { icon: '🥃', label: 'Distilleries', desc: 'Navigate expressions and cocktails' },
-  { icon: '☕', label: 'Coffee Shops', desc: 'From origin to roast profile' },
+  { icon: '🍺', label: 'Breweries', desc: 'Guide guests to their perfect pint', live: true },
+  { icon: '🍷', label: 'Wineries', desc: 'Match guests to the right varietal', live: true },
+  { icon: '🥃', label: 'Distilleries', desc: 'Navigate expressions and cocktails', live: true },
+  { icon: '☕', label: 'Coffee Roasters', desc: 'From origin to roast profile', live: true },
+  { icon: '🍵', label: 'Tea', desc: 'Steep, origin & flavor matching', live: false },
+  { icon: '🍽️', label: 'Restaurants', desc: 'Pair the table to the menu', live: false },
+  { icon: '🥂', label: 'Distributors', desc: 'Taste intelligence at scale', live: false },
+  { icon: '✨', label: 'More to come', desc: 'New beverage categories regularly', live: false },
 ]
 
 const HOW = [
-  { n: '01', title: 'Guest scans QR', body: 'A branded QR code on your menu or table drops them into a tailored chat experience — no app, no signup.' },
-  { n: '02', title: 'AI asks the right questions', body: 'Two or three natural questions about mood and preference. The AI reads your full catalog and brand story behind the scenes.' },
-  { n: '03', title: 'Perfect recommendation, every time', body: 'The guest gets a specific pick with tasting notes and the story behind it. One tap to order.' },
+  { n: '01', title: 'Guest scans your QR', body: 'A branded QR code on your menu or table drops them into a tailored chat experience — no app, no signup. It looks and sounds like you, not us.' },
+  { n: '02', title: 'They discover their taste', body: 'A few natural questions about mood and preference build the guest’s Beverage DNA™ — their taste identity. The AI reads your full catalog and brand story behind the scenes.' },
+  { n: '03', title: 'You learn who they are', body: 'The guest gets a confident pick with the story behind it and one tap to order. You get the taste intelligence — who your customers are and what they’ll love next.' },
 ]
 
 // Card surfaces — derived from the v2 darkBg with subtle gradient depth.
@@ -53,16 +58,16 @@ export default function HomePage() {
           style={{ height: 160, width: 'auto', display: 'block', margin: '0 auto 28px' }}
         />
         <div style={{ display: 'inline-block', padding: '5px 16px', background: `rgba(${BRAND_RGB.copperAmber},.12)`, border: `1px solid rgba(${BRAND_RGB.copperAmber},.28)`, borderRadius: 20, color: BRAND.copperAmber, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 28, fontFamily: FONT.ui }}>
-          AI-Powered Guest Discovery
+          The Beverage Intelligence Platform
         </div>
         <h1 style={{ fontFamily: FONT.brand, fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, margin: '0 0 24px', color: BRAND.textPrimary, letterSpacing: '-.02em' }}>
-          Every guest finds<br />
+          Every guest discovers<br />
           <span style={{ background: `linear-gradient(115deg, ${BRAND.copperAmber} 0%, ${BRAND.cabernetMagenta} 55%, ${BRAND.plum} 100%)`, WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>
-            their perfect pour.
+            their Beverage DNA™
           </span>
         </h1>
-        <p style={{ fontSize: 18, color: BRAND.textSecondary, lineHeight: 1.7, maxWidth: 560, margin: '0 auto 40px', fontFamily: FONT.marketing }}>
-          Replace the overwhelm of a 30-item menu with a 2-minute AI conversation. Guests scan, chat, and order — confident in their choice.
+        <p style={{ fontSize: 18, color: BRAND.textSecondary, lineHeight: 1.7, maxWidth: 580, margin: '0 auto 40px', fontFamily: FONT.marketing }}>
+          Poursona is the white-label taste-discovery platform for beverage brands. Your customers scan, discover their taste in a 2-minute conversation, and order with confidence — while you learn who they really are.
         </p>
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
           <a
@@ -83,19 +88,22 @@ export default function HomePage() {
       {/* Social proof strip */}
       <section style={{ borderTop: `1px solid rgba(${BRAND_RGB.plum},.12)`, borderBottom: `1px solid rgba(${BRAND_RGB.plum},.12)`, padding: '20px 40px', textAlign: 'center' }}>
         <p style={{ color: BRAND.textSecondary, fontSize: 13, margin: 0, letterSpacing: '.05em', fontFamily: FONT.marketing }}>
-          Built for craft breweries — wineries, distilleries &amp; coffee roasters coming soon
+          Live for breweries, wineries, distilleries &amp; coffee roasters — tea, restaurants &amp; distributors coming soon
         </p>
       </section>
 
       {/* Verticals */}
       <section style={{ maxWidth: 960, margin: '0 auto', padding: '80px 40px' }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <div style={{ color: BRAND.copperAmber, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12, fontFamily: FONT.ui }}>Who it&apos;s for</div>
-          <h2 style={{ fontFamily: FONT.brand, fontSize: 32, fontWeight: 700, margin: 0, letterSpacing: '-.01em' }}>Built for every type of beverage venue</h2>
+          <div style={{ color: BRAND.copperAmber, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12, fontFamily: FONT.ui }}>One platform, every category</div>
+          <h2 style={{ fontFamily: FONT.brand, fontSize: 32, fontWeight: 700, margin: 0, letterSpacing: '-.01em' }}>Taste discovery for any beverage brand</h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16 }}>
           {VERTICALS.map(v => (
-            <div key={v.label} style={{ background: CARD_BG, border: `1px solid rgba(${BRAND_RGB.plum},.18)`, borderRadius: 14, padding: '28px 24px' }}>
+            <div key={v.label} style={{ position: 'relative', background: CARD_BG, border: `1px solid rgba(${BRAND_RGB.plum},.18)`, borderRadius: 14, padding: '28px 24px', opacity: v.live ? 1 : 0.62 }}>
+              {!v.live && (
+                <span style={{ position: 'absolute', top: 14, right: 14, fontSize: 8.5, letterSpacing: '.14em', textTransform: 'uppercase', color: BRAND.discoveryTeal, border: `1px solid rgba(${BRAND_RGB.discoveryTeal},.4)`, borderRadius: 20, padding: '2px 8px', fontFamily: FONT.ui }}>Soon</span>
+              )}
               <div style={{ fontSize: 32, marginBottom: 14 }}>{v.icon}</div>
               <div style={{ color: BRAND.textPrimary, fontWeight: 700, fontSize: 16, marginBottom: 8, fontFamily: FONT.brand }}>{v.label}</div>
               <div style={{ color: BRAND.textSecondary, fontSize: 13, lineHeight: 1.6, fontFamily: FONT.marketing }}>{v.desc}</div>
@@ -108,7 +116,7 @@ export default function HomePage() {
       <section id="how-it-works" style={{ maxWidth: 860, margin: '0 auto', padding: '0 40px 100px' }}>
         <div style={{ textAlign: 'center', marginBottom: 56 }}>
           <div style={{ color: BRAND.copperAmber, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 12, fontFamily: FONT.ui }}>How it works</div>
-          <h2 style={{ fontFamily: FONT.brand, fontSize: 32, fontWeight: 700, margin: 0, letterSpacing: '-.01em' }}>From scan to recommendation in under 2 minutes</h2>
+          <h2 style={{ fontFamily: FONT.brand, fontSize: 32, fontWeight: 700, margin: 0, letterSpacing: '-.01em' }}>From scan to Beverage DNA™ in under 2 minutes</h2>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {HOW.map((step, i) => (
@@ -151,10 +159,10 @@ export default function HomePage() {
       {/* CTA */}
       <section style={{ maxWidth: 640, margin: '0 auto', padding: '100px 40px', textAlign: 'center' }}>
         <h2 style={{ fontFamily: FONT.brand, fontSize: 36, fontWeight: 800, margin: '0 0 20px', lineHeight: 1.15, letterSpacing: '-.02em' }}>
-          Ready to guide every guest<br />to their perfect pour?
+          Ready to understand<br />your customers&apos; taste?
         </h2>
         <p style={{ color: BRAND.textSecondary, fontSize: 15, lineHeight: 1.7, marginBottom: 36, fontFamily: FONT.marketing }}>
-          Paste your venue website and we&apos;ll extract your menu, branding, and story automatically — live in minutes.
+          Paste your website and we&apos;ll build your branded taste-discovery experience automatically — live in minutes. Discover Your Taste™ starts here.
         </p>
         <a
           href="/signup"
