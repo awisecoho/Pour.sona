@@ -23,9 +23,12 @@ export async function POST(req: NextRequest) {
     if (!tier) return NextResponse.json({ error: 'invalid plan' }, { status: 400 })
 
     // Use the tier's test-mode Price ID from PLAN_TIERS, overridable per tier by
-    // a STRIPE_PRICE_<TIER> env var (set these to the live Price IDs at go-live —
-    // price IDs differ between test and live mode).
-    const priceId = process.env[`STRIPE_PRICE_${tier.id.toUpperCase()}`] || tier.priceId
+    // a STRIPE_PRICE_<TIER> env var at go-live — but ONLY when that env value is a
+    // real Price ID. A prior Stripe "connect" left these env vars set to Product
+    // IDs (prod_...), which silently overrode the correct Price and broke checkout
+    // with "No such price". Ignore anything that isn't a price_ id.
+    const envPrice = process.env[`STRIPE_PRICE_${tier.id.toUpperCase()}`]
+    const priceId = envPrice?.startsWith('price_') ? envPrice : tier.priceId
     if (!priceId) return NextResponse.json({ error: 'plan price not configured' }, { status: 500 })
 
     const stripe = getStripe()
@@ -79,6 +82,6 @@ export async function POST(req: NextRequest) {
     // like a mode/account mismatch ("No such price ... a test mode key was used
     // ... in live mode") are obvious in the logs instead of a generic dump.
     console.error('Stripe checkout error:', err?.message || String(err), err?.code ? `[${err.code}]` : '', err?.type ? `(${err.type})` : '')
-    return NextResponse.json({ error: 'Checkout failed', _debug: { message: err?.message || String(err), code: err?.code || null, type: err?.type || null, appOrigin: APP_ORIGIN } }, { status: 500 })
+    return NextResponse.json({ error: 'Checkout failed' }, { status: 500 })
   }
 }
