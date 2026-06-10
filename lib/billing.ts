@@ -2,12 +2,12 @@
  * Pure billing config + mapping helpers — no Stripe/DB imports, so it unit-tests
  * in a plain node environment AND can be imported by client components.
  *
- * Single source of truth for plan tiers: name, monthly price, Stripe price
- * lookup_key, and features. checkout, the admin billing page, and the public
- * pricing page all read from PLAN_TIERS, so a price/feature change is a one-line
- * edit here. The amount actually charged is resolved at runtime from the Stripe
- * Price carrying the matching lookup_key (see app/api/stripe/checkout) — so a
- * pricing change in Stripe needs no redeploy or env edit.
+ * Single source of truth for plan tiers: name, monthly price, Stripe Price ID,
+ * and features. checkout, the admin billing page, and the public pricing page
+ * all read from PLAN_TIERS, so a price/feature change is a one-line edit here.
+ * `priceId` holds the test-mode Stripe Price; a STRIPE_PRICE_<TIER> env var
+ * overrides it per tier at go-live (live Price IDs differ from test). See
+ * app/api/stripe/checkout.
  */
 
 export type SubStatus = 'active' | 'past_due' | 'cancelled' | 'expired' | 'trial'
@@ -18,8 +18,12 @@ export interface PlanTier {
   name: string
   /** Monthly price in USD. Display + reported MRR; must match the Stripe Price. */
   price: number
-  /** Stripe Price lookup_key — checkout resolves the live price by this. */
-  lookupKey: string
+  /**
+   * Stripe Price ID (test mode). checkout uses this unless STRIPE_PRICE_<TIER>
+   * is set, which overrides it — point those at the live Price IDs at go-live,
+   * since price IDs differ between test and live mode.
+   */
+  priceId: string
   description: string
   features: string[]
   popular?: boolean
@@ -30,7 +34,8 @@ export const PLAN_TIERS: PlanTier[] = [
     id: 'starter',
     name: 'Starter',
     price: 49,
-    lookupKey: 'poursona_starter_monthly',
+    priceId: 'price_1TYzKkDsBETM9ESQSMyMfVjO', // test mode
+
     description: 'Perfect for a single location getting started',
     features: ['AI guided discovery', 'Unlimited sessions', 'QR code generator', 'Catalog management', 'Basic analytics'],
   },
@@ -38,7 +43,8 @@ export const PLAN_TIERS: PlanTier[] = [
     id: 'growth',
     name: 'Growth',
     price: 79,
-    lookupKey: 'poursona_growth_monthly',
+    priceId: 'price_1TYzFADsBETM9ESQwWhwKvbM', // test mode
+
     description: 'For venues ready to grow their customer experience',
     features: ['Everything in Starter', 'Customer profiles', 'Promo codes', 'Priority support', 'Advanced analytics'],
     popular: true,
@@ -47,7 +53,8 @@ export const PLAN_TIERS: PlanTier[] = [
     id: 'pro',
     name: 'Pro',
     price: 99,
-    lookupKey: 'poursona_pro_monthly',
+    priceId: 'price_1TYz9NDsBETM9ESQLu12EzQu', // test mode
+
     description: 'For multi-location or high-volume venues',
     features: ['Everything in Growth', 'Multiple locations', 'Custom branding', 'API access', 'Dedicated support'],
   },

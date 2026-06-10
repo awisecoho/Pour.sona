@@ -21,14 +21,13 @@ export async function POST(req: NextRequest) {
     const tier = PLAN_BY_ID[plan]
     if (!tier) return NextResponse.json({ error: 'invalid plan' }, { status: 400 })
 
-    const stripe = getStripe()
+    // Use the tier's test-mode Price ID from PLAN_TIERS, overridable per tier by
+    // a STRIPE_PRICE_<TIER> env var (set these to the live Price IDs at go-live —
+    // price IDs differ between test and live mode).
+    const priceId = process.env[`STRIPE_PRICE_${tier.id.toUpperCase()}`] || tier.priceId
+    if (!priceId) return NextResponse.json({ error: 'plan price not configured' }, { status: 500 })
 
-    // Resolve the live Stripe Price by its lookup_key rather than a hardcoded
-    // price-ID env var. Changing a price in Stripe (create a new Price with
-    // transfer_lookup_key: true) then takes effect with no redeploy or env edit.
-    const prices = await stripe.prices.list({ lookup_keys: [tier.lookupKey], active: true, limit: 1 })
-    const price = prices.data[0]
-    if (!price) return NextResponse.json({ error: 'plan price not configured' }, { status: 500 })
+    const stripe = getStripe()
 
     const retailerRes = await dbQuery(
       'SELECT name, owner_email, stripe_customer_id FROM retailers WHERE id = $1',
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: price.id, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appUrl}/admin/billing?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/admin/billing?upgrade_cancelled=1`,
       metadata: { retailerId, plan },
