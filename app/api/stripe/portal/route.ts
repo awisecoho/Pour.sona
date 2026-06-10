@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
 import { dbQuery } from '@/lib/db'
+import { APP_ORIGIN } from '@/lib/urls'
 export const dynamic = 'force-dynamic'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
     const customerId = res.rows[0]?.stripe_customer_id
     if (!customerId) return NextResponse.json({ error: 'No billing account found. Please subscribe first.' }, { status: 404 })
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.vercel.app'
+    const appUrl = APP_ORIGIN
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${appUrl}/admin/billing`,

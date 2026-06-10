@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { authorizeRetailer } from '@/lib/authz'
 import { dbQuery } from '@/lib/db'
 import { PLAN_BY_ID } from '@/lib/billing'
+import { APP_ORIGIN } from '@/lib/urls'
 export const dynamic = 'force-dynamic'
 
 function getStripe() {
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
       await dbQuery('UPDATE retailers SET stripe_customer_id = $2 WHERE id = $1', [retailerId, customerId])
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://pour-sona.com'
+    const appUrl = APP_ORIGIN
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
@@ -78,6 +79,6 @@ export async function POST(req: NextRequest) {
     // like a mode/account mismatch ("No such price ... a test mode key was used
     // ... in live mode") are obvious in the logs instead of a generic dump.
     console.error('Stripe checkout error:', err?.message || String(err), err?.code ? `[${err.code}]` : '', err?.type ? `(${err.type})` : '')
-    return NextResponse.json({ error: 'Checkout failed', _debug: { message: err?.message || String(err), code: err?.code || null, type: err?.type || null } }, { status: 500 })
+    return NextResponse.json({ error: 'Checkout failed' }, { status: 500 })
   }
 }
