@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState, useMemo } from 'react'
-import type { Retailer, BlendRecommendation } from '@/lib/types'
+import type { Retailer, BlendRecommendation, BeverageDNA } from '@/lib/types'
+import { DnaTasteLine, DnaDetails } from '@/app/_components/BeverageDnaReveal'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -34,6 +35,7 @@ const stripRec = (text: string) =>
   text
     .replace(/===REC===[\s\S]*?===END===/g, '')
     .replace(/===CHIPS===[\s\S]*?===END===/g, '')
+    .replace(/===DNA===[\s\S]*?===END===/g, '')
     .replace(/===[\s\S]*$/, '') // hide any partial/unclosed sentinel block while streaming
     .trim()
 
@@ -438,6 +440,7 @@ function ProductHero({ product, retailer, theme, font }: {
 
 function RecommendationCard({
   rec,
+  dna,
   retailer,
   sessionId,
   ctas,
@@ -447,6 +450,7 @@ function RecommendationCard({
   font,
 }: {
   rec: BlendRecommendation
+  dna: BeverageDNA | null
   retailer: Retailer
   sessionId: string
   ctas: { primary: string; secondary: string }
@@ -518,6 +522,10 @@ function RecommendationCard({
       }}>
         {/* Hero image */}
         <ProductHero product={heroProduct} retailer={retailer} theme={theme} font={font} />
+
+        {/* Beverage DNA — the "because…" taste lead-in, framing the pick (above
+            the product, vendor-themed). Renders nothing when no DNA. */}
+        <DnaTasteLine dna={dna} primary={theme.primary} font={font} />
 
         {/* Cocktail context (distillery flow) — surfaces the cocktail name while
             keeping the vendor's spirit as the headline product below. */}
@@ -645,6 +653,10 @@ function RecommendationCard({
           </button>
         </div>
 
+        {/* Beverage DNA — expandable taste profile (flavor bars + scores +
+            summary), collapsed by default so the buy moment stays primary. */}
+        <DnaDetails dna={dna} primary={theme.primary} rgbStr={theme.rgbStr} font={font} />
+
         {/* Vendor website — let guests explore the full brand */}
         {retailer.source_url && (
           <div style={{ padding: '0 20px 4px', textAlign: 'center' }}>
@@ -732,6 +744,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
   const [streaming, setStreaming] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [rec, setRec] = useState<BlendRecommendation | null>(null)
+  const [dna, setDna] = useState<BeverageDNA | null>(null)
   const [ordered, setOrdered] = useState(false)
   const [started, setStarted] = useState(false)
   // Quick-reply chips suggested by the AI for its current question — kept in sync
@@ -805,6 +818,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
             }
             if (p.done) {
               if (p.recData) setRec(p.recData)
+              setDna(p.dna ?? null)
               if (Array.isArray(p.chips)) setChips(p.chips.filter((c: unknown) => typeof c === 'string').slice(0, 4))
               if (p.ctas && typeof p.ctas.primary === 'string' && typeof p.ctas.secondary === 'string') {
                 setCtas({ primary: p.ctas.primary, secondary: p.ctas.secondary })
@@ -843,6 +857,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
   const tryAnother = () => {
     if (streaming) return
     setRec(null)
+    setDna(null)
     setChips([])
     const next: Message[] = [...messages, { role: 'user', content: 'Show me a different option — what else fits, based on what I told you?' }]
     setMessages(next)
@@ -945,6 +960,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
         {rec && (
           <RecommendationCard
             rec={rec}
+            dna={dna}
             retailer={retailer}
             sessionId={sessionId!}
             ctas={ctas}

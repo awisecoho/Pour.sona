@@ -61,6 +61,12 @@ DO $$ BEGIN
   -- Phase 3 Recommendation Reveal: product imagery on the guest-facing card.
   -- NULL is valid; the reveal UI falls back to a category icon when absent.
   BEGIN ALTER TABLE products ADD COLUMN image_url text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- Beverage DNA: per-session taste-intelligence layer. beverage_dna holds the
+  -- full BeverageDNA jsonb (guest-facing tasteLine + flavor/scores); persona is
+  -- a denormalized vendor-only analytics tag (one of six) for cheap GROUP BY in
+  -- the Audience Intelligence rollup. Both NULL is valid (rec works without DNA).
+  BEGIN ALTER TABLE sessions ADD COLUMN beverage_dna jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE sessions ADD COLUMN persona text; EXCEPTION WHEN duplicate_column THEN NULL; END;
 END $$;
 
 -- Performance + tenant-isolation indexes (idempotent; ensures they exist on Neon)
@@ -72,6 +78,8 @@ CREATE INDEX IF NOT EXISTS idx_flights_retailer_id             ON flights(retail
 CREATE INDEX IF NOT EXISTS idx_admin_users_email               ON admin_users(lower(email));
 CREATE INDEX IF NOT EXISTS idx_retailers_slug                  ON retailers(slug);
 CREATE INDEX IF NOT EXISTS idx_retailers_expired_trials        ON retailers(trial_ends_at ASC) WHERE subscription_status = 'trial' AND trial_ends_at IS NOT NULL;
+-- Beverage DNA vendor rollup: "Top Personas (last 30 days)" GROUP BY persona.
+CREATE INDEX IF NOT EXISTS idx_sessions_retailer_persona        ON sessions(retailer_id, persona) WHERE persona IS NOT NULL;
 
 -- Stripe webhook idempotency / replay safety
 CREATE TABLE IF NOT EXISTS stripe_webhook_events (

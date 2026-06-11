@@ -21,6 +21,7 @@ import {
 } from '@/lib/chat-guardrails'
 import { getQuestionBounds, resolveAssistantProfile } from '@/lib/agent/profile'
 import { enrichRecommendationWithCatalog } from '@/lib/recommendation-enrich'
+import { parseBeverageDNA } from '@/lib/agent/beverage-dna'
 export const dynamic = 'force-dynamic'
 
 
@@ -134,11 +135,16 @@ export async function POST(req: NextRequest) {
             } catch {}
           }
 
+          // Beverage DNA — parsed for the done frame so the demo reveal (Phase B)
+          // matches the live guest page. Demo writes nothing, so this isn't
+          // persisted; it's emit-only. Additive, never affects recData.
+          const dna = parseBeverageDNA(fullText)
           const resolvedProfile = resolveAssistantProfile(retailer as any)
           controller.enqueue(encoder.encode('data: ' + JSON.stringify({
             done: true, text: fullText, recData, chips,
             ctas: { primary: resolvedProfile.cta_primary, secondary: resolvedProfile.cta_secondary },
             fallbackLine: resolvedProfile.fallback_line,
+            dna,
           }) + '\n\n'))
         } catch (err) {
           console.error('[demo/chat] stream error:', err)

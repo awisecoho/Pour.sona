@@ -8,7 +8,8 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Retailer, BlendRecommendation } from '@/lib/types'
+import type { Retailer, BlendRecommendation, BeverageDNA } from '@/lib/types'
+import { DnaTasteLine, DnaDetails } from '@/app/_components/BeverageDnaReveal'
 
 interface Message { role: 'user' | 'assistant'; content: string; streaming?: boolean }
 
@@ -17,7 +18,7 @@ const VERTICAL_NOUN: Record<string, string>  = { coffee: 'Blend', brewery: 'Beer
 const VERTICAL_PLURAL: Record<string, string> = { coffee: 'coffees', brewery: 'beers', distillery: 'pours', winery: 'wines' }
 
 const stripRec = (t: string) =>
-  t.replace(/===REC===[\s\S]*?===END===/g, '').replace(/===CHIPS===[\s\S]*?===END===/g, '').replace(/===[\s\S]*$/, '').trim()
+  t.replace(/===REC===[\s\S]*?===END===/g, '').replace(/===CHIPS===[\s\S]*?===END===/g, '').replace(/===DNA===[\s\S]*?===END===/g, '').replace(/===[\s\S]*$/, '').trim()
 
 function hexToRgb(hex: string): [number,number,number] | null {
   const h = hex.replace('#',''); if (h.length !== 6) return null
@@ -151,7 +152,7 @@ function QuickChips({ chips,onSelect,theme,font }:{ chips:string[];onSelect:(c:s
 }
 
 /** Simplified rec card for demo — primary CTA claims the guide instead of ordering. */
-function DemoRecommendationCard({ rec,retailer,ctas,onTryAnother,theme,font,draftId }:{ rec:BlendRecommendation;retailer:Retailer;ctas:{primary:string;secondary:string};onTryAnother:()=>void;theme:ReturnType<typeof useTheme>;font:string;draftId:string }) {
+function DemoRecommendationCard({ rec,dna,retailer,ctas,onTryAnother,theme,font,draftId }:{ rec:BlendRecommendation;dna:BeverageDNA|null;retailer:Retailer;ctas:{primary:string;secondary:string};onTryAnother:()=>void;theme:ReturnType<typeof useTheme>;font:string;draftId:string }) {
   const noun = VERTICAL_NOUN[retailer.vertical]||'Selection'
   const products = rec.selectedProducts||[]
 
@@ -162,6 +163,9 @@ function DemoRecommendationCard({ rec,retailer,ctas,onTryAnother,theme,font,draf
 
   return (
     <div style={{ marginTop:20,background:'linear-gradient(155deg,#141925 0%,#10141D 100%)',border:`1px solid rgba(${theme.rgbStr},.22)`,borderRadius:20,overflow:'hidden',boxShadow:`0 0 60px rgba(${theme.rgbStr},.07),0 24px 48px rgba(0,0,0,.5)`,animation:'recReveal .45s cubic-bezier(.22,1,.36,1) both' }}>
+
+      {/* Beverage DNA — "because…" taste lead-in, framing the pick (vendor-themed). */}
+      <DnaTasteLine dna={dna} primary={theme.primary} font={font} />
 
       {/* Flavor chips */}
       {(rec.flavorProfile||[]).length>0 && (
@@ -214,6 +218,9 @@ function DemoRecommendationCard({ rec,retailer,ctas,onTryAnother,theme,font,draf
           </a>
         )}
       </div>
+
+      {/* Beverage DNA — expandable taste profile, collapsed by default. */}
+      <DnaDetails dna={dna} primary={theme.primary} rgbStr={theme.rgbStr} font={font} />
     </div>
   )
 }
@@ -231,6 +238,7 @@ export default function DemoPage({ params }: { params: { draftId: string } }) {
   const [streaming, setStreaming] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [rec, setRec] = useState<BlendRecommendation | null>(null)
+  const [dna, setDna] = useState<BeverageDNA | null>(null)
   const [started, setStarted] = useState(false)
   const [chips, setChips] = useState<string[]>([])
   const [ctas, setCtas] = useState({ primary: 'Order this', secondary: 'Show me another' })
@@ -285,6 +293,7 @@ export default function DemoPage({ params }: { params: { draftId: string } }) {
             if (p.delta) { full+=p.delta; setMessages(prev=>{ const u=[...prev]; u[u.length-1]={ role:'assistant',content:stripRec(full),streaming:true }; return u }) }
             if (p.done) {
               if (p.recData) setRec(p.recData)
+              setDna(p.dna ?? null)
               if (Array.isArray(p.chips)) setChips(p.chips.filter((c:unknown)=>typeof c==='string').slice(0,4))
               if (p.ctas) setCtas(p.ctas)
               setMessages(prev=>{ const u=[...prev]; u[u.length-1]={ role:'assistant',content:stripRec(p.text||full),streaming:false }; return u })
@@ -306,7 +315,7 @@ export default function DemoPage({ params }: { params: { draftId: string } }) {
     void streamChat(next.map(m=>({ role:m.role,content:m.content })))
   }
   const tryAnother = () => {
-    if (streaming) return; setRec(null); setChips([])
+    if (streaming) return; setRec(null); setDna(null); setChips([])
     const next: Message[] = [...messages,{ role:'user',content:"Show me a different option — what else fits, based on what I told you?" }]
     setMessages(next); void streamChat(next.map(m=>({ role:m.role,content:m.content })))
   }
@@ -346,7 +355,7 @@ export default function DemoPage({ params }: { params: { draftId: string } }) {
         ))}
 
         {rec && !streaming && (
-          <DemoRecommendationCard rec={rec} retailer={retailer} ctas={ctas} onTryAnother={tryAnother} theme={theme} font={font} draftId={draftId} />
+          <DemoRecommendationCard rec={rec} dna={dna} retailer={retailer} ctas={ctas} onTryAnother={tryAnother} theme={theme} font={font} draftId={draftId} />
         )}
 
         <div ref={bottomRef} style={{ height:8 }} />

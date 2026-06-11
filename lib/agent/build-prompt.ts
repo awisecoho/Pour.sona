@@ -119,6 +119,9 @@ Do NOT output a CHIPS block when you are giving the recommendation.`
   // ── Section 9: Recommendation output format (unchanged) ─────────────────────
   const recFormat = renderRecFormat(profile)
 
+  // ── Section 10: Beverage DNA output format (parsed by lib/agent/beverage-dna.ts)
+  const dnaFormat = renderDnaFormat(profile)
+
   // ── Override: if the vendor has a hand-built chat_system_prompt, use it as
   // the identity/voice section but keep the rest of the structured prompt.
   // This preserves the Vendor Builder workflow while still applying adaptive
@@ -142,6 +145,7 @@ Do NOT output a CHIPS block when you are giving the recommendation.`
     `Location: ${retailer.location || ''}`,
     catalogLines.join('\n') + flightLines.join('\n') + featuredSection + takeHomeSection,
     recFormat,
+    dnaFormat,
   ].filter(s => s && s.trim().length > 0).join('\n\n')
 }
 
@@ -274,4 +278,27 @@ CALL-TO-ACTION COPY (for the UI buttons that appear after the recommendation):
 Do not output these in the message — they're rendered by the UI from the vendor's profile.
 
 The handoff sentence before ===REC=== should feel like the best ${profile.experience_style} in the place just walked over. Specific, confident, warm.`
+}
+
+function renderDnaFormat(profile: AssistantProfile): string {
+  const agent = sanitizePromptInput(profile.agent_name)
+  return `BEVERAGE DNA — when (and only when) you give a recommendation, output this block IMMEDIATELY AFTER the ===REC=== block:
+
+===DNA===
+{
+  "persona": "EXACTLY one of: The Bold Explorer | The Curious Adventurer | The Smooth Traditionalist | The Flavor Hunter | The Comfort Seeker | The Refined Collector",
+  "tasteLine": "Because you go for … — one short second-person line, specific to THIS guest",
+  "flavorProfile": [{"axis":"Bold","value":0.8},{"axis":"Sweet","value":0.3}],
+  "confidenceScore": 0,
+  "discoveryScore": 0,
+  "summary": "1-2 sentence taste identity"
+}
+===END===
+
+BEVERAGE DNA RULES — follow exactly or the data is dropped:
+- "persona" MUST be one of the six exact strings above. It is an INTERNAL analytics label the guest NEVER sees — classify honestly to fit them, never to flatter, and never invent a new name.
+- "tasteLine" is the guest-facing payoff: a single specific sentence grounded in what ${agent ? agent + ' ' : ''}heard this guest actually say/choose, in this venue's voice, using real flavor language. It reads as the REASON for the pick (the UI places it right above the product). Do NOT name or hint at the persona bucket in it, and do NOT use an archetype label.
+- "flavorProfile": 4-6 axes suited to your category (coffee: Bright/Roasty/Sweet/Body; beer: Hoppy/Malty/Bitter/Light; wine: Dry/Bold/Fruity/Earthy; spirits: Smoky/Sweet/Spirit-forward/Smooth). Each "value" is a number 0-1.
+- "confidenceScore" 0-100 = how sure you are of the match. "discoveryScore" 0-100 = how adventurous this guest is.
+- Output the DNA block ONLY alongside a recommendation — never while you're still asking questions.`
 }

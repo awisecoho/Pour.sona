@@ -178,6 +178,36 @@ export interface BlendRecommendation {
   upsellSuggestion?: { name: string; reason: string } | null
 }
 
+// ── Beverage DNA — taste-intelligence layer ──────────────────────────────────
+// Generated alongside each recommendation (parsed in lib/agent/beverage-dna.ts).
+// Two audiences, deliberately split (see docs/features/beverage-dna-spec.md):
+//   - `persona` is a SILENT, vendor-only analytics classification — one of six
+//     canonical names, NEVER rendered to the guest.
+//   - everything else is guest-facing: `tasteLine` (the "because…" justification
+//     folded into the rec) plus expandable flavor/score detail.
+
+export const BEVERAGE_DNA_PERSONAS = [
+  'The Bold Explorer',
+  'The Curious Adventurer',
+  'The Smooth Traditionalist',
+  'The Flavor Hunter',
+  'The Comfort Seeker',
+  'The Refined Collector',
+] as const
+
+export type BeverageDnaPersona = (typeof BEVERAGE_DNA_PERSONAS)[number]
+
+export interface BeverageDNA {
+  // Vendor analytics only — NEVER rendered to the guest.
+  persona: BeverageDnaPersona
+  // Guest-facing.
+  tasteLine: string                                      // the "because…" lead-in, in the venue's voice
+  flavorProfile: Array<{ axis: string; value: number }>  // 4-6 axes, value 0-1
+  confidenceScore: number                                // 0-100, AI's confidence in the match
+  discoveryScore: number                                 // 0-100, how adventurous the guest is
+  summary: string                                        // 1-2 sentence taste identity
+}
+
 // ── Stream payload to the guest UI ───────────────────────────────────────────
 // What the /api/chat SSE endpoint emits in its `done` frame. Centralised here
 // so both server and client stay in sync as the shape grows.
@@ -189,4 +219,7 @@ export interface ChatRecommendationPayload {
   // vendor's chosen CTA copy without a second round-trip.
   ctas?: { primary: string; secondary: string }
   fallbackLine?: string
+  // Beverage DNA — null when the model produced no valid block. The rec must
+  // never depend on it; the guest UI renders dna.tasteLine + expandable detail.
+  dna?: BeverageDNA | null
 }

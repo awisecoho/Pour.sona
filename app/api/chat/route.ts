@@ -21,6 +21,7 @@ import {
 } from '@/lib/chat-guardrails'
 import { getQuestionBounds, resolveAssistantProfile } from '@/lib/agent/profile'
 import { enrichRecommendationWithCatalog } from '@/lib/recommendation-enrich'
+import { parseBeverageDNA } from '@/lib/agent/beverage-dna'
 export const dynamic = 'force-dynamic'
 
 const SSE_HEADERS = { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' }
@@ -330,6 +331,10 @@ export async function POST(req: NextRequest) {
               if (Array.isArray(parsed)) chips = parsed.filter((c: unknown) => typeof c === 'string').slice(0, 4)
             } catch {}
           }
+          // Beverage DNA — taste-intelligence layer parsed from the ===DNA===
+          // block. Additive: null when absent/malformed, and a missing/invalid
+          // block NEVER affects recData (the recommendation stands on its own).
+          const dna = parseBeverageDNA(fullText)
           // Phase 3: include vendor CTA copy + fallback line in the done frame so
           // the UI can render branded button text without a second fetch.
           const resolvedProfile = resolveAssistantProfile(retailer)
@@ -340,6 +345,7 @@ export async function POST(req: NextRequest) {
             chips,
             ctas: { primary: resolvedProfile.cta_primary, secondary: resolvedProfile.cta_secondary },
             fallbackLine: resolvedProfile.fallback_line,
+            dna,
           }
           controller.enqueue(encoder.encode('data: ' + JSON.stringify(donePayload) + '\n\n'))
           // Funnel: recommendation_shown when a valid rec was produced. Best-effort.
@@ -349,13 +355,23 @@ export async function POST(req: NextRequest) {
               [retailer.id, sessionId, JSON.stringify({ name: recData.recommendationName || recData.blendName || null })]
             ).catch(() => {})
           }
+          // Funnel: beverage_dna_generated mirrors recommendation_shown so the
+          // vendor analytics can track DNA coverage. Persona only (no guest copy).
+          if (dna) {
+            dbQuery(
+              `insert into events (retailer_id, session_id, event_type, payload) values ($1, $2, 'beverage_dna_generated', $3::jsonb)`,
+              [retailer.id, sessionId, JSON.stringify({ persona: dna.persona })]
+            ).catch(() => {})
+          }
           dbQuery(
             `update sessions set
                messages = $2::jsonb,
                order_status = $3,
                recommended_at = $4,
                blend_name = $5,
-               blend_data = $6::jsonb
+               blend_data = $6::jsonb,
+               beverage_dna = $7::jsonb,
+               persona = $8
              where id = $1`,
             [
               sessionId,
@@ -364,6 +380,8 @@ export async function POST(req: NextRequest) {
               recData ? new Date().toISOString() : null,
               recData?.recommendationName || null,
               JSON.stringify(recData || null),
+              dna ? JSON.stringify(dna) : null,
+              dna ? dna.persona : null,
             ]
           ).catch(() => {})
           controller.close()
