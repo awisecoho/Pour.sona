@@ -70,6 +70,21 @@ export async function getInternalMemberByEmail(email: string) {
   return result.rows[0] || null
 }
 
+/**
+ * Guard for internal (/api/poursona-admin) routes: the caller must be a
+ * Clerk-authenticated identity whose email is in poursona_team. Returns null
+ * when either condition fails — routes respond 401/403 on null. Pass a
+ * minimum role ('owner') for destructive/team-management endpoints.
+ */
+export async function requireTeamMember(minRole?: 'owner') {
+  const identity = await getAuthenticatedIdentity()
+  if (!identity?.email) return null
+  const member = await getInternalMemberByEmail(identity.email)
+  if (!member) return null
+  if (minRole === 'owner' && member.role !== 'owner') return null
+  return { identity, member }
+}
+
 export async function getRetailersForIdentity(userId: string, email: string | null) {
   if (email && userId) {
     try {

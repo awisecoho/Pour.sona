@@ -1,17 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { dbQuery } from '@/lib/db'
+import { NextResponse } from 'next/server'
+import { requireTeamMember } from '@/lib/auth'
 export const dynamic = 'force-dynamic'
 
-export async function POST(req: NextRequest) {
+// Membership check for the signed-in caller only. The previous version
+// accepted an arbitrary email in the body, which made it an unauthenticated
+// oracle for probing who is on the internal team.
+export async function POST() {
   try {
-    const { email } = await req.json()
-    if (!email) return NextResponse.json({ ok: false })
-    const result = await dbQuery(
-      'select email, name, role from poursona_team where lower(email) = $1 limit 1',
-      [email.toLowerCase().trim()]
-    )
-    const member = result.rows[0] || null
-    return NextResponse.json({ ok: !!member, member })
+    const caller = await requireTeamMember()
+    if (!caller) return NextResponse.json({ ok: false })
+    return NextResponse.json({ ok: true, member: caller.member })
   } catch {
     return NextResponse.json({ ok: false })
   }

@@ -26,9 +26,19 @@ export function getPool() {
     const connectionString = getConnectionString()
     const isLocal = process.env.NODE_ENV === 'development'
 
+    // Verify the server certificate in production — Neon's certs chain to a
+    // public CA, so Node's bundled roots validate them. DATABASE_SSL_NO_VERIFY
+    // is a temporary escape hatch only, in case a provider cert change ever
+    // breaks verification; never leave it set.
+    const ssl = isLocal
+      ? false
+      : process.env.DATABASE_SSL_NO_VERIFY === 'true'
+        ? { rejectUnauthorized: false }
+        : { rejectUnauthorized: true }
+
     const pool = new Pool({
       connectionString,
-      ssl: isLocal ? false : { rejectUnauthorized: false },
+      ssl,
       // Keep pool small — Vercel creates one pool per warm instance,
       // so each concurrent function can hold up to max connections.
       max: 3,

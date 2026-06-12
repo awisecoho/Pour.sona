@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { grantRetailerAccessByEmail } from '@/lib/auth'
+import { grantRetailerAccessByEmail, requireTeamMember } from '@/lib/auth'
 import { sendVendorInvite } from '@/lib/email'
 import { adminUrl } from '@/lib/urls'
 import { apiError } from '@/lib/api'
@@ -7,6 +7,11 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    // Defense in depth: the middleware also guards this route, but middleware
+    // can be bypassed (e.g. CVE-2025-29927), so enforce here too.
+    if (!(await requireTeamMember())) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
     const { retailerId, email, name, retailerName } = await req.json()
     if (!retailerId || !email) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 

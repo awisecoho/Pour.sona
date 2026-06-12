@@ -37,5 +37,6 @@ client-id and secret env vars are set. OAuth redirect URI to register on each pl
 credentials — it tracks an account for selection/research but can't post until connected.
 
 ## Migration secret
-`POST /api/migrate` is gated by a hardcoded secret (`poursona-migrate-2026`) — rotate to an
-env var before GA. (Open risk, see evidence-checklist.)
+`POST /api/migrate` is gated by the `MIGRATE_SECRET` env var (timing-safe compare,
+fails closed when unset). The previously hardcoded value was committed to the repo
+history, so set `MIGRATE_SECRET` in Vercel to a NEW value — do not reuse it.

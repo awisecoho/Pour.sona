@@ -74,6 +74,21 @@ export function verifyOnboardSecret(req: NextRequest): boolean {
   }
 }
 
+// ── Migration secret verification ─────────────────────────────────────────────
+// Gates POST /api/migrate (production schema changes). Fails closed when
+// MIGRATE_SECRET is unset so the endpoint can never run unguarded.
+
+export function verifyMigrateSecret(provided: unknown): boolean {
+  const expected = process.env.MIGRATE_SECRET
+  if (typeof provided !== 'string' || !provided || !expected) return false
+  if (provided.length !== expected.length) return false
+  try {
+    return timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
+  } catch {
+    return false
+  }
+}
+
 // ── Email validation ──────────────────────────────────────────────────────────
 // RFC 5321 max length is 254. Simple structural check is enough for our uses;
 // Resend will reject malformed addresses at send time.

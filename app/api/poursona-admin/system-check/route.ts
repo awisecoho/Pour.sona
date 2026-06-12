@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
+import { requireTeamMember } from '@/lib/auth'
 export const dynamic = 'force-dynamic'
 
 type CheckResult = { key: string; label: string; ready: boolean; error: string | null }
@@ -24,6 +25,11 @@ async function checkColumn(table: string, column: string, label: string): Promis
 
 export async function GET() {
   try {
+    // Defense in depth: the middleware also guards this route, but middleware
+    // can be bypassed (e.g. CVE-2025-29927), so enforce here too.
+    if (!(await requireTeamMember())) {
+      return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 })
+    }
     const checks = await Promise.all([
       checkTable('retailers', 'retailers table'),
       checkTable('products', 'products table'),

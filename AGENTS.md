@@ -21,10 +21,12 @@ Schema changes must target Neon. Use the existing migration endpoint:
 
 - Edit `app/api/migrate/route.ts` — add columns to `FIX_SCHEMA` using the idempotent
   `BEGIN ALTER TABLE ... ADD COLUMN ...; EXCEPTION WHEN duplicate_column THEN NULL; END;`
-  pattern. Deploy, then run it against production:
+  pattern. Deploy, then run it against production. The secret lives in the
+  `MIGRATE_SECRET` env var (Vercel) — never hardcode or commit it; the endpoint
+  fails closed if the var is unset:
   ```
   curl -s -X POST https://pour-sona.com/api/migrate \
-    -H "Content-Type: application/json" -d '{"secret":"poursona-migrate-2026"}'
+    -H "Content-Type: application/json" -d "{\"secret\":\"$MIGRATE_SECRET\"}"
   ```
 - Alternatively connect directly with the Neon `DATABASE_URL` (Vercel env var) and run SQL.
 

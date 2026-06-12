@@ -1,6 +1,6 @@
 # Beverage DNA™ — Implementation Spec & Session Handoff
 
-**Status:** Phases A (generation + persistence) **and B (guest reveal UI)** both **built in code** as of 2026-06-11 — see the phasing section. Not yet deployed; the Neon migration still needs to run against production (Phase A persistence + Phase C rollup). Phase B renders straight from the SSE payload, so it works on live chat without the migration. Phases C–D unstarted.
+**Status:** Phases A (generation + persistence) **and B (guest reveal UI)** are **built, deployed, and migrated** as of 2026-06-11. Prod deploy `dpl_Ek4gQN7…` (commit `921c70c`) is READY on `pour-sona.com`; the Neon migration ran (`/api/migrate` → `ok:true`, `sessions.beverage_dna` + `sessions.persona` live). Remaining: **visual confirmation of the reveal in a real guest chat** (functionally live, pixels not yet eyeballed). Phases C–D unstarted.
 **Created:** end of the brand-v2 + repositioning session.
 **Owner decision:** build this next, as its own multi-session effort.
 **Reveal direction (decided 2026-06-10):** product-first, taste as the "because." The six personas became a **silent vendor-only analytics classification** — the guest never sees a named persona. The guest instead gets a bespoke, conversation-specific taste line folded into the recommendation as its justification, with flavor detail in a "why this matched" expandable. This replaces the original persona-hero panel (see PART 2 reveal section). Resolves the "personas feel gimmicky" + "competes with the rec" concerns.
@@ -16,7 +16,7 @@
 
 ### Standing rules (do NOT violate)
 1. **LOGO IS LOCKED.** `public/brand/logo-source.png` (has coffee bean, grape cluster, leaf) stays exactly as-is. Color adjustments to surrounding UI are fine; the graphic itself never changes unless the user hands over a new file.
-2. **DB = Neon only, never Supabase.** Schema changes go in `app/api/migrate/route.ts` `FIX_SCHEMA` (idempotent `ADD COLUMN … EXCEPTION WHEN duplicate_column`), deploy, then `curl -s -X POST https://pour-sona.com/api/migrate -H "Content-Type: application/json" -d '{"secret":"poursona-migrate-2026"}'`.
+2. **DB = Neon only, never Supabase.** Schema changes go in `app/api/migrate/route.ts` `FIX_SCHEMA` (idempotent `ADD COLUMN … EXCEPTION WHEN duplicate_column`), deploy, then `curl -s -X POST https://pour-sona.com/api/migrate -H "Content-Type: application/json" -d "{\"secret\":\"$MIGRATE_SECRET\"}" (secret comes from the MIGRATE_SECRET env var in Vercel)`.
 3. **Run `npm run build` before every push** — `tsc --noEmit` does NOT catch ESLint-as-error (e.g. `react/no-unescaped-entities`); those silently fail Vercel builds.
 4. **Verify deploys via Vercel API** (`get_deployment` → `state:READY` + alias has `pour-sona.com`), not footer-string probes. Also `curl` any new `public/` asset for HTTP 200 — a logo 404'd in prod earlier this project because `public/brand/` wasn't `git add`ed.
 5. **Guest page `/r/[slug]` is 95% vendor-branded.** It uses the vendor's `brand_color`/`brand_font_family`. Do NOT inject Poursona brand colors into its primary theme. The reveal additions below must inherit the vendor theme (`theme.primary`, `theme.rgbStr`, `font`), not Poursona's palette.
@@ -144,7 +144,7 @@ Add a panel:
   - `app/api/demo/chat/route.ts` — parse + SSE-emit `dna` (emit-only; demo writes no sessions row).
   - `app/r/[slug]/page.tsx` + `app/demo/[draftId]/page.tsx` — explicit `===DNA===` strip so the raw block never shows to guests.
   - `tests/beverage-dna.test.ts` — 11 parse/validation tests. Full suite: 98 passing. `npm run build` clean.
-  - **STILL TODO to ship Phase A:** deploy, then run the migrate curl against prod (columns don't exist on Neon until then), then verify `sessions.persona` populates via a real guest chat + Neon query. Zero user-visible change.
+  - **SHIPPED 2026-06-11:** deployed (commit `921c70c`, `dpl_Ek4gQN7…` READY on `pour-sona.com`) and migrated (`/api/migrate` → `ok:true`; `sessions.beverage_dna` + `sessions.persona` live on Neon). Remaining check: confirm `sessions.persona` actually populates by running a real guest chat to a recommendation, then querying Neon.
 - **Phase B — guest reveal UI: ✅ BUILT IN CODE 2026-06-11.** Implemented:
   - `app/_components/BeverageDnaReveal.tsx` — shared `DnaTasteLine` (the "because…" lead-in, placed above the product) + `DnaDetails` (the "See your taste profile" expandable below the CTA: horizontal flavor bars, Match/Adventure score pills, summary). Vendor-themed via `primary`/`rgbStr`/`font` props; renders nothing when `dna` is absent; never shows the persona name.
   - `app/r/[slug]/page.tsx` — captures `dna` from the SSE `done` frame into state, resets it on "try another", passes it to `RecommendationCard`, renders both pieces.

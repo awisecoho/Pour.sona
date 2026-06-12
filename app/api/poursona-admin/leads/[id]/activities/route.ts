@@ -13,22 +13,15 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
-import { getAuthenticatedIdentity, getInternalMemberByEmail } from '@/lib/auth'
+import { requireTeamMember } from '@/lib/auth'
 import { sanitizePromptInput } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
-async function requireTeamMember() {
-  const identity = await getAuthenticatedIdentity()
-  if (!identity?.email) return null
-  const member = await getInternalMemberByEmail(identity.email)
-  if (!member) return null
-  return identity
-}
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const identity = await requireTeamMember()
-  if (!identity) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  const caller = await requireTeamMember()
+  if (!caller) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   try {
     const body = await req.json()
@@ -47,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       `INSERT INTO prospect_activities (lead_id, type, body, payload, created_by_email)
        VALUES ($1, $2, $3, $4::jsonb, $5)
        RETURNING id, type, body, payload, created_by_email, created_at`,
-      [params.id, type, noteBody, payload ? JSON.stringify(payload) : null, identity.email]
+      [params.id, type, noteBody, payload ? JSON.stringify(payload) : null, caller.identity.email]
     )
 
     // If this is an email_sent activity, advance status to 'contacted' on the

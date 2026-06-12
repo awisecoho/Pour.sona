@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
+import { verifyMigrateSecret } from '@/lib/security'
 export const dynamic = 'force-dynamic'
 
 // Step 1: fix any column mismatches from partial first run
@@ -218,7 +219,7 @@ ON CONFLICT DO NOTHING;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
-  if (body.secret !== 'poursona-migrate-2026') {
+  if (!verifyMigrateSecret(body.secret)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
   try {

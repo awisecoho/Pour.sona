@@ -23,8 +23,31 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { sessionId, retailerId, items, customerEmail, customerName, blendName } = await req.json()
-    const subtotal = (items || []).reduce((s: number, i: any) => s + (i.price || 0) * (i.qty || 1), 0)
+    const { sessionId, retailerId, items: rawItems, customerEmail, customerName, blendName } = await req.json()
+    if (!retailerId) return NextResponse.json({ error: 'missing retailerId' }, { status: 400 })
+
+    // ── Server-side pricing ────────────────────────────────────────────────────
+    // Never trust client-supplied prices: re-price every item from the catalog
+    // (items originate from catalog-validated recommendations, so names should
+    // always match). Unknown names are kept at price 0 rather than rejected so
+    // a stray name mismatch can't block a guest order. Quantities are clamped.
+    const namedItems = (Array.isArray(rawItems) ? rawItems : [])
+      .filter((i: any) => typeof i?.name === 'string' && i.name.trim().length > 0)
+      .slice(0, 50)
+    const priceRows = namedItems.length
+      ? await dbQuery<{ name: string; price: string | number | null }>(
+          `SELECT name, price FROM products
+           WHERE retailer_id = $1 AND lower(name) = ANY($2::text[])`,
+          [retailerId, namedItems.map((i: any) => i.name.trim().toLowerCase())]
+        )
+      : { rows: [] as { name: string; price: string | number | null }[] }
+    const catalogPrice = new Map(priceRows.rows.map(r => [r.name.toLowerCase(), Number(r.price) || 0]))
+    const items = namedItems.map((i: any) => ({
+      name: i.name.trim(),
+      qty: Math.min(Math.max(1, Math.floor(Number(i.qty) || 1)), 20),
+      price: catalogPrice.get(i.name.trim().toLowerCase()) ?? 0,
+    }))
+    const subtotal = items.reduce((s: number, i) => s + i.price * i.qty, 0)
 
     // ── Idempotent insert ──────────────────────────────────────────────────────
     // ON CONFLICT targets the partial unique index:

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
+import { requireTeamMember } from '@/lib/auth'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
@@ -42,6 +43,10 @@ interface ExpiredRow {
 
 export async function GET(req: NextRequest) {
   try {
+    // Cross-tenant data (owner emails, revenue stats) — team members only.
+    if (!(await requireTeamMember())) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
     const { searchParams } = new URL(req.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
     const rawLimit = parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT

@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedIdentity, getInternalMemberByEmail } from '@/lib/auth'
+import { requireTeamMember } from '@/lib/auth'
 import { validateScrapeUrl } from '@/lib/security'
 export const dynamic = 'force-dynamic'
 // Web-search + possible retries can take a while; give functions enough runway.
 export const maxDuration = 120
 
-// ── Auth guard ────────────────────────────────────────────────────────────────
-async function requireTeamMember() {
-  const identity = await getAuthenticatedIdentity()
-  if (!identity?.email) return null
-  const member = await getInternalMemberByEmail(identity.email)
-  return member ?? null
-}
 
 // ── Anthropic proxy with retry ────────────────────────────────────────────────
 // Keeps ANTHROPIC_API_KEY on the server; browser never sees it.

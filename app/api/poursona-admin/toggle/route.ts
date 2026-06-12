@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
+import { requireTeamMember } from '@/lib/auth'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await requireTeamMember())) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
     const { retailerId, active } = await req.json()
     await dbQuery('update retailers set active = $2 where id = $1', [retailerId, active])
     return NextResponse.json({ ok: true })

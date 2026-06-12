@@ -11,19 +11,12 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
-import { getAuthenticatedIdentity, getInternalMemberByEmail } from '@/lib/auth'
+import { requireTeamMember } from '@/lib/auth'
 import { sanitizePromptInput } from '@/lib/security'
 import { LEAD_STATUSES } from '@/lib/leads-constants'
 
 export const dynamic = 'force-dynamic'
 
-async function requireTeamMember() {
-  const identity = await getAuthenticatedIdentity()
-  if (!identity?.email) return null
-  const member = await getInternalMemberByEmail(identity.email)
-  if (!member) return null
-  return { identity, member }
-}
 
 function clean(v: unknown, cap = 1000): string | null | undefined {
   if (v === undefined) return undefined         // not provided in PATCH → leave alone
