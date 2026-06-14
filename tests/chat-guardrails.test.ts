@@ -5,6 +5,7 @@ import {
   effectiveMonthlyUsage,
   selectRelevantProducts,
   validateRecAgainstCatalog,
+  matchCatalogProduct,
   buildFallbackRecommendation,
   rankProductsByPopularity,
   droppedHallucinations,
@@ -82,11 +83,11 @@ describe('selectRelevantProducts', () => {
 describe('validateRecAgainstCatalog (in-stock hard guardrail)', () => {
   const catalog = [{ name: 'Smokies Dew Moonshine' }, { name: 'Peach Moonshine' }]
 
-  it('keeps only SKUs that exist in the catalog (case-insensitive)', () => {
+  it('keeps only SKUs that exist in the catalog, canonicalized to catalog spelling', () => {
     const rec = { selectedProducts: [{ name: 'smokies dew moonshine' }, { name: 'Imaginary IPA' }] }
     const out = validateRecAgainstCatalog(rec, catalog)
     expect(out.selectedProducts).toHaveLength(1)
-    expect(out.selectedProducts[0].name).toBe('smokies dew moonshine')
+    expect(out.selectedProducts[0].name).toBe('Smokies Dew Moonshine')
   })
   it('discards the whole rec when every SKU is hallucinated', () => {
     const rec = { selectedProducts: [{ name: 'Ghost Whiskey' }, { name: 'Vapor Vodka' }] }
@@ -94,6 +95,45 @@ describe('validateRecAgainstCatalog (in-stock hard guardrail)', () => {
   })
   it('passes through a null rec', () => {
     expect(validateRecAgainstCatalog(null, catalog)).toBeNull()
+  })
+})
+
+describe('matchCatalogProduct (fuzzy SKU resolution)', () => {
+  const catalog = [
+    { name: 'Cabernet Franc — Estate Collection' },
+    { name: 'Czech Ya Later' },
+    { name: 'Hazy IPA' },
+    { name: 'Juicy IPA' },
+  ]
+
+  it('matches exactly, ignoring case and punctuation', () => {
+    expect(matchCatalogProduct('cabernet franc estate collection', catalog)?.name)
+      .toBe('Cabernet Franc — Estate Collection')
+  })
+  it('matches word-reordered names (model paraphrased the order)', () => {
+    expect(matchCatalogProduct('Estate Collection Cabernet Franc', catalog)?.name)
+      .toBe('Cabernet Franc — Estate Collection')
+  })
+  it('matches when the model appends a descriptor (unique containment)', () => {
+    expect(matchCatalogProduct('Czech Ya Later Pilsner', catalog)?.name)
+      .toBe('Czech Ya Later')
+  })
+  it('refuses ambiguous containment instead of guessing between SKUs', () => {
+    expect(matchCatalogProduct('IPA', catalog)).toBeNull()
+  })
+  it('returns null for genuinely off-menu names', () => {
+    expect(matchCatalogProduct('Ghost Whiskey', catalog)).toBeNull()
+  })
+})
+
+describe('validateRecAgainstCatalog + fuzzy rescue', () => {
+  it('rescues a near-miss name instead of discarding the rec (wine-venue bug)', () => {
+    const catalog = [{ name: 'Cabernet Franc — Estate Collection' }]
+    const rec = { selectedProducts: [{ name: 'Estate Collection Cabernet Franc', why: 'silky' }] }
+    const out = validateRecAgainstCatalog(rec, catalog)
+    expect(out).not.toBeNull()
+    expect(out.selectedProducts[0].name).toBe('Cabernet Franc — Estate Collection')
+    expect(out.selectedProducts[0].why).toBe('silky')
   })
 })
 

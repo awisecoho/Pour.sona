@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 import { getAuthenticatedIdentity, getRetailersForIdentity } from '@/lib/auth'
+import { validateLogoUrl } from '@/lib/security'
 import { apiError } from '@/lib/api'
 
 async function ensureRetailerAccess(retailerId: string) {
@@ -63,6 +64,17 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * Product image URLs render in the guest <img>; require https on a public
+ * host (same SSRF/safety bar as retailer logos). Empty/absent clears to null.
+ */
+function cleanImageUrl(raw: unknown): { ok: true; value: string | null } | { ok: false } {
+  if (raw == null || raw === '') return { ok: true, value: null }
+  if (typeof raw !== 'string') return { ok: false }
+  const check = validateLogoUrl(raw.trim())
+  return check.ok ? { ok: true, value: check.url.toString() } : { ok: false }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { retailerId, ...product } = await req.json()
@@ -75,11 +87,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: authz.error }, { status: authz.status })
     }
 
+    const imageUrl = cleanImageUrl(product.image_url)
+    if (!imageUrl.ok) {
+      return NextResponse.json({ error: 'Image URL must be a public https URL' }, { status: 400 })
+    }
+
     const result = await dbQuery(
       `insert into products
-        (retailer_id, name, description, category, flavor_notes, price, sizes, pairing, sku, in_stock, origin, process, altitude, roast_date, abv, ibu, style, tap_handle, vintage, appellation, varietal, cellar_note, sort_order)
+        (retailer_id, name, description, category, flavor_notes, price, sizes, pairing, sku, in_stock, origin, process, altitude, roast_date, abv, ibu, style, tap_handle, vintage, appellation, varietal, cellar_note, sort_order, image_url)
        values
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, coalesce($10, true), $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, coalesce($23, 0))
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, coalesce($10, true), $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, coalesce($23, 0), $24)
        returning *`,
       [
         retailerId,
@@ -105,6 +122,7 @@ export async function POST(req: NextRequest) {
         product.varietal || null,
         product.cellar_note || null,
         product.sort_order,
+        imageUrl.value,
       ]
     )
     return NextResponse.json(result.rows[0])
@@ -162,12 +180,21 @@ export async function PUT(req: NextRequest) {
       'varietal',
       'cellar_note',
       'sort_order',
+      'image_url',
     ] as const
     const assignments: string[] = []
     const values: unknown[] = []
     for (const field of fields) {
       if (field in updates) {
-        values.push(updates[field] ?? null)
+        let value: unknown = updates[field] ?? null
+        if (field === 'image_url') {
+          const cleaned = cleanImageUrl(updates[field])
+          if (!cleaned.ok) {
+            return NextResponse.json({ error: 'Image URL must be a public https URL' }, { status: 400 })
+          }
+          value = cleaned.value
+        }
+        values.push(value)
         assignments.push(`${field} = $${values.length}`)
       }
     }

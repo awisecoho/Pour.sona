@@ -45,13 +45,17 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ ok: false, error: authz.error }, { status: authz.status })
     }
 
-    const fields = ['name', 'tagline', 'location', 'brand_color'] as const
+    const fields = ['name', 'tagline', 'location', 'brand_color', 'ordering_enabled'] as const
     const assignments: string[] = []
     const values: unknown[] = []
 
     for (const field of fields) {
       if (field in updates) {
-        values.push(updates[field] ?? null)
+        // ordering_enabled is a boolean toggle — coerce so a null/undefined
+        // payload can't null the column (the guest card treats only an
+        // explicit false as "ordering off").
+        const value = field === 'ordering_enabled' ? updates[field] === true : (updates[field] ?? null)
+        values.push(value)
         assignments.push(`${field} = $${values.length}`)
       }
     }

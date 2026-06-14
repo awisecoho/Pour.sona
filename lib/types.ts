@@ -77,6 +77,9 @@ export interface Retailer {
   personality_preview?: string | null
   // Phase 1 Assistant Profile. NULL = derive defaults from category at runtime.
   assistant_profile?: AssistantProfile | null
+  // Venues without an ordering workflow hide the guest order CTA. Only an
+  // explicit false disables; null/undefined (pre-migration rows) means enabled.
+  ordering_enabled?: boolean | null
 }
 
 export interface Product {

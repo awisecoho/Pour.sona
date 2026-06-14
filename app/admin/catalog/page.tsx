@@ -11,7 +11,7 @@ export default function CatalogPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanResult, setScanResult] = useState<any[]>([])
-  const [newProduct, setNewProduct] = useState({ name: '', category: '', description: '', price: '', abv: '', flavor_notes: '' })
+  const [newProduct, setNewProduct] = useState({ name: '', category: '', description: '', price: '', abv: '', flavor_notes: '', image_url: '' })
   const [editingProduct, setEditingProduct] = useState<any | null>(null)
   const [editForm, setEditForm] = useState<any>({})
   const [editSaving, setEditSaving] = useState(false)
@@ -21,7 +21,7 @@ export default function CatalogPage() {
 
   function openEdit(p: any) {
     setEditingProduct(p)
-    setEditForm({ name: p.name || '', category: p.category || '', description: p.description || '', price: p.price ?? '', abv: p.abv || '', flavor_notes: p.flavor_notes || '' })
+    setEditForm({ name: p.name || '', category: p.category || '', description: p.description || '', price: p.price ?? '', abv: p.abv || '', flavor_notes: p.flavor_notes || '', image_url: p.image_url || '' })
   }
 
   async function saveEdit() {
@@ -38,6 +38,7 @@ export default function CatalogPage() {
         price: editForm.price !== '' ? parseFloat(editForm.price) : null,
         abv: editForm.abv || null,
         flavor_notes: editForm.flavor_notes || null,
+        image_url: editForm.image_url || null,
       }),
     })
     if (res.ok) {
@@ -142,6 +143,7 @@ export default function CatalogPage() {
         price: newProduct.price ? parseFloat(newProduct.price) : null,
         abv: newProduct.abv || null,
         flavor_notes: newProduct.flavor_notes || null,
+        image_url: newProduct.image_url || null,
         in_stock: true,
         sort_order: products.length,
       }),
@@ -153,7 +155,7 @@ export default function CatalogPage() {
       return
     }
     if (data) setProducts(prev => [...prev, data])
-    setNewProduct({ name: '', category: '', description: '', price: '', abv: '', flavor_notes: '' })
+    setNewProduct({ name: '', category: '', description: '', price: '', abv: '', flavor_notes: '', image_url: '' })
     setShowAdd(false)
     setSaving(null)
   }
@@ -253,6 +255,7 @@ export default function CatalogPage() {
             <div><div style={{ color: '#D67A31', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>ABV</div><input value={newProduct.abv} onChange={e => setNewProduct(p => ({...p, abv: e.target.value}))} placeholder="5.2%" style={inp} /></div>
           </div>
           <div style={{ marginBottom: 12 }}><div style={{ color: '#D67A31', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Description / Flavor Notes</div><input value={newProduct.description} onChange={e => setNewProduct(p => ({...p, description: e.target.value}))} placeholder="Brief description..." style={{...inp, width: '100%'}} /></div>
+          <div style={{ marginBottom: 12 }}><div style={{ color: '#D67A31', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 5 }}>Image URL (https)</div><input value={newProduct.image_url} onChange={e => setNewProduct(p => ({...p, image_url: e.target.value}))} placeholder="https://yoursite.com/photos/dock-beer.jpg" style={{...inp, width: '100%'}} /><div style={{ color: '#3A3450', fontSize: 11, marginTop: 4 }}>Shown on the guest recommendation card. Paste a link to a product photo from your website.</div></div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={addProduct} disabled={!newProduct.name || saving === 'new'} style={{ padding: '11px 20px', background: 'linear-gradient(135deg,#D67A31,#612A86)', border: 'none', borderRadius: 8, color: '#12111A', fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: !newProduct.name || saving === 'new' ? .5 : 1 }}>{saving === 'new' ? 'Saving...' : 'Add Item'}</button>
             <button onClick={() => setShowAdd(false)} style={{ padding: '11px 20px', background: 'transparent', border: '1px solid rgba(97,42,134,.2)', borderRadius: 8, color: '#3A3450', fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 12, cursor: 'pointer' }}>Cancel</button>
@@ -323,6 +326,7 @@ export default function CatalogPage() {
               { k: 'price', l: 'Price ($)', type: 'number' },
               { k: 'abv', l: 'ABV / Vintage / Origin', type: 'text' },
               { k: 'flavor_notes', l: 'Flavor Notes', type: 'text' },
+              { k: 'image_url', l: 'Image URL (https)', type: 'text' },
             ].map(({ k, l, type }) => (
               <div key={k} style={{ marginBottom: 14 }}>
                 <label style={{ color: '#D67A31', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>{l}</label>

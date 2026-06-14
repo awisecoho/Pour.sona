@@ -231,7 +231,12 @@ function renderRules(profile: AssistantProfile): string {
 function renderRecFormat(profile: AssistantProfile): string {
   const cta = sanitizePromptInput(profile.cta_primary || 'Order this')
   const ctaSecondary = sanitizePromptInput(profile.cta_secondary || 'Show me another')
-  return `WHEN READY TO RECOMMEND — write 1-2 warm sentences as a handoff, then output the block below exactly:
+  return `WHEN READY TO RECOMMEND — write 1-2 warm sentences as a handoff, then output the block below exactly.
+
+HARD RULES (the guest sees a broken experience if you violate these):
+- NEVER name your final pick in prose without the ===REC=== block in the SAME message. If your message says "X is the one for you", that message MUST end with the block — a recommendation without the block shows the guest nothing to order.
+- Copy each product "name" EXACTLY as it appears in the catalog above, character for character. A renamed or paraphrased product gets dropped from the guest's card.
+- If the guest asks you to just recommend and you already described a pick earlier, do NOT repeat the description — one short confirmation line, then the block.
 
 ===REC===
 {

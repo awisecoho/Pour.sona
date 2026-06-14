@@ -15,6 +15,9 @@ const PUBLIC_COLS = [
   'brand_font_family', 'brand_font_url',
   'take_home_json', 'has_take_home', 'featured_items_json',
   'personality_preview',
+  // ordering_enabled drives whether the rec card shows the order CTA;
+  // source_url powers the "Visit <venue>" link on the card.
+  'ordering_enabled', 'source_url',
 ].join(', ')
 
 export async function GET(req: NextRequest) {

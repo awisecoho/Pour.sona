@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
     }
 
-    const { sessionId, retailerSlug, messages } = await req.json()
+    const { sessionId, retailerSlug, messages, forceRec } = await req.json()
     if (!sessionId || !retailerSlug) return NextResponse.json({ error: 'missing fields' }, { status: 400 })
 
     const retailerResult = await dbQuery(
@@ -241,10 +241,12 @@ export async function POST(req: NextRequest) {
     // Turn cap is per-vendor (driven by AssistantProfile / category template).
     // After max questions, force the recommendation so chat can't run unbounded
     // on cost or frustrate the guest. "START" doesn't count — it's the kick-off.
+    // The client can also force it (forceRec) via the "Just give me a
+    // recommendation" button, which guarantees the ===REC=== card on that turn.
     const { max: maxUserTurns } = getQuestionBounds(retailer)
     const userTurns = apiMessages.filter((m: any) => m.role === 'user' && m.content !== 'START').length
-    if (userTurns >= maxUserTurns) {
-      systemPrompt += `\n\nIMPORTANT: The guest has answered enough (${userTurns} of ${maxUserTurns} questions used). Do NOT ask another question. Give your final recommendation now in this message using the ===REC=== format.`
+    if (userTurns >= maxUserTurns || forceRec === true) {
+      systemPrompt += `\n\nIMPORTANT: Do NOT ask another question. Give your final recommendation NOW in this message using the ===REC=== format. If you already described a pick in an earlier message, do not repeat the description — one short confirmation line, then the ===REC=== block.`
     }
 
     // Trim history sent to the model to the most recent turns (bounds input tokens).

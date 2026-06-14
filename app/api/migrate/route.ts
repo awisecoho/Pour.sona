@@ -68,6 +68,10 @@ DO $$ BEGIN
   -- the Audience Intelligence rollup. Both NULL is valid (rec works without DNA).
   BEGIN ALTER TABLE sessions ADD COLUMN beverage_dna jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE sessions ADD COLUMN persona text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- Venues without an ordering workflow (no POS / staff fulfillment) can turn
+  -- the guest "Order this" button off; the rec card shows an ask-our-staff
+  -- line instead. Default true preserves existing behavior for all venues.
+  BEGIN ALTER TABLE retailers ADD COLUMN ordering_enabled boolean DEFAULT true; EXCEPTION WHEN duplicate_column THEN NULL; END;
 END $$;
 
 -- Performance + tenant-isolation indexes (idempotent; ensures they exist on Neon)

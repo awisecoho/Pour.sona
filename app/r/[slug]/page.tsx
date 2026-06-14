@@ -619,8 +619,19 @@ function RecommendationCard({
           </div>
         )}
 
+        {/* Ordering off (no POS / fulfillment flow): point the guest at staff
+            instead of a dead-end order form. Only explicit false disables. */}
+        {retailer.ordering_enabled === false && (
+          <div style={{ margin: '18px 20px 0', background: `rgba(${theme.rgbStr},.07)`, border: `1px solid rgba(${theme.rgbStr},.18)`, borderRadius: 12, padding: '13px 15px', textAlign: 'center' }}>
+            <div style={{ color: theme.primary, fontSize: 13, fontWeight: 600, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.55 }}>
+              Show this screen to our staff and they&apos;ll get it started for you.
+            </div>
+          </div>
+        )}
+
         {/* CTAs — primary + secondary side-by-side, mobile-comfortable hit areas */}
         <div style={{ padding: '18px 20px 12px', display: 'flex', gap: 10 }}>
+          {retailer.ordering_enabled !== false && (
           <button
             onClick={() => setShowForm(true)}
             style={{
@@ -636,9 +647,12 @@ function RecommendationCard({
           >
             {ctas.primary} →
           </button>
+          )}
           <button
             onClick={onTryAnother}
             style={{
+              // Full-width when it's the only CTA (ordering disabled).
+              ...(retailer.ordering_enabled === false ? { flex: 1 } : {}),
               padding: '15px 16px',
               borderRadius: 14,
               background: 'transparent',
@@ -777,7 +791,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, rec])
 
-  const streamChat = async (msgs: Message[]) => {
+  const streamChat = async (msgs: Message[], opts?: { forceRec?: boolean }) => {
     if (!retailer || !sessionId) return
     setStreaming(true)
     setChips([])
@@ -788,7 +802,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, retailerSlug: params.slug, messages: msgs }),
+        body: JSON.stringify({ sessionId, retailerSlug: params.slug, messages: msgs, forceRec: opts?.forceRec === true }),
       })
 
       if (!res.ok) {
@@ -838,7 +852,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
     void streamChat([{ role: 'user', content: 'START' }])
   }
 
-  const send = (override?: string) => {
+  const send = (override?: string, opts?: { forceRec?: boolean }) => {
     const text = override ?? input
     if (!text.trim() || streaming) return
     setChips([])
@@ -846,7 +860,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
     const next = [...messages, msg]
     setMessages(next)
     setInput('')
-    void streamChat(next.map(m => ({ role: m.role, content: m.content })))
+    void streamChat(next.map(m => ({ role: m.role, content: m.content })), opts)
   }
 
   const chipSelect = (chip: string) => send(chip)
@@ -861,7 +875,9 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
     setChips([])
     const next: Message[] = [...messages, { role: 'user', content: 'Show me a different option — what else fits, based on what I told you?' }]
     setMessages(next)
-    void streamChat(next.map(m => ({ role: m.role, content: m.content })))
+    // forceRec: the old card is already cleared, so a prose-only reply would
+    // leave the guest with nothing to order — guarantee a new ===REC=== block.
+    void streamChat(next.map(m => ({ role: m.role, content: m.content })), { forceRec: true })
   }
 
   if (loading) return <LoadingScreen />
@@ -978,7 +994,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
       {userTurns >= 2 && !rec && !streaming && (
         <div style={{ maxWidth: 640, width: '100%', margin: '0 auto', padding: '0 16px 6px', alignSelf: 'stretch' }}>
           <button
-            onClick={() => send('I think you have enough — go ahead and recommend something.')}
+            onClick={() => send('Just give me a recommendation.', { forceRec: true })}
             style={{
               background: 'none',
               border: `1px solid rgba(${theme.rgbStr},.18)`,

@@ -78,20 +78,68 @@ export function selectRelevantProducts<T extends ProductLike>(products: T[], con
   return scored.slice(0, max).map(s => s.p)
 }
 
+/** Case/punctuation/diacritic-insensitive form of a product name for matching. */
+function normalizeName(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Resolve a model-produced product name to the catalog row it refers to.
+ * Exact normalized match first; then two safe fuzzy passes that only accept a
+ * UNIQUE candidate (ambiguity returns null so we never guess between SKUs):
+ *  - containment either way ("Czech Ya Later Pilsner" ↔ "Czech Ya Later")
+ *  - same word set in any order ("Estate Collection Cabernet Franc" ↔
+ *    "Cabernet Franc — Estate Collection")
+ */
+export function matchCatalogProduct<T extends ProductLike>(name: string, products: T[]): T | null {
+  const target = normalizeName(name)
+  if (!target) return null
+
+  const exact = products.filter(p => normalizeName(String(p.name || '')) === target)
+  if (exact.length > 0) return exact[0]
+
+  if (target.length >= 4) {
+    const contains = products.filter(p => {
+      const pn = normalizeName(String(p.name || ''))
+      return pn.length >= 4 && (pn.includes(target) || target.includes(pn))
+    })
+    if (contains.length === 1) return contains[0]
+  }
+
+  const targetTokens = target.split(' ').sort().join(' ')
+  const tokenMatches = products.filter(
+    p => normalizeName(String(p.name || '')).split(' ').sort().join(' ') === targetTokens
+  )
+  if (tokenMatches.length === 1) return tokenMatches[0]
+
+  return null
+}
+
 /**
  * Hard guardrail against hallucinated recommendations: every product in the REC
  * block must exist in the live in-stock catalog. Off-menu items are dropped; if
  * nothing valid remains, the recommendation is discarded entirely (returns null).
+ * Matched items get their name rewritten to the catalog's canonical spelling so
+ * downstream exact-name joins (image/price enrichment, orders) always hit.
  */
 export function validateRecAgainstCatalog(recData: any, products: ProductLike[]): any | null {
   if (!recData) return null
-  const names = new Set(products.map(p => String(p.name || '').trim().toLowerCase()))
   if (Array.isArray(recData.selectedProducts)) {
-    const filtered = recData.selectedProducts.filter(
-      (sp: any) => sp && typeof sp.name === 'string' && names.has(sp.name.trim().toLowerCase())
-    )
-    if (filtered.length === 0) return null
-    recData.selectedProducts = filtered
+    const resolved = recData.selectedProducts
+      .map((sp: any) => {
+        if (!sp || typeof sp.name !== 'string') return null
+        const match = matchCatalogProduct(sp.name, products)
+        return match ? { ...sp, name: match.name } : null
+      })
+      .filter((sp: any) => sp !== null)
+    if (resolved.length === 0) return null
+    recData.selectedProducts = resolved
   }
   return recData
 }
@@ -132,10 +180,11 @@ export function rankProductsByPopularity<T extends { name?: string }>(
  */
 export function droppedHallucinations(recData: any, products: ProductLike[]): string[] {
   if (!recData || !Array.isArray(recData.selectedProducts)) return []
-  const names = new Set(products.map(p => String(p.name || '').trim().toLowerCase()))
+  // Same matcher as validateRecAgainstCatalog so telemetry agrees with what
+  // actually gets dropped (fuzzy-rescued names are not hallucinations).
   return recData.selectedProducts
     .map((sp: any) => (sp && typeof sp.name === 'string' ? sp.name : null))
-    .filter((n: string | null): n is string => !!n && !names.has(n.trim().toLowerCase()))
+    .filter((n: string | null): n is string => !!n && !matchCatalogProduct(n, products))
 }
 
 /** A no-AI recommendation built straight from the catalog, used when a venue is

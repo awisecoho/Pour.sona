@@ -18,7 +18,7 @@ export default function SettingsPage() {
   })()},[])
   async function save(e:React.FormEvent){
     e.preventDefault();if(!retailer)return;setSaving(true)
-    const res = await fetch('/api/admin/retailer', {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({retailerId:retailer.id,name:form.name,tagline:form.tagline,location:form.location,brand_color:form.brand_color})})
+    const res = await fetch('/api/admin/retailer', {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({retailerId:retailer.id,name:form.name,tagline:form.tagline,location:form.location,brand_color:form.brand_color,ordering_enabled:form.ordering_enabled !== false})})
     const json = await res.json()
     if(!res.ok || !json?.ok){console.error('[admin/settings] save failed:', json);setSaving(false);return}
     setRetailer(json.retailer);setForm({...json.retailer});setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),3000)
@@ -37,12 +37,19 @@ export default function SettingsPage() {
                 <input value={form?.[k]||''} onChange={e=>setForm({...form,[k]:e.target.value})} style={{width:'100%',padding:'10px 12px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(97,42,134,.15)',borderRadius:8,color:'#F5F2E8',fontFamily:"var(--font-inter), system-ui, sans-serif",fontSize:13,outline:'none',boxSizing:'border-box'}}/>
               </div>
             ))}
-            <div style={{marginBottom:24}}>
+            <div style={{marginBottom:16}}>
               <label style={{color:'#D67A31',fontSize:10,letterSpacing:'.15em',textTransform:'uppercase',display:'block',marginBottom:6}}>Brand Color</label>
               <div style={{display:'flex',alignItems:'center',gap:12}}>
                 <input type="color" value={form?.brand_color||'#D67A31'} onChange={e=>setForm({...form,brand_color:e.target.value})} style={{width:44,height:44,border:'none',borderRadius:8,cursor:'pointer'}}/>
                 <input value={form?.brand_color||''} onChange={e=>setForm({...form,brand_color:e.target.value})} style={{flex:1,padding:'10px 12px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(97,42,134,.15)',borderRadius:8,color:'#F5F2E8',fontFamily:"var(--font-inter), system-ui, sans-serif",fontSize:13,outline:'none'}}/>
               </div>
+            </div>
+            <div style={{marginBottom:24}}>
+              <label style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
+                <input type="checkbox" checked={form?.ordering_enabled !== false} onChange={e=>setForm({...form,ordering_enabled:e.target.checked})} style={{width:16,height:16,accentColor:'#D67A31',cursor:'pointer'}}/>
+                <span style={{color:'#F5F2E8',fontSize:13}}>Accept guest orders</span>
+              </label>
+              <div style={{color:'#3A3450',fontSize:11,marginTop:6,lineHeight:1.5}}>When off, the guest recommendation hides the order button and asks guests to see your staff instead. Turn off if you have no way to fulfill orders placed from the guest&apos;s phone.</div>
             </div>
             <button type="submit" disabled={saving} style={{width:'100%',padding:'12px',background:'linear-gradient(135deg,#D67A31,#612A86)',border:'none',borderRadius:8,color:'#12111A',fontFamily:"var(--font-inter), system-ui, sans-serif",fontSize:13,fontWeight:700,cursor:'pointer'}}>{saving?'Saving…':saved?'✓ Saved':'Save Changes'}</button>
           </form>
