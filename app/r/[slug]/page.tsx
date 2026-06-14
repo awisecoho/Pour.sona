@@ -31,6 +31,18 @@ const VERTICAL_PLURAL: Record<string, string> = {
   winery: 'wines',
 }
 
+// Alcohol verticals require a 21+ age confirmation before the guest can see the
+// experience. Centralized so the gate and the disclaimer copy stay in sync.
+// Convention (per legal review): everything except coffee is treated as 21+.
+function isAgeGatedVertical(vertical: string): boolean {
+  return vertical !== 'coffee'
+}
+
+// A prior 21+ confirmation is remembered for this long so a returning guest
+// (or a re-scan at the table) isn't re-prompted on every visit.
+const AGE_VERIFY_KEY = 'poursona_age_verified'
+const AGE_VERIFY_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+
 const stripRec = (text: string) =>
   text
     .replace(/===REC===[\s\S]*?===END===/g, '')
@@ -110,6 +122,89 @@ function NotFound() {
 }
 
 // ── Welcome screen ────────────────────────────────────────────────────────────
+
+// Blocking 21+ click-through gate for alcohol verticals. Rendered full-screen
+// before the welcome screen and chat, so the guest cannot reach any product
+// content without affirming legal drinking age. "denied" shows a polite block
+// with an escape hatch for accidental taps.
+function AgeGate({
+  retailer,
+  status,
+  onConfirm,
+  onDeny,
+  onReset,
+  theme,
+  font,
+}: {
+  retailer: Retailer
+  status: 'pending' | 'denied'
+  onConfirm: () => void
+  onDeny: () => void
+  onReset: () => void
+  theme: ReturnType<typeof useTheme>
+  font: string
+}) {
+  const denied = status === 'denied'
+  const fam = `'${font}', 'Space Grotesk', sans-serif`
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Age verification"
+      style={{ minHeight: '100vh', background: 'linear-gradient(170deg,#0A0E15 0%,#101622 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '56px 28px', textAlign: 'center', position: 'relative', boxSizing: 'border-box' }}
+    >
+      <div style={{ position: 'fixed', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, rgba(${theme.rgbStr},.08) 0%, transparent 70%)`, pointerEvents: 'none' }} />
+
+      <div style={{ position: 'relative', maxWidth: 360, width: '100%' }}>
+        <div style={{ fontSize: 40, marginBottom: 18 }}>{VERTICAL_ICONS[retailer.vertical] || '🍷'}</div>
+
+        {denied ? (
+          <>
+            <div style={{ color: '#E8EDF2', fontSize: 26, fontWeight: 700, fontFamily: fam, lineHeight: 1.25, marginBottom: 12 }}>
+              Come back soon
+            </div>
+            <div style={{ color: '#7B8598', fontSize: 15, lineHeight: 1.7, fontFamily: fam, marginBottom: 28 }}>
+              You must be 21 or older to explore {retailer.name}. Thanks for stopping by.
+            </div>
+            <button
+              onClick={onReset}
+              style={{ background: 'transparent', border: `1px solid rgba(${theme.rgbStr},.28)`, borderRadius: 50, padding: '13px 0', width: '100%', maxWidth: 280, color: theme.primary, fontSize: 13, fontWeight: 600, letterSpacing: '.06em', cursor: 'pointer', fontFamily: fam }}
+            >
+              I entered this by mistake
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{ color: `rgba(${theme.rgbStr},.7)`, fontSize: 12, letterSpacing: '.2em', textTransform: 'uppercase', fontFamily: fam, marginBottom: 10 }}>
+              {retailer.name}
+            </div>
+            <div style={{ color: '#E8EDF2', fontSize: 28, fontWeight: 700, fontFamily: fam, lineHeight: 1.25, marginBottom: 12 }}>
+              Are you 21 or older?
+            </div>
+            <div style={{ color: '#7B8598', fontSize: 15, lineHeight: 1.7, fontFamily: fam, marginBottom: 30 }}>
+              You must be of legal drinking age to continue. By tapping &ldquo;Yes&rdquo; you confirm that you are at least 21 years old.
+            </div>
+            <button
+              onClick={onConfirm}
+              style={{ background: theme.primary, border: 'none', borderRadius: 50, padding: '15px 0', width: '100%', maxWidth: 280, color: theme.onPrimary, fontSize: 14, fontWeight: 700, letterSpacing: '.1em', cursor: 'pointer', fontFamily: fam, boxShadow: `0 8px 32px rgba(${theme.rgbStr},.25)`, marginBottom: 12 }}
+            >
+              Yes, I&apos;m 21 or older
+            </button>
+            <button
+              onClick={onDeny}
+              style={{ background: 'transparent', border: `1px solid rgba(${theme.rgbStr},.28)`, borderRadius: 50, padding: '13px 0', width: '100%', maxWidth: 280, color: '#7B8598', fontSize: 13, fontWeight: 600, letterSpacing: '.06em', cursor: 'pointer', fontFamily: fam }}
+            >
+              I&apos;m under 21
+            </button>
+            <div style={{ marginTop: 24, color: '#4A5468', fontSize: 11, fontFamily: fam, lineHeight: 1.5, maxWidth: 300, marginLeft: 'auto', marginRight: 'auto' }}>
+              Please enjoy responsibly.
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function WelcomeScreen({
   retailer,
@@ -193,7 +288,7 @@ function WelcomeScreen({
         Find My {noun}
       </button>
 
-      {retailer.vertical !== 'coffee' && (
+      {isAgeGatedVertical(retailer.vertical) && (
         <div style={{ marginTop: 24, color: '#4A5468', fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.5, maxWidth: 300 }}>
           Must be 21+. Please enjoy responsibly.
         </div>
@@ -492,7 +587,7 @@ function RecommendationCard({
         <div style={{ color: '#4a5a3a', fontSize: 14, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.6 }}>
           {retailer.name} will have your {noun.toLowerCase()} ready shortly.
         </div>
-        {retailer.vertical !== 'coffee' && (
+        {isAgeGatedVertical(retailer.vertical) && (
           <div style={{ color: '#3a4a2a', fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginTop: 14 }}>
             Must be 21+. Please enjoy responsibly.
           </div>
@@ -761,6 +856,9 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
   const [dna, setDna] = useState<BeverageDNA | null>(null)
   const [ordered, setOrdered] = useState(false)
   const [started, setStarted] = useState(false)
+  // 21+ gate for alcohol verticals: 'pending' until the guest answers, 'ok'
+  // once confirmed (also rehydrated from a prior visit), 'denied' if under age.
+  const [ageStatus, setAgeStatus] = useState<'pending' | 'ok' | 'denied'>('pending')
   // Quick-reply chips suggested by the AI for its current question — kept in sync
   // with what was actually asked, so the options always match the question.
   const [chips, setChips] = useState<string[]>([])
@@ -786,6 +884,21 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
     }
     void init()
   }, [params.slug])
+
+  // Rehydrate a prior 21+ confirmation so returning guests aren't re-prompted.
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(AGE_VERIFY_KEY)
+      if (v && Date.now() - Number(v) < AGE_VERIFY_TTL_MS) setAgeStatus('ok')
+    } catch {}
+  }, [])
+
+  const confirmAge = () => {
+    try { localStorage.setItem(AGE_VERIFY_KEY, String(Date.now())) } catch {}
+    setAgeStatus('ok')
+  }
+  const denyAge = () => setAgeStatus('denied')
+  const resetAge = () => setAgeStatus('pending')
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -886,6 +999,22 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
   const noun = VERTICAL_NOUN[retailer.vertical] || 'Selection'
 
   const userTurns = messages.filter(m => m.role === 'user').length
+
+  // Block all product content behind the 21+ gate on alcohol verticals until
+  // the guest confirms. Coffee (and any non-alcohol vertical) skips this.
+  if (isAgeGatedVertical(retailer.vertical) && ageStatus !== 'ok') {
+    return (
+      <AgeGate
+        retailer={retailer}
+        status={ageStatus === 'denied' ? 'denied' : 'pending'}
+        onConfirm={confirmAge}
+        onDeny={denyAge}
+        onReset={resetAge}
+        theme={theme}
+        font={font}
+      />
+    )
+  }
 
   if (!started) {
     return <WelcomeScreen retailer={retailer} onStart={start} theme={theme} font={font} />
