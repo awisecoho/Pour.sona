@@ -52,6 +52,9 @@ export interface Retailer {
   logo_url?: string
   source_url?: string | null
   brand_color: string
+  // Vendor site background color (guest storefront bg + logo backdrop). Captured
+  // during scraping; null on venues onboarded before the feature.
+  bg_color?: string | null
   owner_email: string
   subscription_status: SubscriptionStatus
   subscription_tier?: string

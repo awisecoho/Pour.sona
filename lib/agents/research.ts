@@ -13,6 +13,10 @@ export interface RawSignals {
   metaDesc: string
   logoUrl: string
   brandColor: string
+  /** The site's actual background color (body/theme-color), used as the guest
+   *  storefront background + logo backdrop. May be a pale tone (unlike
+   *  brandColor, which is filtered to a usable accent). '' when undetected. */
+  bgColor: string
   menuText: string
   storyText: string
   eventsText: string

@@ -33,6 +33,8 @@ DO $$ BEGIN
   BEGIN ALTER TABLE retailers ADD COLUMN vendor_builder_ran_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
   -- retailer_drafts vendor builder / research columns (defensive — draft insert already relies on these)
   BEGIN ALTER TABLE retailer_drafts ADD COLUMN voice text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- site background color captured at scrape time, copied to retailers on publish
+  BEGIN ALTER TABLE retailer_drafts ADD COLUMN bg_color text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailer_drafts ADD COLUMN events_json jsonb DEFAULT '[]'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailer_drafts ADD COLUMN intelligence_json jsonb DEFAULT '{}'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailer_drafts ADD COLUMN research_confidence double precision DEFAULT 0; EXCEPTION WHEN duplicate_column THEN NULL; END;

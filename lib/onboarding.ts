@@ -56,7 +56,7 @@ function resolveAssetUrl(raw: string | null | undefined, baseUrl: string): strin
   try { return new URL(cleaned, baseUrl).toString() } catch { return null }
 }
 
-function extractColorsFromHtml(html: string, baseUrl: string): { primary: string | null; logoUrl: string | null } {
+function extractColorsFromHtml(html: string, baseUrl: string): { primary: string | null; bg: string | null; logoUrl: string | null } {
   // --- Color detection (most reliable first) ---
   const themeColor =
     html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
@@ -71,10 +71,20 @@ function extractColorsFromHtml(html: string, baseUrl: string): { primary: string
   const bodyBgColor =
     html.match(/<body[^>]+style=["'][^"']*background(?:-color)?:\s*(#[0-9a-fA-F]{6})/i)?.[1] || null
 
+  // CSS custom property for a background tone (--bg, --background, etc.)
+  const cssVarBg =
+    html.match(/--(?:bg|background)(?:-color)?:\s*(#[0-9a-fA-F]{6})/i)?.[1] || null
+
   // Prefer the first candidate that is actually a usable brand accent. This stops
   // pale background tones (cream, near-white) from becoming the storefront primary.
   const candidates = [themeColor, cssVarColor, bodyBgColor]
   const primary = candidates.find(isUsableBrandColor) || null
+
+  // The actual page background. Unlike `primary`, we WANT the pale/dark tone here
+  // — it's what the vendor's logo and text were designed to sit on. Body bg is
+  // the strongest signal; theme-color is the mobile-browser chrome color and a
+  // decent fallback. Validate as a real hex but don't filter by "usable accent".
+  const bg = [bodyBgColor, cssVarBg, themeColor].find(c => c && /^#[0-9a-fA-F]{6}$/.test(c)) || null
 
   // --- Logo detection (most specific first) ---
   // 1. A real in-page logo: an <img> whose src/alt/class/id references "logo".
@@ -117,7 +127,7 @@ function extractColorsFromHtml(html: string, baseUrl: string): { primary: string
     resolveAssetUrl(ogImage, baseUrl) ||
     resolveAssetUrl(iconUrl, baseUrl)
 
-  return { primary, logoUrl }
+  return { primary, bg, logoUrl }
 }
 
 async function insertIngestionJob(url: string, signals: RawSignals) {
@@ -163,12 +173,12 @@ async function insertRetailerDraft(params: {
 
   const result = await dbQuery(
     `insert into retailer_drafts (
-      ingestion_job_id, status, name, slug, vertical, location, tagline, logo_url, brand_color,
+      ingestion_job_id, status, name, slug, vertical, location, tagline, logo_url, brand_color, bg_color,
       source_url, menu_json, flight_json, parsed_json, story, culture, region, voice,
       events_json, intelligence_json, research_confidence,
       demo_expires_at
     ) values (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9,
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $21,
       $10, $11, $12, $13, $14, $15, $16, $17,
       $18, $19, $20,
       now() + interval '7 days'
@@ -195,6 +205,7 @@ async function insertRetailerDraft(params: {
       JSON.stringify(normalized.eventsData || []),
       JSON.stringify(intelligenceJson),
       normalized.brandData?.research_confidence || 0,
+      normalized.retailer.bg_color || null,
     ]
   )
 
@@ -429,6 +440,7 @@ export async function extractSignals(rootUrl: string): Promise<RawSignals> {
     title, metaDesc,
     logoUrl: screenshotColors?.logoUrl || '',
     brandColor: screenshotColors?.primary || '',
+    bgColor: screenshotColors?.bg || '',
     menuText,
     storyText,
     eventsText,
@@ -536,6 +548,9 @@ ${signals.menuText}`
   // Override with screenshot-extracted values
   if (signals.brandColor) catalog.retailer.brand_color = signals.brandColor
   if (signals.logoUrl) catalog.retailer.logo_url = signals.logoUrl
+  // Site background tone (for the guest storefront bg + logo backdrop). Pale
+  // tones are valid here, so this is set straight from the scrape.
+  if (signals.bgColor) catalog.retailer.bg_color = signals.bgColor
 
   return { ...catalog, storyData, brandData, eventsData }
 }
@@ -678,6 +693,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
         brand_font_family, brand_font_url,
         take_home_json, has_take_home, featured_items_json,
         scan_confidence, personality_preview, vendor_builder_ran_at,
+        bg_color,
         subscription_status, trial_ends_at
       ) values (
         $1, $2, $3, $4, $5, $6, $7, $8,
@@ -686,6 +702,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
         $17, $18,
         $19, $20, $21,
         $22, $23, now(),
+        $24,
         'trial', now() + interval '14 days'
       )
       returning *`,
@@ -713,6 +730,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
         JSON.stringify(vb.featured_items   || []),
         vb.scan_confidence ?? 0,
         vb.personality_preview || null,
+        draft.bg_color || null,
       ]
     )
     const retailer = retailerResult.rows[0]
@@ -817,6 +835,7 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
     if (isUsableBrandColor(signals.brandColor)) updates.brand_color = signals.brandColor
     else if (vb?.brand_primary_color) updates.brand_color = vb.brand_primary_color
     if (signals.logoUrl) updates.logo_url = signals.logoUrl
+    if (signals.bgColor) updates.bg_color = signals.bgColor
     if (normalized.storyData?.story) updates.story = normalized.storyData.story
     if (normalized.storyData?.culture) updates.culture = normalized.storyData.culture
     if (normalized.storyData?.region) updates.region = normalized.storyData.region
@@ -908,6 +927,7 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
          featured_items_json   = coalesce($16, featured_items_json),
          scan_confidence       = coalesce($17, scan_confidence),
          personality_preview   = coalesce($18, personality_preview),
+         bg_color              = coalesce($19, bg_color),
          vendor_builder_ran_at = case when $10 is not null then now() else vendor_builder_ran_at end
      where id = $1`,
     [
@@ -929,6 +949,7 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
       vb ? JSON.stringify(vb.featured_items) : null,
       vb?.scan_confidence ?? null,
       vb?.personality_preview || null,
+      updates.bg_color || null,
     ]
   )
 

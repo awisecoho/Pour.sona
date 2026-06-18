@@ -65,17 +65,58 @@ async function fetchRetailerBootstrap(slug: string) {
 function hexToRgb(hex: string): [number, number, number] | null {
   const h = hex.replace('#', '')
   if (h.length !== 6) return null
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+  const rgb: [number, number, number] = [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+  return rgb.some(Number.isNaN) ? null : rgb
 }
 
+/** Mix a hex toward white (amt>0) or black (amt<0). amt in [-1,1]. */
+function shade(hex: string, amt: number): string {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  const target = amt < 0 ? 0 : 255
+  const p = Math.abs(amt)
+  const ch = (c: number) => Math.round((target - c) * p + c).toString(16).padStart(2, '0')
+  return '#' + ch(rgb[0]) + ch(rgb[1]) + ch(rgb[2])
+}
+
+function luminanceOf(rgb: [number, number, number]): number {
+  return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255
+}
+
+// Default dark palette — used whenever a vendor has no captured bg_color, so
+// existing venues look exactly as before. When bg_color is set, the guest
+// experience adopts it and derives readable text/surfaces from its luminance.
 function useTheme(retailer: Retailer | null) {
   return useMemo(() => {
     const primary = retailer?.brand_color || '#D67A31'
     const rgb = hexToRgb(primary)
     const rgbStr = rgb ? `${rgb[0]},${rgb[1]},${rgb[2]}` : '214,122,49'
-    const luminance = rgb ? (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255 : 0.5
-    const onPrimary = luminance > 0.55 ? '#0A0E15' : '#E8EDF2'
-    return { primary, rgbStr, onPrimary }
+    const onPrimary = rgb && luminanceOf(rgb) > 0.55 ? '#0A0E15' : '#E8EDF2'
+
+    // Adopt the vendor's site background only when it's a valid hex.
+    const bgHex = retailer?.bg_color && hexToRgb(retailer.bg_color) ? retailer.bg_color : null
+    const isLightBg = bgHex ? luminanceOf(hexToRgb(bgHex)!) > 0.5 : false
+
+    const bg = bgHex
+      ? `linear-gradient(170deg, ${bgHex} 0%, ${shade(bgHex, isLightBg ? -0.05 : 0.07)} 100%)`
+      : 'linear-gradient(170deg,#0A0E15 0%,#101622 100%)'
+
+    // Text + surfaces, contrast-matched to the background.
+    const onBg      = isLightBg ? '#1b1714' : '#E8EDF2'
+    const onBgMuted = isLightBg ? '#5c554d' : '#8b94a6'
+    const onBgFaint = isLightBg ? '#9a938a' : '#4A5468'
+    const aiText    = isLightBg ? '#2a2420' : '#cfc5a8'
+    const surface       = isLightBg ? 'rgba(0,0,0,.045)' : 'rgba(255,255,255,.055)'
+    const surfaceBorder = isLightBg ? 'rgba(0,0,0,.10)'  : 'rgba(255,255,255,.07)'
+    const headerBg  = isLightBg ? 'rgba(255,255,255,.72)' : 'rgba(5,3,1,.6)'
+    const inputBg   = isLightBg ? 'rgba(255,255,255,.85)' : 'rgba(4,3,1,.7)'
+    const fieldBg   = isLightBg ? 'rgba(0,0,0,.04)' : 'rgba(255,255,255,.04)'
+    // Logos are designed for the vendor's own background — render them on it so
+    // dark logos stop disappearing into our near-black. No captured bg → keep
+    // the original subtle panel (unchanged for existing venues).
+    const logoBg = bgHex || 'rgba(255,255,255,.04)'
+
+    return { primary, rgbStr, onPrimary, bg, isLightBg, onBg, onBgMuted, onBgFaint, aiText, surface, surfaceBorder, headerBg, inputBg, fieldBg, logoBg }
   }, [retailer])
 }
 
@@ -151,7 +192,7 @@ function AgeGate({
       role="dialog"
       aria-modal="true"
       aria-label="Age verification"
-      style={{ minHeight: '100vh', background: 'linear-gradient(170deg,#0A0E15 0%,#101622 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '56px 28px', textAlign: 'center', position: 'relative', boxSizing: 'border-box' }}
+      style={{ minHeight: '100vh', background: theme.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '56px 28px', textAlign: 'center', position: 'relative', boxSizing: 'border-box' }}
     >
       <div style={{ position: 'fixed', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, rgba(${theme.rgbStr},.08) 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
@@ -160,10 +201,10 @@ function AgeGate({
 
         {denied ? (
           <>
-            <div style={{ color: '#E8EDF2', fontSize: 26, fontWeight: 700, fontFamily: fam, lineHeight: 1.25, marginBottom: 12 }}>
+            <div style={{ color: theme.onBg, fontSize: 26, fontWeight: 700, fontFamily: fam, lineHeight: 1.25, marginBottom: 12 }}>
               Come back soon
             </div>
-            <div style={{ color: '#7B8598', fontSize: 15, lineHeight: 1.7, fontFamily: fam, marginBottom: 28 }}>
+            <div style={{ color: theme.onBgMuted, fontSize: 15, lineHeight: 1.7, fontFamily: fam, marginBottom: 28 }}>
               You must be 21 or older to explore {retailer.name}. Thanks for stopping by.
             </div>
             <button
@@ -178,10 +219,10 @@ function AgeGate({
             <div style={{ color: `rgba(${theme.rgbStr},.7)`, fontSize: 12, letterSpacing: '.2em', textTransform: 'uppercase', fontFamily: fam, marginBottom: 10 }}>
               {retailer.name}
             </div>
-            <div style={{ color: '#E8EDF2', fontSize: 28, fontWeight: 700, fontFamily: fam, lineHeight: 1.25, marginBottom: 12 }}>
+            <div style={{ color: theme.onBg, fontSize: 28, fontWeight: 700, fontFamily: fam, lineHeight: 1.25, marginBottom: 12 }}>
               Are you 21 or older?
             </div>
-            <div style={{ color: '#7B8598', fontSize: 15, lineHeight: 1.7, fontFamily: fam, marginBottom: 30 }}>
+            <div style={{ color: theme.onBgMuted, fontSize: 15, lineHeight: 1.7, fontFamily: fam, marginBottom: 30 }}>
               You must be of legal drinking age to continue. By tapping &ldquo;Yes&rdquo; you confirm that you are at least 21 years old.
             </div>
             <button
@@ -192,11 +233,11 @@ function AgeGate({
             </button>
             <button
               onClick={onDeny}
-              style={{ background: 'transparent', border: `1px solid rgba(${theme.rgbStr},.28)`, borderRadius: 50, padding: '13px 0', width: '100%', maxWidth: 280, color: '#7B8598', fontSize: 13, fontWeight: 600, letterSpacing: '.06em', cursor: 'pointer', fontFamily: fam }}
+              style={{ background: 'transparent', border: `1px solid rgba(${theme.rgbStr},.28)`, borderRadius: 50, padding: '13px 0', width: '100%', maxWidth: 280, color: theme.onBgMuted, fontSize: 13, fontWeight: 600, letterSpacing: '.06em', cursor: 'pointer', fontFamily: fam }}
             >
               I&apos;m under 21
             </button>
-            <div style={{ marginTop: 24, color: '#4A5468', fontSize: 11, fontFamily: fam, lineHeight: 1.5, maxWidth: 300, marginLeft: 'auto', marginRight: 'auto' }}>
+            <div style={{ marginTop: 24, color: theme.onBgFaint, fontSize: 11, fontFamily: fam, lineHeight: 1.5, maxWidth: 300, marginLeft: 'auto', marginRight: 'auto' }}>
               Please enjoy responsibly.
             </div>
           </>
@@ -221,14 +262,14 @@ function WelcomeScreen({
   const hasLogo = Boolean(retailer.logo_url)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(170deg,#0A0E15 0%,#101622 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '56px 28px', textAlign: 'center', position: 'relative', boxSizing: 'border-box' }}>
+    <div style={{ minHeight: '100vh', background: theme.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '56px 28px', textAlign: 'center', position: 'relative', boxSizing: 'border-box' }}>
       {/* Ambient glow — fixed so it never expands the scroll area or clips the top on short viewports */}
       <div style={{ position: 'fixed', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, rgba(${theme.rgbStr},.08) 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
       {/* Logo or icon */}
       <div style={{ marginBottom: 24, position: 'relative' }}>
         {hasLogo ? (
-          <div style={{ minWidth: 88, height: 100, maxWidth: 260, borderRadius: 20, overflow: 'hidden', border: `1px solid rgba(${theme.rgbStr},.18)`, background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px 20px' }}>
+          <div style={{ minWidth: 88, height: 100, maxWidth: 260, borderRadius: 20, overflow: 'hidden', border: `1px solid rgba(${theme.rgbStr},.18)`, background: theme.logoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px 20px' }}>
             <img
               src={retailer.logo_url}
               alt={retailer.name}
@@ -244,16 +285,16 @@ function WelcomeScreen({
       </div>
 
       {/* Name + location */}
-      <div style={{ color: '#E8EDF2', fontSize: 34, fontWeight: 700, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.2, marginBottom: 6, letterSpacing: '-.3px' }}>
+      <div style={{ color: theme.onBg, fontSize: 34, fontWeight: 700, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.2, marginBottom: 6, letterSpacing: '-.3px' }}>
         {retailer.name}
       </div>
       {retailer.location && (
-        <div style={{ color: `rgba(${theme.rgbStr},.6)`, fontSize: 13, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginBottom: 4, letterSpacing: '.04em' }}>
+        <div style={{ color: theme.onBgMuted, fontSize: 13, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginBottom: 4, letterSpacing: '.04em' }}>
           {retailer.location}
         </div>
       )}
       {retailer.tagline && (
-        <div style={{ color: '#6B7588', fontSize: 15, fontStyle: 'italic', fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginBottom: 0 }}>
+        <div style={{ color: theme.onBgMuted, fontSize: 15, fontStyle: 'italic', fontFamily: `'${font}', 'Space Grotesk', sans-serif`, marginBottom: 0 }}>
           {retailer.tagline}
         </div>
       )}
@@ -262,7 +303,7 @@ function WelcomeScreen({
       <div style={{ width: 40, height: 1, background: `rgba(${theme.rgbStr},.2)`, margin: '28px auto' }} />
 
       {/* Prompt */}
-      <div style={{ color: '#7B8598', fontSize: 16, lineHeight: 1.8, maxWidth: 320, marginBottom: 36, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
+      <div style={{ color: theme.onBgMuted, fontSize: 16, lineHeight: 1.8, maxWidth: 320, marginBottom: 36, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
         I&apos;ll help you find the perfect {VERTICAL_PLURAL[retailer.vertical] || 'selection'}. Just a question or two.
       </div>
 
@@ -289,7 +330,7 @@ function WelcomeScreen({
       </button>
 
       {isAgeGatedVertical(retailer.vertical) && (
-        <div style={{ marginTop: 24, color: '#4A5468', fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.5, maxWidth: 300 }}>
+        <div style={{ marginTop: 24, color: theme.onBgFaint, fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.5, maxWidth: 300 }}>
           Must be 21+. Please enjoy responsibly.
         </div>
       )}
@@ -298,13 +339,13 @@ function WelcomeScreen({
           href="https://pour-sona.com"
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: '#1E2531', fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, letterSpacing: '.08em', textDecoration: 'none' }}
+          style={{ color: theme.onBgFaint, fontSize: 11, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, letterSpacing: '.08em', textDecoration: 'none' }}
         >
           POWERED BY POURSONA
         </a>
         <a
           href="/admin/login"
-          style={{ color: '#1E2531', fontSize: 10, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, letterSpacing: '.05em', textDecoration: 'none' }}
+          style={{ color: theme.onBgFaint, fontSize: 10, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, letterSpacing: '.05em', textDecoration: 'none' }}
         >
           Vendor login →
         </a>
@@ -1021,7 +1062,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(170deg,#0A0E15 0%,#101622 100%)', fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: theme.bg, fontFamily: `'${font}', 'Space Grotesk', sans-serif` }}>
       <style>{`
         @keyframes blink{0%,100%{opacity:.2;transform:scale(.65)}50%{opacity:1;transform:scale(1)}}
         @keyframes cursor{0%,100%{opacity:1}50%{opacity:0}}
@@ -1031,7 +1072,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:2px}
         ::-webkit-scrollbar-thumb{background:rgba(${theme.rgbStr},.15)}
-        textarea::placeholder{color:#2A3242}
+        textarea::placeholder{color:${theme.onBgFaint}}
         button:active{opacity:.8}
       `}</style>
 
@@ -1039,14 +1080,14 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
       <div style={{
         padding: '14px 18px',
         display: 'flex', alignItems: 'center', gap: 11,
-        background: 'rgba(5,3,1,.6)',
+        background: theme.headerBg,
         backdropFilter: 'blur(12px)',
         borderBottom: `1px solid rgba(${theme.rgbStr},.1)`,
         flexShrink: 0,
       }}>
         {retailer.logo_url ? (
-          <div style={{ height: 34, maxWidth: 120, borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <img src={retailer.logo_url} alt="" style={{ height: '100%', maxWidth: 120, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }} />
+          <div style={{ height: 38, maxWidth: 130, borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', flexShrink: 0, background: theme.logoBg, padding: '4px 8px' }}>
+            <img src={retailer.logo_url} alt="" style={{ height: '100%', maxWidth: 114, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }} />
           </div>
         ) : (
           <div style={{ width: 32, height: 32, borderRadius: '50%', background: `rgba(${theme.rgbStr},.1)`, border: `1px solid rgba(${theme.rgbStr},.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>
@@ -1054,8 +1095,8 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
           </div>
         )}
         <div>
-          <div style={{ color: '#ede5cc', fontSize: 15, fontWeight: 600, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.2 }}>{retailer.name}</div>
-          <div style={{ color: '#1E2531', fontSize: 9, letterSpacing: '.18em', marginTop: 1 }}>PERSONAL GUIDE</div>
+          <div style={{ color: theme.onBg, fontSize: 15, fontWeight: 600, fontFamily: `'${font}', 'Space Grotesk', sans-serif`, lineHeight: 1.2 }}>{retailer.name}</div>
+          <div style={{ color: theme.onBgFaint, fontSize: 9, letterSpacing: '.18em', marginTop: 1 }}>PERSONAL GUIDE</div>
         </div>
       </div>
 
@@ -1072,10 +1113,10 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
                 fontSize: 15,
                 lineHeight: 1.8,
                 whiteSpace: 'pre-wrap',
-                background: isAI ? 'rgba(255,255,255,.055)' : `rgba(${theme.rgbStr},.1)`,
-                border: isAI ? '1px solid rgba(255,255,255,.07)' : `1px solid rgba(${theme.rgbStr},.22)`,
+                background: isAI ? theme.surface : `rgba(${theme.rgbStr},.1)`,
+                border: isAI ? `1px solid ${theme.surfaceBorder}` : `1px solid rgba(${theme.rgbStr},.22)`,
                 borderRadius: isAI ? '4px 18px 18px 18px' : '18px 18px 4px 18px',
-                color: isAI ? '#cfc5a8' : theme.primary,
+                color: isAI ? theme.aiText : theme.primary,
                 fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
               }}>
                 {msg.content === '' && msg.streaming ? (
@@ -1143,7 +1184,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
         <div style={{
           borderTop: `1px solid rgba(${theme.rgbStr},.08)`,
           padding: '10px 14px 14px',
-          background: 'rgba(4,3,1,.7)',
+          background: theme.inputBg,
           backdropFilter: 'blur(12px)',
           flexShrink: 0,
           maxWidth: 640, width: '100%', margin: '0 auto', alignSelf: 'stretch',
@@ -1159,11 +1200,11 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
               disabled={streaming}
               style={{
                 flex: 1,
-                background: 'rgba(255,255,255,.04)',
+                background: theme.fieldBg,
                 border: `1px solid rgba(${theme.rgbStr},.14)`,
                 borderRadius: 12,
                 padding: '12px 15px',
-                color: '#ede5cc',
+                color: theme.onBg,
                 fontFamily: `'${font}', 'Space Grotesk', sans-serif`,
                 fontSize: 15,
                 resize: 'none',
@@ -1177,12 +1218,12 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
               onClick={() => send()}
               disabled={streaming || !input.trim()}
               style={{
-                background: input.trim() && !streaming ? theme.primary : 'rgba(255,255,255,.04)',
+                background: input.trim() && !streaming ? theme.primary : theme.fieldBg,
                 border: `1px solid rgba(${theme.rgbStr},.16)`,
                 borderRadius: 10,
                 width: 44, height: 44,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: input.trim() && !streaming ? theme.onPrimary : '#1E2531',
+                color: input.trim() && !streaming ? theme.onPrimary : theme.onBgFaint,
                 cursor: input.trim() && !streaming ? 'pointer' : 'default',
                 fontSize: 16,
                 transition: 'all .15s',
