@@ -53,6 +53,8 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(Math.max(1, rawLimit), MAX_LIMIT)
     const search = (searchParams.get('search') || '').trim()
     const status = (searchParams.get('status') || '').trim()
+    // Archived venues are hidden unless explicitly requested.
+    const includeArchived = searchParams.get('includeArchived') === '1'
     const offset = (page - 1) * limit
     const searchPattern = search ? `%${search}%` : ''
 
@@ -75,9 +77,10 @@ export async function GET(req: NextRequest) {
       LEFT JOIN session_stats ss ON ss.retailer_id = r.id
       WHERE ($3::text = '' OR r.name ILIKE $4 OR r.slug ILIKE $4 OR r.owner_email ILIKE $4)
         AND ($5::text = '' OR r.subscription_status = $5)
+        AND ($6::boolean OR r.archived_at IS NULL)
       ORDER BY r.created_at DESC
       LIMIT $1 OFFSET $2`,
-      [limit, offset, search, searchPattern, status]
+      [limit, offset, search, searchPattern, status, includeArchived]
     )
 
     // Global summary (always unfiltered — dashboard stats)

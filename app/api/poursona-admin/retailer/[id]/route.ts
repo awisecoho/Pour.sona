@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dbQuery } from '@/lib/db'
 import { getAuthenticatedEmail, getInternalMemberByEmail } from '@/lib/auth'
+import { archiveRetailer, unarchiveRetailer, deleteRetailer } from '@/lib/vendor-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,5 +101,50 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
   } catch (error) {
     console.error('[api/poursona-admin/retailer/[id]] update failed:', error)
     return NextResponse.json({ ok: false, error: 'retailer update failed' }, { status: 500 })
+  }
+}
+
+// Archive / unarchive a venue (reversible soft-delete). Any team member.
+export async function PATCH(req: NextRequest, { params }: RouteContext) {
+  try {
+    const authz = await requireInternalMember()
+    if ('error' in authz) {
+      return NextResponse.json({ ok: false, error: authz.error }, { status: authz.status })
+    }
+
+    const { id: retailerId } = await params
+    const { action } = await req.json()
+    if (action === 'archive') {
+      await archiveRetailer(retailerId)
+      return NextResponse.json({ ok: true, archived: true })
+    }
+    if (action === 'unarchive') {
+      await unarchiveRetailer(retailerId)
+      return NextResponse.json({ ok: true, archived: false })
+    }
+    return NextResponse.json({ ok: false, error: 'unknown action' }, { status: 400 })
+  } catch (error) {
+    console.error('[api/poursona-admin/retailer/[id]] archive failed:', error)
+    return NextResponse.json({ ok: false, error: 'archive failed' }, { status: 500 })
+  }
+}
+
+// Permanently delete a venue and all its data. Owner-only — irreversible.
+export async function DELETE(_: NextRequest, { params }: RouteContext) {
+  try {
+    const authz = await requireInternalMember()
+    if ('error' in authz) {
+      return NextResponse.json({ ok: false, error: authz.error }, { status: authz.status })
+    }
+    if (authz.member.role !== 'owner') {
+      return NextResponse.json({ ok: false, error: 'owner role required' }, { status: 403 })
+    }
+
+    const { id: retailerId } = await params
+    const deleted = await deleteRetailer(retailerId)
+    return NextResponse.json({ ok: true, deleted })
+  } catch (error) {
+    console.error('[api/poursona-admin/retailer/[id]] delete failed:', error)
+    return NextResponse.json({ ok: false, error: 'delete failed' }, { status: 500 })
   }
 }

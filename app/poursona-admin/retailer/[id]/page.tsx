@@ -14,7 +14,12 @@ export default function RetailerDetail() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [tab, setTab] = useState<'overview' | 'products' | 'billing' | 'rescan' | 'invite'>('overview')
+  const [tab, setTab] = useState<'overview' | 'products' | 'billing' | 'rescan' | 'invite' | 'danger'>('overview')
+  // Archive / delete (lifecycle)
+  const [archiving, setArchiving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [dangerMsg, setDangerMsg] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting, setInviting] = useState(false)
   const [inviteResult, setInviteResult] = useState('')
@@ -138,6 +143,43 @@ export default function RetailerDetail() {
     setBillingMsg('Status set to ' + status)
   }
 
+  async function toggleArchive() {
+    if (!retailer) return
+    setArchiving(true)
+    setDangerMsg('')
+    const action = retailer.archived_at ? 'unarchive' : 'archive'
+    try {
+      const res = await fetch('/api/poursona-admin/retailer/' + encodeURIComponent(id), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json?.ok) throw new Error(json?.error || 'Failed')
+      setRetailer((prev: any) => ({ ...prev, archived_at: json.archived ? new Date().toISOString() : null, active: !json.archived }))
+      setDangerMsg(json.archived ? 'Venue archived — hidden from the list and disabled for guests.' : 'Venue restored.')
+    } catch (err: any) {
+      setDangerMsg('Error: ' + err.message)
+    }
+    setArchiving(false)
+  }
+
+  async function hardDelete() {
+    if (!retailer) return
+    setDeleting(true)
+    setDangerMsg('')
+    try {
+      const res = await fetch('/api/poursona-admin/retailer/' + encodeURIComponent(id), { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok || !json?.ok) throw new Error(json?.error || 'Failed')
+      // Row is gone — return to the list.
+      window.location.href = '/poursona-admin'
+    } catch (err: any) {
+      setDangerMsg('Error: ' + err.message)
+      setDeleting(false)
+    }
+  }
+
   function openVendorAdmin() {
     if (!retailer) return
     sessionStorage.setItem('active_retailer', JSON.stringify(retailer))
@@ -239,10 +281,11 @@ export default function RetailerDetail() {
       </div>
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 0, borderBottom: '1px solid rgba(97,42,134,.1)', flexWrap: 'wrap' }}>
-        {(['overview', 'products', 'billing', 'rescan', 'invite'] as const).map(t => (
+        {(['overview', 'products', 'billing', 'rescan', 'invite', 'danger'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={s.tabBtn(tab === t)}>
             {t === 'rescan' ? 'Re-scan' : t.charAt(0).toUpperCase() + t.slice(1)}
             {t === 'billing' && trialExpired ? ' ⚠' : ''}
+            {t === 'danger' && retailer.archived_at ? ' · archived' : ''}
           </button>
         ))}
       </div>
@@ -473,6 +516,50 @@ export default function RetailerDetail() {
             <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(97,42,134,.1)' }}>
               <div style={{ color: '#3A3450', fontSize: 11, marginBottom: 6 }}>Customer link</div>
               <div style={{ color: '#D67A31', fontSize: 13 }}>{storefrontUrl(retailer.slug)}</div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'danger' && (
+          <div>
+            {dangerMsg && (
+              <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, fontSize: 13,
+                background: dangerMsg.startsWith('Error') ? 'rgba(224,112,112,.1)' : 'rgba(94,207,138,.1)',
+                border: '1px solid ' + (dangerMsg.startsWith('Error') ? 'rgba(224,112,112,.3)' : 'rgba(94,207,138,.3)'),
+                color: dangerMsg.startsWith('Error') ? '#e07070' : '#5ecf8a' }}>
+                {dangerMsg}
+              </div>
+            )}
+
+            {/* Archive — reversible */}
+            <div style={s.card}>
+              <div style={{ color: '#F5F2E8', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+                {retailer.archived_at ? 'Restore venue' : 'Archive venue'}
+              </div>
+              <div style={{ color: '#3A3450', fontSize: 13, marginBottom: 18, lineHeight: 1.6 }}>
+                {retailer.archived_at
+                  ? 'This venue is archived — hidden from the vendor list and disabled for guests. Restoring brings it back and re-enables its guest page.'
+                  : 'Hides this venue from the vendor list and disables its guest page. Nothing is deleted — you can restore it anytime.'}
+              </div>
+              <button onClick={toggleArchive} disabled={archiving} style={{ ...s.btn(retailer.archived_at ? 'green' : undefined), opacity: archiving ? .6 : 1 }}>
+                {archiving ? 'Working…' : retailer.archived_at ? 'Restore venue' : 'Archive venue'}
+              </button>
+            </div>
+
+            {/* Hard delete — permanent, owner-only */}
+            <div style={{ ...s.card, border: '1px solid rgba(224,112,112,.3)' }}>
+              <div style={{ color: '#e07070', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Permanently delete</div>
+              <div style={{ color: '#3A3450', fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
+                Irreversibly removes <strong style={{ color: '#F5F2E8' }}>{retailer.name}</strong> and all of its products, sessions, orders, billing events, and analytics. This cannot be undone. Owner role required.
+              </div>
+              <label style={s.label}>Type the venue name to confirm</label>
+              <input value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)} placeholder={retailer.name} style={{ ...s.inp, marginBottom: 14 }} />
+              <button
+                onClick={hardDelete}
+                disabled={deleting || deleteConfirm.trim() !== retailer.name}
+                style={{ ...s.btn('danger'), opacity: deleting || deleteConfirm.trim() !== retailer.name ? .45 : 1, cursor: deleting || deleteConfirm.trim() !== retailer.name ? 'not-allowed' : 'pointer' }}>
+                {deleting ? 'Deleting…' : 'Delete this venue forever'}
+              </button>
             </div>
           </div>
         )}

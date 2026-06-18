@@ -80,6 +80,8 @@ export interface Retailer {
   // Venues without an ordering workflow hide the guest order CTA. Only an
   // explicit false disables; null/undefined (pre-migration rows) means enabled.
   ordering_enabled?: boolean | null
+  // Soft-delete: NULL = active, a timestamp = archived (hidden + guest-disabled).
+  archived_at?: string | null
 }
 
 export interface Product {

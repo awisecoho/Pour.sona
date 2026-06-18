@@ -72,6 +72,10 @@ DO $$ BEGIN
   -- the guest "Order this" button off; the rec card shows an ask-our-staff
   -- line instead. Default true preserves existing behavior for all venues.
   BEGIN ALTER TABLE retailers ADD COLUMN ordering_enabled boolean DEFAULT true; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- Soft-delete / archive. NULL = active; a timestamp = archived (hidden from
+  -- the internal listing and disabled for guests). Reversible; distinct from a
+  -- hard delete. archived rows also have active=false.
+  BEGIN ALTER TABLE retailers ADD COLUMN archived_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
 END $$;
 
 -- Performance + tenant-isolation indexes (idempotent; ensures they exist on Neon)

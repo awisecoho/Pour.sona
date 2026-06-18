@@ -81,6 +81,14 @@ export default function AppCommandCenter() {
   const [customers, setCustomers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<string | null>(null)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
+  // Bulk reset (danger zone)
+  const [resetMode, setResetMode] = useState<'archive' | 'delete'>('archive')
+  const [resetPreserve, setResetPreserve] = useState('')
+  const [resetConfirm, setResetConfirm] = useState('')
+  const [resetBusy, setResetBusy] = useState(false)
+  const [resetMsg, setResetMsg] = useState('')
   const [customerSearch, setCustomerSearch] = useState('')
   const [promoForm, setPromoForm] = useState({ code: '', type: 'percent', value: '', description: '', applies_to: 'all', max_uses: '' })
   const [promoSaving, setPromoSaving] = useState(false)
@@ -97,9 +105,10 @@ export default function AppCommandCenter() {
     if (tab === 'customers') loadCustomers()
   }, [tab])
 
-  async function loadRetailers(page = 1, search = '') {
+  async function loadRetailers(page = 1, search = '', includeArchived = showArchived) {
     const params = new URLSearchParams({ page: String(page), limit: '20' })
     if (search) params.set('search', search)
+    if (includeArchived) params.set('includeArchived', '1')
     const res = await fetch('/api/poursona-admin/retailers?' + params)
     const json = await res.json()
     setRetailers(json.retailers || [])
@@ -111,6 +120,49 @@ export default function AppCommandCenter() {
 
   function handleRetailerSearch() {
     loadRetailers(1, retailerSearch)
+  }
+
+  function toggleShowArchived() {
+    const next = !showArchived
+    setShowArchived(next)
+    loadRetailers(1, retailerSearch, next)
+  }
+
+  async function toggleArchive(id: string, isArchived: boolean) {
+    setArchivingId(id)
+    await fetch('/api/poursona-admin/retailer/' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: isArchived ? 'unarchive' : 'archive' }),
+    })
+    // Reload so archived rows drop out (or appear) per the current filter.
+    await loadRetailers(retailerPage, retailerSearch)
+    setArchivingId(null)
+  }
+
+  async function runReset() {
+    const confirmPhrase = resetMode === 'archive' ? 'ARCHIVE ALL' : 'DELETE ALL'
+    if (resetConfirm.trim() !== confirmPhrase) {
+      setResetMsg('Error: type "' + confirmPhrase + '" to confirm.')
+      return
+    }
+    setResetBusy(true)
+    setResetMsg('')
+    try {
+      const res = await fetch('/api/poursona-admin/reset-vendors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: resetMode, confirm: confirmPhrase, preserveEmail: resetPreserve.trim() || null }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json?.ok) throw new Error(json?.error || 'Reset failed')
+      setResetMsg(`${json.mode === 'archive' ? 'Archived' : 'Deleted'} ${json.affected} venue${json.affected === 1 ? '' : 's'}${json.preserved ? ` (kept ${json.preserved})` : ''}.`)
+      setResetConfirm('')
+      await loadRetailers(1, '')
+    } catch (err: any) {
+      setResetMsg('Error: ' + err.message)
+    }
+    setResetBusy(false)
   }
 
   async function loadAnalytics(from: string, to: string) {
@@ -343,6 +395,10 @@ export default function AppCommandCenter() {
               style={{ ...inp, flex: 1 }}
             />
             <button onClick={handleRetailerSearch} style={btn()}>Search</button>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#6A6080', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <input type="checkbox" checked={showArchived} onChange={toggleShowArchived} style={{ accentColor: '#D67A31', cursor: 'pointer' }} />
+              Show archived
+            </label>
           </div>
           {pagination && (
             <div style={{ color: '#3A3450', fontSize: 12, marginBottom: 12 }}>
@@ -363,15 +419,17 @@ export default function AppCommandCenter() {
                     <div style={{ color: '#3A3450', fontSize: 12, marginTop: 2, textTransform: 'capitalize' }}>{r.vertical} · /r/{r.slug}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
                       <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, background: r.subscription_status === 'active' ? 'rgba(94,207,138,.12)' : tExp ? 'rgba(255,100,100,.12)' : 'rgba(97,42,134,.12)', color: r.subscription_status === 'active' ? '#5ecf8a' : tExp ? '#e07070' : '#D67A31', border: '1px solid ' + (r.subscription_status === 'active' ? 'rgba(94,207,138,.3)' : tExp ? 'rgba(255,100,100,.3)' : 'rgba(97,42,134,.25)') }}>{r.subscription_status || 'trial'}{tExp ? ' ⚠' : ''}</span>
+                      {r.archived_at && <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, background: 'rgba(150,150,150,.12)', color: '#9A92A8', border: '1px solid rgba(150,150,150,.25)' }}>archived</span>}
                       <span style={{ color: '#3A3450', fontSize: 12 }}>{r.stats?.total || 0} sessions</span>
                       {r.trial_ends_at && <span style={{ color: tExp ? '#e07070' : '#3A3450', fontSize: 11 }}>{tExp ? 'expired' : 'ends'} {new Date(r.trial_ends_at).toLocaleDateString()}</span>}
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <a href={'/r/' + r.slug} target="_blank" style={{ padding: '9px 0', background: 'rgba(97,42,134,.08)', border: '1px solid rgba(97,42,134,.2)', borderRadius: 8, color: '#D67A31', textDecoration: 'none', fontSize: 12, textAlign: 'center', fontWeight: 600 }}>Preview</a>
                   <Link href={'/poursona-admin/retailer/' + r.id} style={{ padding: '9px 0', background: 'rgba(97,42,134,.08)', border: '1px solid rgba(97,42,134,.2)', borderRadius: 8, color: '#D67A31', textDecoration: 'none', fontSize: 12, textAlign: 'center', fontWeight: 600 }}>Manage</Link>
-                  <button onClick={() => toggleActive(r.id, r.active)} disabled={toggling === r.id} style={{ padding: '9px 0', background: r.active ? 'rgba(255,100,100,.08)' : 'rgba(94,207,138,.08)', border: '1px solid ' + (r.active ? 'rgba(255,100,100,.2)' : 'rgba(94,207,138,.2)'), borderRadius: 8, color: r.active ? '#e07070' : '#5ecf8a', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-inter), system-ui, sans-serif', fontWeight: 600 }}>{toggling === r.id ? '…' : r.active ? 'Deactivate' : 'Activate'}</button>
+                  <button onClick={() => toggleActive(r.id, r.active)} disabled={toggling === r.id || !!r.archived_at} style={{ padding: '9px 0', background: r.active ? 'rgba(255,100,100,.08)' : 'rgba(94,207,138,.08)', border: '1px solid ' + (r.active ? 'rgba(255,100,100,.2)' : 'rgba(94,207,138,.2)'), borderRadius: 8, color: r.active ? '#e07070' : '#5ecf8a', fontSize: 12, cursor: r.archived_at ? 'not-allowed' : 'pointer', opacity: r.archived_at ? .4 : 1, fontFamily: 'var(--font-inter), system-ui, sans-serif', fontWeight: 600 }}>{toggling === r.id ? '…' : r.active ? 'Deactivate' : 'Activate'}</button>
+                  <button onClick={() => toggleArchive(r.id, !!r.archived_at)} disabled={archivingId === r.id} style={{ padding: '9px 0', background: 'rgba(150,150,150,.08)', border: '1px solid rgba(150,150,150,.25)', borderRadius: 8, color: '#9A92A8', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-inter), system-ui, sans-serif', fontWeight: 600 }}>{archivingId === r.id ? '…' : r.archived_at ? 'Restore' : 'Archive'}</button>
                 </div>
               </div>
             )
@@ -396,6 +454,38 @@ export default function AppCommandCenter() {
               </button>
             </div>
           )}
+
+          {/* Danger zone — bulk reset for fresh testing */}
+          <div style={{ ...card, marginTop: 28, border: '1px solid rgba(224,112,112,.3)' }}>
+            <div style={{ color: '#e07070', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Danger zone — reset all vendors</div>
+            <div style={{ color: '#3A3450', fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
+              Clears every vendor for fresh testing. <strong style={{ color: '#9A92A8' }}>Archive</strong> is reversible (hides + disables, keeps data). <strong style={{ color: '#e07070' }}>Delete</strong> is permanent. Optionally keep one account by owner email.
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              {(['archive', 'delete'] as const).map(m => (
+                <button key={m} onClick={() => { setResetMode(m); setResetConfirm(''); setResetMsg('') }}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid ' + (resetMode === m ? (m === 'delete' ? 'rgba(224,112,112,.6)' : 'rgba(150,150,150,.5)') : 'rgba(97,42,134,.2)'), background: resetMode === m ? (m === 'delete' ? 'rgba(224,112,112,.12)' : 'rgba(150,150,150,.12)') : 'transparent', color: resetMode === m ? (m === 'delete' ? '#e07070' : '#9A92A8') : '#3A3450', cursor: 'pointer', fontFamily: 'var(--font-inter), system-ui, sans-serif', fontSize: 12, fontWeight: 700, textTransform: 'capitalize' }}>
+                  {m} all
+                </button>
+              ))}
+            </div>
+            <label style={{ ...label }}>Keep account (owner email, optional)</label>
+            <input value={resetPreserve} onChange={e => setResetPreserve(e.target.value)} placeholder="you@example.com" style={{ ...inp, marginBottom: 12 }} />
+            <label style={{ ...label }}>Type <span style={{ color: resetMode === 'delete' ? '#e07070' : '#9A92A8' }}>{resetMode === 'delete' ? 'DELETE ALL' : 'ARCHIVE ALL'}</span> to confirm</label>
+            <input value={resetConfirm} onChange={e => setResetConfirm(e.target.value)} placeholder={resetMode === 'delete' ? 'DELETE ALL' : 'ARCHIVE ALL'} style={{ ...inp, marginBottom: 14 }} />
+            <button onClick={runReset} disabled={resetBusy}
+              style={{ padding: '11px 20px', borderRadius: 8, border: 'none', cursor: resetBusy ? 'wait' : 'pointer', fontFamily: 'var(--font-inter), system-ui, sans-serif', fontSize: 12, fontWeight: 700, background: resetMode === 'delete' ? 'rgba(224,112,112,.15)' : 'rgba(150,150,150,.15)', color: resetMode === 'delete' ? '#e07070' : '#cfc8d8', opacity: resetBusy ? .6 : 1 }}>
+              {resetBusy ? 'Working…' : resetMode === 'delete' ? 'Delete all vendors' : 'Archive all vendors'}
+            </button>
+            {resetMsg && (
+              <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, fontSize: 13,
+                background: resetMsg.startsWith('Error') ? 'rgba(224,112,112,.08)' : 'rgba(94,207,138,.08)',
+                border: '1px solid ' + (resetMsg.startsWith('Error') ? 'rgba(224,112,112,.2)' : 'rgba(94,207,138,.2)'),
+                color: resetMsg.startsWith('Error') ? '#e07070' : '#5ecf8a' }}>
+                {resetMsg}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
