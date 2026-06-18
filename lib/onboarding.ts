@@ -10,16 +10,33 @@ import { grantRetailerAccessByEmail } from './auth'
 
 const EVENT_KEYWORDS = ['events','calendar','happenings','upcoming','whats-on','live','schedule','entertainment']
 
+// A realistic browser User-Agent + Accept headers — many sites/WAFs reject an
+// obvious bot UA with a 403, which the scraper would otherwise read as an empty
+// page. Identify ourselves honestly via a trailing token while still presenting
+// a browser fingerprint so content is served.
+const SCRAPE_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 PoursonaBot/1.0 (+https://pour-sona.com)',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+}
+
 async function fetchPage(url: string): Promise<string> {
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 PoursonaBot/1.0' },
-      signal: AbortSignal.timeout(8000),
-    })
-    if (!res.ok) return ''
-    const text = await res.text()
-    return text.replace(/\x00/g, '')  // strip null bytes before any processing
-  } catch { return '' }
+  // One retry: transient timeouts / cold WAFs frequently succeed on a second try.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: SCRAPE_HEADERS,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(12000),
+      })
+      if (!res.ok) return ''  // a real HTTP error (404/410/etc.) won't change on retry
+      const text = await res.text()
+      return text.replace(/\x00/g, '')  // strip null bytes before any processing
+    } catch {
+      // Network error / timeout — fall through to one retry, then give up.
+    }
+  }
+  return ''
 }
 
 /**
@@ -173,12 +190,12 @@ async function insertRetailerDraft(params: {
 
   const result = await dbQuery(
     `insert into retailer_drafts (
-      ingestion_job_id, status, name, slug, vertical, location, tagline, logo_url, brand_color, bg_color,
+      ingestion_job_id, status, name, slug, vertical, location, tagline, logo_url, brand_color,
       source_url, menu_json, flight_json, parsed_json, story, culture, region, voice,
       events_json, intelligence_json, research_confidence,
       demo_expires_at
     ) values (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $21,
+      $1, $2, $3, $4, $5, $6, $7, $8, $9,
       $10, $11, $12, $13, $14, $15, $16, $17,
       $18, $19, $20,
       now() + interval '7 days'
@@ -205,11 +222,25 @@ async function insertRetailerDraft(params: {
       JSON.stringify(normalized.eventsData || []),
       JSON.stringify(intelligenceJson),
       normalized.brandData?.research_confidence || 0,
-      normalized.retailer.bg_color || null,
     ]
   )
 
-  return result.rows[0] || null
+  const draftRow = result.rows[0] || null
+
+  // bg_color is best-effort and decoupled from the insert above: it's a newer,
+  // optional column, and signup must NOT fail if the migration adding it hasn't
+  // run yet. Apply it in a separate statement and swallow a missing-column error.
+  if (draftRow && normalized.retailer.bg_color) {
+    try {
+      await dbQuery('update retailer_drafts set bg_color = $2 where id = $1', [draftRow.id, normalized.retailer.bg_color])
+    } catch (err) {
+      if ((err as { code?: string })?.code !== '42703') {
+        console.warn('[Onboarding] draft bg_color update failed (non-fatal):', err instanceof Error ? err.message : String(err))
+      }
+    }
+  }
+
+  return draftRow
 }
 
 async function getRetailerDraftById(draftId: string) {
