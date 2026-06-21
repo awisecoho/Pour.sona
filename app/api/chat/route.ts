@@ -245,7 +245,10 @@ export async function POST(req: NextRequest) {
     // recommendation" button, which guarantees the ===REC=== card on that turn.
     const { max: maxUserTurns } = getQuestionBounds(retailer)
     const userTurns = apiMessages.filter((m: any) => m.role === 'user' && m.content !== 'START').length
-    if (userTurns >= maxUserTurns || forceRec === true) {
+    // A recommendation is expected this turn when the cap is reached or the guest
+    // forced it — used below to guarantee a card rather than dead-end on a handoff.
+    const recExpected = forceRec === true || userTurns >= maxUserTurns
+    if (recExpected) {
       systemPrompt += `\n\nIMPORTANT: Do NOT ask another question. Give your final recommendation NOW in this message using the ===REC=== format. If you already described a pick in an earlier message, do not repeat the description — one short confirmation line, then the ===REC=== block.`
     }
 
@@ -319,6 +322,13 @@ export async function POST(req: NextRequest) {
               `insert into events (retailer_id, session_id, event_type, payload) values ($1, $2, 'recommendation_hallucination_dropped', $3::jsonb)`,
               [retailer.id, sessionId, JSON.stringify({ dropped: droppedSkus, discarded })]
             ).catch(() => {})
+          }
+          // Safety net: a recommendation was expected (cap reached or forced) but
+          // the model produced none / only off-catalog SKUs that got dropped.
+          // Surface a deterministic catalog pick so the guest never dead-ends on a
+          // handoff line with no card, as long as there's a catalog to pick from.
+          if (!recData && (recExpected || recMatch) && inStockProducts.length > 0) {
+            recData = buildFallbackRecommendation(inStockProducts)
           }
           // Phase 3: enrich each surviving product with image_url / catalog price.
           // The AI never produces URLs; this is where they get joined in.

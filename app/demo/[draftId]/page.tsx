@@ -265,7 +265,7 @@ export default function DemoPage({ params }: { params: { draftId: string } }) {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, rec])
 
-  const streamChat = async (msgs: Message[]) => {
+  const streamChat = async (msgs: Message[], opts?: { forceRec?: boolean }) => {
     if (!retailer) return
     setStreaming(true); setChips([])
     setMessages(prev => [...prev, { role: 'assistant', content: '', streaming: true }])
@@ -274,7 +274,7 @@ export default function DemoPage({ params }: { params: { draftId: string } }) {
       const res = await fetch('/api/demo/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draftId, messages: msgs }),
+        body: JSON.stringify({ draftId, messages: msgs, forceRec: opts?.forceRec === true }),
       })
       if (!res.ok) {
         const msg = res.status === 410 ? 'This demo has expired.' : res.status === 429 ? 'One moment — please wait.' : 'Something went wrong.'
@@ -307,17 +307,18 @@ export default function DemoPage({ params }: { params: { draftId: string } }) {
   }
 
   const start = () => { setStarted(true); void streamChat([{ role:'user',content:'START' }]) }
-  const send = (override?: string) => {
+  const send = (override?: string, opts?: { forceRec?: boolean }) => {
     const text = override ?? input
     if (!text.trim()||streaming) return
     setChips([]); const msg: Message={ role:'user',content:text.trim() }
     const next=[...messages,msg]; setMessages(next); setInput('')
-    void streamChat(next.map(m=>({ role:m.role,content:m.content })))
+    void streamChat(next.map(m=>({ role:m.role,content:m.content })), opts)
   }
   const tryAnother = () => {
     if (streaming) return; setRec(null); setDna(null); setChips([])
     const next: Message[] = [...messages,{ role:'user',content:"Show me a different option — what else fits, based on what I told you?" }]
-    setMessages(next); void streamChat(next.map(m=>({ role:m.role,content:m.content })))
+    // forceRec: the card is cleared, so a prose-only reply would leave nothing.
+    setMessages(next); void streamChat(next.map(m=>({ role:m.role,content:m.content })), { forceRec: true })
   }
 
   if (loading) return <LoadingScreen />
@@ -364,6 +365,16 @@ export default function DemoPage({ params }: { params: { draftId: string } }) {
       {/* Input */}
       {!rec && (
         <div style={{ padding:'12px 20px 20px',maxWidth:520,margin:'0 auto',width:'100%',boxSizing:'border-box' }}>
+          {/* "Just recommend" nudge — lets the guest jump to a pick once they've
+              answered a couple of questions, and guarantees a card (forceRec). */}
+          {messages.filter(m=>m.role==='user').length >= 2 && !streaming && (
+            <div style={{ marginBottom:10 }}>
+              <button onClick={()=>send('Just give me a recommendation.', { forceRec:true })}
+                style={{ background:'none',border:`1px solid rgba(${theme.rgbStr},.22)`,borderRadius:20,padding:'7px 16px',color:`rgba(${theme.rgbStr},.7)`,fontSize:12,letterSpacing:'.08em',cursor:'pointer',fontFamily:`'${font}','Space Grotesk', sans-serif` }}>
+                ✦ Just give me a recommendation
+              </button>
+            </div>
+          )}
           {chips.length>0 && <QuickChips chips={chips} onSelect={c=>send(c)} theme={theme} font={font} />}
           <div style={{ display:'flex',gap:8,alignItems:'flex-end',marginTop:chips.length>0?8:0 }}>
             <textarea ref={inputRef} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send() }}} placeholder="Type your answer…" rows={1} disabled={streaming}

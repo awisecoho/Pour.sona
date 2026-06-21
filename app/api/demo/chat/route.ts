@@ -18,6 +18,7 @@ import {
   MAX_HISTORY_MESSAGES,
   selectRelevantProducts,
   validateRecAgainstCatalog,
+  buildFallbackRecommendation,
 } from '@/lib/chat-guardrails'
 import { getQuestionBounds, resolveAssistantProfile } from '@/lib/agent/profile'
 import { enrichRecommendationWithCatalog } from '@/lib/recommendation-enrich'
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
     }
 
-    const { draftId, messages } = await req.json()
+    const { draftId, messages, forceRec } = await req.json()
     if (!draftId) return NextResponse.json({ error: 'missing draftId' }, { status: 400 })
 
     // Load draft
@@ -91,8 +92,12 @@ export async function POST(req: NextRequest) {
 
     const { max: maxUserTurns } = getQuestionBounds(retailer as any)
     const userTurns = apiMessages.filter((m: any) => m.role === 'user' && m.content !== 'START').length
-    if (userTurns >= maxUserTurns) {
-      systemPrompt += `\n\nIMPORTANT: The guest has answered enough (${userTurns} of ${maxUserTurns} questions used). Do NOT ask another question. Give your final recommendation now using the ===REC=== format.`
+    // A recommendation is expected this turn when the question cap is reached or
+    // the guest tapped "just recommend" (forceRec). On those turns we guarantee
+    // a card below, falling back to a catalog pick if the model doesn't comply.
+    const recExpected = forceRec === true || userTurns >= maxUserTurns
+    if (recExpected) {
+      systemPrompt += `\n\nIMPORTANT: Do NOT ask another question. Give your final recommendation NOW in this message using the ===REC=== format. If you already described a pick in an earlier message, do not repeat the description — one short confirmation line, then the ===REC=== block.`
     }
 
     const modelMessages = apiMessages.slice(-MAX_HISTORY_MESSAGES).map((m: any) => ({ role: m.role, content: m.content }))
@@ -124,6 +129,13 @@ export async function POST(req: NextRequest) {
             try { recData = JSON.parse(recMatch[1].trim().replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()) } catch {}
           }
           recData = validateRecAgainstCatalog(recData, allProducts)
+          // Safety net: a recommendation was expected (cap reached or forced) but
+          // the model produced none / an off-catalog one that got dropped. Rather
+          // than dead-end the guest after a handoff line, surface a deterministic
+          // catalog pick so a card always appears when there's a catalog to pick from.
+          if (!recData && (recExpected || recMatch) && allProducts.length > 0) {
+            recData = buildFallbackRecommendation(allProducts)
+          }
           recData = enrichRecommendationWithCatalog(recData, allProducts)
 
           let chips: string[] = []
