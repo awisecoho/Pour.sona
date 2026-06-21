@@ -20,20 +20,57 @@ const SCRAPE_HEADERS = {
   'Accept-Language': 'en-US,en;q=0.9',
 }
 
-async function fetchPage(url: string): Promise<string> {
-  // One retry: transient timeouts / cold WAFs frequently succeed on a second try.
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await fetch(url, {
-        headers: SCRAPE_HEADERS,
-        redirect: 'follow',
-        signal: AbortSignal.timeout(12000),
-      })
-      if (!res.ok) return ''  // a real HTTP error (404/410/etc.) won't change on retry
-      const text = await res.text()
-      return text.replace(/\x00/g, '')  // strip null bytes before any processing
-    } catch {
-      // Network error / timeout — fall through to one retry, then give up.
+// Reader proxy: fetches the target from its OWN infrastructure and returns the
+// page, bypassing WAF/Cloudflare blocks on Vercel's datacenter egress that make
+// a direct server fetch return a 403 challenge. Default is Jina AI Reader; set
+// READER_PROXY_URL='' to disable, or JINA_API_KEY for higher rate limits.
+const READER_PROXY_URL = process.env.READER_PROXY_URL ?? 'https://r.jina.ai/'
+
+async function fetchViaReader(url: string): Promise<string> {
+  if (!READER_PROXY_URL) return ''
+  try {
+    const headers: Record<string, string> = {
+      'X-Return-Format': 'html',           // return HTML so the existing parsers work
+      'Accept': 'text/html',
+      'User-Agent': SCRAPE_HEADERS['User-Agent'],
+    }
+    if (process.env.JINA_API_KEY) headers['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`
+    const res = await fetch(READER_PROXY_URL + url, { headers, signal: AbortSignal.timeout(25000) })
+    if (!res.ok) return ''
+    return (await res.text()).replace(/\x00/g, '')
+  } catch {
+    return ''
+  }
+}
+
+// Returns: HTML string on 200; '' on a definitive HTTP error (likely a WAF
+// challenge — not worth retrying directly); null on a network/timeout error
+// (retryable).
+async function fetchDirect(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: SCRAPE_HEADERS,
+      redirect: 'follow',
+      signal: AbortSignal.timeout(12000),
+    })
+    if (!res.ok) return ''
+    return (await res.text()).replace(/\x00/g, '')  // strip null bytes before any processing
+  } catch {
+    return null
+  }
+}
+
+async function fetchPage(url: string, opts: { reader?: boolean } = {}): Promise<string> {
+  let direct = await fetchDirect(url)
+  if (direct === null) direct = await fetchDirect(url)  // one retry on transient network error
+  if (direct) return direct
+  // Direct fetch came back empty (HTTP error / WAF challenge / two timeouts).
+  // Fall back to the reader proxy for pages where it's worth the latency.
+  if (opts.reader) {
+    const viaReader = await fetchViaReader(url)
+    if (viaReader) {
+      console.log('[Onboarding] fetched via reader proxy:', url)
+      return viaReader
     }
   }
   return ''
@@ -413,8 +450,17 @@ async function fetchMenuAsset(url: string): Promise<MenuAsset | null> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function extractSignals(rootUrl: string): Promise<RawSignals> {
-  const rootHtml = await fetchPage(rootUrl)
-  if (!rootHtml) throw new Error('Could not fetch website')
+  // Reader fallback on the root: if even the proxy can't reach it, degrade to a
+  // minimal synthetic page (name guessed from the domain) instead of throwing —
+  // the user still gets a draft and can fill in details + catalog in the admin.
+  let rootHtml = await fetchPage(rootUrl, { reader: true })
+  if (!rootHtml) {
+    let host = rootUrl
+    try { host = new URL(rootUrl).hostname.replace(/^www\./, '') } catch { /* keep raw */ }
+    const guessName = host.split('.')[0].replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    console.warn('[Onboarding] could not fetch site (direct + reader both failed); creating minimal draft for', rootUrl)
+    rootHtml = `<!doctype html><title>${guessName}</title>`
+  }
 
   const title = rootHtml.match(/<title[^>]*>(.*?)<\/title>/i)?.[1]?.trim() || ''
   const metaDesc = rootHtml.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] || ''
@@ -427,7 +473,9 @@ export async function extractSignals(rootUrl: string): Promise<RawSignals> {
   const [crawlResults, ...assetResults] = await Promise.allSettled([
     Promise.allSettled(
       links.map(async (link) => {
-        const html = await fetchPage(link.url)
+        // reader fallback here too — subpages of a WAF'd site are blocked the
+        // same way the root is; capped at 3 links so reader calls stay bounded.
+        const html = await fetchPage(link.url, { reader: true })
         if (!html) return null
         return { url: link.url, type: link.type, text: stripHtml(html).slice(0, 5000) }
       })
