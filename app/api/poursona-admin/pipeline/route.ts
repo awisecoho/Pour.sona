@@ -247,7 +247,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'missing vertical or location' }, { status: 400 })
       }
       const data = await callAnthropic({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: SEARCH_PROMPT(vertical.label, location) }],
