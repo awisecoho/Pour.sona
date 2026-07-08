@@ -116,19 +116,29 @@ export async function getRetailersForIdentity(userId: string, email: string | nu
     [userId, email]
   )
 
-  const ownRows = result.rows.map((row: any) => ({
-    role: row.role,
-    admin_email: row.admin_email,
-    clerk_user_id: row.clerk_user_id,
-    retailer_id: row.retailer_id,
-    retailer: {
-      ...row,
-      role: undefined,
-      admin_email: undefined,
-      clerk_user_id: undefined,
-      retailer_id: undefined,
-    },
-  }))
+  const ownRows = result.rows.map((row: any) => {
+    const isOwner = row.role === 'owner'
+    return {
+      role: row.role,
+      admin_email: row.admin_email,
+      clerk_user_id: row.clerk_user_id,
+      retailer_id: row.retailer_id,
+      retailer: {
+        ...row,
+        role: undefined,
+        admin_email: undefined,
+        clerk_user_id: undefined,
+        retailer_id: undefined,
+        // Least-privilege for non-owner venue staff: billing status fields
+        // used by the billing tab (subscription_status/mrr/trial_ends_at)
+        // stay visible to any role, but the raw Stripe customer id, the
+        // owner's email, and the compiled AI system prompt are owner-only.
+        owner_email: isOwner ? row.owner_email : undefined,
+        stripe_customer_id: isOwner ? row.stripe_customer_id : undefined,
+        chat_system_prompt: isOwner ? row.chat_system_prompt : undefined,
+      },
+    }
+  })
 
   // Internal staff support access: a poursona_team member can open any
   // vendor's /admin dashboard (via the "Vendor Admin" button in the internal
