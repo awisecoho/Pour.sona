@@ -66,9 +66,9 @@ async function fetchProfile(platform: Platform, accessToken: string): Promise<{ 
   return {}
 }
 
-export async function GET(req: NextRequest, { params }: { params: { platform: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
   const origin = req.nextUrl.origin
-  const platform = params.platform
+  const { platform } = await params
 
   const identity = await getAuthenticatedIdentity()
   if (!identity?.email || !(await getInternalMemberByEmail(identity.email))) {

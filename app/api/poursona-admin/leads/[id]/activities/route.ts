@@ -19,9 +19,10 @@ import { sanitizePromptInput } from '@/lib/security'
 export const dynamic = 'force-dynamic'
 
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const caller = await requireTeamMember()
   if (!caller) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  const { id } = await params
 
   try {
     const body = await req.json()
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const type = sanitizePromptInput(typeRaw).slice(0, 60)
 
     // Verify the lead exists so we don't insert orphan activities.
-    const leadCheck = await dbQuery(`SELECT id FROM prospect_leads WHERE id = $1 LIMIT 1`, [params.id])
+    const leadCheck = await dbQuery(`SELECT id FROM prospect_leads WHERE id = $1 LIMIT 1`, [id])
     if (!leadCheck.rows[0]) return NextResponse.json({ error: 'lead not found' }, { status: 404 })
 
     const noteBody = typeof body.body === 'string' ? sanitizePromptInput(body.body).slice(0, 4000) : null
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       `INSERT INTO prospect_activities (lead_id, type, body, payload, created_by_email)
        VALUES ($1, $2, $3, $4::jsonb, $5)
        RETURNING id, type, body, payload, created_by_email, created_at`,
-      [params.id, type, noteBody, payload ? JSON.stringify(payload) : null, caller.identity.email]
+      [id, type, noteBody, payload ? JSON.stringify(payload) : null, caller.identity.email]
     )
 
     // If this is an email_sent activity, advance status to 'contacted' on the
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       await dbQuery(
         `UPDATE prospect_leads SET status = 'contacted', updated_at = now()
          WHERE id = $1 AND status = 'new'`,
-        [params.id]
+        [id]
       ).catch(() => {})
     }
 

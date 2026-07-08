@@ -32,20 +32,21 @@ function cleanUrl(v: unknown): string | null | undefined {
   try { new URL(v); return v.slice(0, 500) } catch { return undefined }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireTeamMember()
   if (!auth) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  const { id } = await params
 
   try {
     const [lead, activities] = await Promise.all([
-      dbQuery(`SELECT * FROM prospect_leads WHERE id = $1 LIMIT 1`, [params.id]),
+      dbQuery(`SELECT * FROM prospect_leads WHERE id = $1 LIMIT 1`, [id]),
       dbQuery(
         `SELECT id, type, body, payload, created_by_email, created_at
          FROM prospect_activities
          WHERE lead_id = $1
          ORDER BY created_at DESC
          LIMIT 200`,
-        [params.id]
+        [id]
       ),
     ])
     if (!lead.rows[0]) return NextResponse.json({ error: 'not found' }, { status: 404 })
@@ -56,15 +57,16 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireTeamMember()
   if (!auth) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  const { id } = await params
 
   try {
     const body = await req.json()
 
     // Pull current state so we can log meaningful diffs (status change, email add).
-    const before = await dbQuery(`SELECT * FROM prospect_leads WHERE id = $1 LIMIT 1`, [params.id])
+    const before = await dbQuery(`SELECT * FROM prospect_leads WHERE id = $1 LIMIT 1`, [id])
     if (!before.rows[0]) return NextResponse.json({ error: 'not found' }, { status: 404 })
     const current = before.rows[0] as any
 
@@ -102,7 +104,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const cols = Object.keys(updates)
     const values = Object.values(updates)
     const setClause = cols.map((c, i) => `${c} = $${i + 1}`).join(', ')
-    values.push(params.id)
+    values.push(id)
     const result = await dbQuery(
       `UPDATE prospect_leads SET ${setClause}, updated_at = now()
        WHERE id = $${values.length}
@@ -116,7 +118,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       activityInserts.push(dbQuery(
         `INSERT INTO prospect_activities (lead_id, type, body, payload, created_by_email)
          VALUES ($1, 'status_change', $2, $3::jsonb, $4)`,
-        [params.id, `Status: ${current.status} → ${updates.status}`,
+        [id, `Status: ${current.status} → ${updates.status}`,
          JSON.stringify({ from: current.status, to: updates.status }), auth.identity.email]
       ))
     }
@@ -124,7 +126,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       activityInserts.push(dbQuery(
         `INSERT INTO prospect_activities (lead_id, type, body, payload, created_by_email)
          VALUES ($1, 'contact_added', $2, $3::jsonb, $4)`,
-        [params.id, `Email added: ${updates.email}`,
+        [id, `Email added: ${updates.email}`,
          JSON.stringify({ field: 'email', value: updates.email }), auth.identity.email]
       ))
     }
@@ -137,14 +139,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireTeamMember()
   if (!auth) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  const { id } = await params
 
   try {
     const result = await dbQuery(
       `DELETE FROM prospect_leads WHERE id = $1 RETURNING id`,
-      [params.id]
+      [id]
     )
     if (!result.rows[0]) return NextResponse.json({ error: 'not found' }, { status: 404 })
     return NextResponse.json({ ok: true })
