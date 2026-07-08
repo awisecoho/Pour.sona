@@ -997,6 +997,7 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
          tagline              = coalesce($7, tagline),
          location             = coalesce($8, location),
          source_url           = $9,
+         website_url          = $9,
          brand_secondary_color = coalesce($10, brand_secondary_color),
          brand_accent_color    = coalesce($11, brand_accent_color),
          brand_font_family     = coalesce($12, brand_font_family),

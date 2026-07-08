@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
     if (!retailerId) return NextResponse.json({ error: 'retailerId required' }, { status: 400 })
 
     const access = await getRetailersForIdentity(identity.userId, identity.email)
-    const hasAccess = access.some((r: any) => r.retailer_id === retailerId)
+    // Billing stays restricted to the vendor's own admin_users membership —
+    // impersonated staff access (support view of any vendor) does not count.
+    const hasAccess = access.some((r: any) => r.retailer_id === retailerId && !r.impersonated)
     if (!hasAccess) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
     const res = await dbQuery(

@@ -136,6 +136,13 @@ export async function getRetailersForIdentity(userId: string, email: string | nu
   // CRM stored the clicked retailer's id as a hint, but /admin only trusted
   // ids present in this identity's own admin_users rows, so the hint never
   // matched and every dashboard silently fell back to the same retailer.
+  //
+  // Impersonated access is capped at 'manager' (not 'owner') and strips
+  // billing fields below on purpose: billing/checkout stay restricted to the
+  // vendor's own admin_users membership (authorizeRetailer('owner', ...) in
+  // /api/stripe/checkout already denies non-owner roles; /api/stripe/portal
+  // and /api/stripe/status additionally check `!impersonated` explicitly
+  // since they don't go through a role check at all).
   if (email) {
     const teamMember = await getInternalMemberByEmail(email)
     if (teamMember) {
@@ -144,11 +151,20 @@ export async function getRetailersForIdentity(userId: string, email: string | nu
       const impersonatedRows = allRetailers.rows
         .filter((r: any) => !ownedIds.has(r.id))
         .map((r: any) => ({
-          role: 'owner',
+          role: 'manager',
           admin_email: teamMember.email,
           clerk_user_id: userId,
           retailer_id: r.id,
-          retailer: r,
+          retailer: {
+            ...r,
+            owner_email: undefined,
+            stripe_customer_id: undefined,
+            subscription_status: undefined,
+            subscription_tier: undefined,
+            trial_ends_at: undefined,
+            mrr: undefined,
+            plan_price: undefined,
+          },
           impersonated: true,
         }))
       return [...ownRows, ...impersonatedRows]
