@@ -116,7 +116,7 @@ export async function getRetailersForIdentity(userId: string, email: string | nu
     [userId, email]
   )
 
-  return result.rows.map((row: any) => ({
+  const ownRows = result.rows.map((row: any) => ({
     role: row.role,
     admin_email: row.admin_email,
     clerk_user_id: row.clerk_user_id,
@@ -129,6 +129,33 @@ export async function getRetailersForIdentity(userId: string, email: string | nu
       retailer_id: undefined,
     },
   }))
+
+  // Internal staff support access: a poursona_team member can open any
+  // vendor's /admin dashboard (via the "Vendor Admin" button in the internal
+  // CRM) without a personal admin_users row on that retailer. Previously the
+  // CRM stored the clicked retailer's id as a hint, but /admin only trusted
+  // ids present in this identity's own admin_users rows, so the hint never
+  // matched and every dashboard silently fell back to the same retailer.
+  if (email) {
+    const teamMember = await getInternalMemberByEmail(email)
+    if (teamMember) {
+      const ownedIds = new Set(ownRows.map((row) => row.retailer_id))
+      const allRetailers = await dbQuery('select * from retailers order by created_at asc')
+      const impersonatedRows = allRetailers.rows
+        .filter((r: any) => !ownedIds.has(r.id))
+        .map((r: any) => ({
+          role: 'owner',
+          admin_email: teamMember.email,
+          clerk_user_id: userId,
+          retailer_id: r.id,
+          retailer: r,
+          impersonated: true,
+        }))
+      return [...ownRows, ...impersonatedRows]
+    }
+  }
+
+  return ownRows
 }
 
 export async function grantRetailerAccessByEmail(
