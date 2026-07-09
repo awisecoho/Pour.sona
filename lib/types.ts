@@ -78,6 +78,12 @@ export interface Retailer {
   featured_items_json?: Array<{ name: string; reason: string }> | null
   scan_confidence?: number
   personality_preview?: string | null
+  // Assistant Profile scan defaults — sourced from the brand-extraction agent
+  // during onboarding/rescan. deriveDefaultProfile() (lib/agent/profile.ts)
+  // reads these when assistant_profile hasn't set the corresponding field.
+  brand_personality?: string | null
+  key_differentiators?: string[] | null
+  preferred_vocab?: string[] | null
   // Phase 1 Assistant Profile. NULL = derive defaults from category at runtime.
   assistant_profile?: AssistantProfile | null
   // Venues without an ordering workflow hide the guest order CTA. Only an

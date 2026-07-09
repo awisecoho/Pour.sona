@@ -31,6 +31,13 @@ DO $$ BEGIN
   BEGIN ALTER TABLE retailers ADD COLUMN scan_confidence double precision DEFAULT 0; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN personality_preview text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   BEGIN ALTER TABLE retailers ADD COLUMN vendor_builder_ran_at timestamptz; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  -- Assistant Profile scan defaults: sourced from the brand-extraction agent so
+  -- the vendor's Agent editor starts pre-filled instead of generic (see
+  -- lib/agent/profile.ts deriveDefaultProfile). Vendor edits saved into
+  -- assistant_profile JSONB always win over these at read time.
+  BEGIN ALTER TABLE retailers ADD COLUMN brand_personality text; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN key_differentiators jsonb DEFAULT '[]'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
+  BEGIN ALTER TABLE retailers ADD COLUMN preferred_vocab jsonb DEFAULT '[]'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END;
   -- retailer_drafts vendor builder / research columns (defensive — draft insert already relies on these)
   BEGIN ALTER TABLE retailer_drafts ADD COLUMN voice text; EXCEPTION WHEN duplicate_column THEN NULL; END;
   -- site background color captured at scrape time, copied to retailers on publish

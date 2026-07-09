@@ -2,19 +2,30 @@
 import { useEffect, useState } from 'react'
 import { loadAdminAccess } from '@/lib/admin-access'
 import { storefrontUrl } from '@/lib/urls'
+
+const inp: React.CSSProperties = {width:'100%',padding:'10px 12px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(97,42,134,.15)',borderRadius:8,color:'#F5F2E8',fontFamily:"var(--font-inter), system-ui, sans-serif",fontSize:13,outline:'none',boxSizing:'border-box'}
+const label: React.CSSProperties = {color:'#D67A31',fontSize:10,letterSpacing:'.15em',textTransform:'uppercase',display:'block',marginBottom:6}
+const rescanBtn = (bg: string): React.CSSProperties => ({flex:1,padding:'11px 14px',background:bg,border:'none',borderRadius:8,color:'#F5F2E8',fontFamily:"var(--font-inter), system-ui, sans-serif",fontSize:12,fontWeight:700,cursor:'pointer'})
+
 export default function SettingsPage() {
   const [retailer,setRetailer]=useState<any>(null)
   const [form,setForm]=useState<any>(null)
   const [saving,setSaving]=useState(false)
   const [saved,setSaved]=useState(false)
   const [loading,setLoading]=useState(true)
+  const [rescanUrl,setRescanUrl]=useState('')
+  const [rescanning,setRescanning]=useState(false)
+  const [rescanResult,setRescanResult]=useState<any>(null)
+  const [rescanError,setRescanError]=useState('')
   useEffect(()=>{(async()=>{
     const access = await loadAdminAccess()
     const retailers = access.retailers || []
     const storedId = typeof window !== 'undefined' ? localStorage.getItem('poursona_active_retailer') : null
     const nextRetailer = retailers.find((r: any) => r.id === storedId) || retailers[0]
     if(!nextRetailer)return
-    setRetailer(nextRetailer);setForm({...nextRetailer});setLoading(false)
+    setRetailer(nextRetailer);setForm({...nextRetailer})
+    if(nextRetailer.website_url) setRescanUrl(nextRetailer.website_url)
+    setLoading(false)
   })()},[])
   async function save(e:React.FormEvent){
     e.preventDefault();if(!retailer)return;setSaving(true)
@@ -22,6 +33,24 @@ export default function SettingsPage() {
     const json = await res.json()
     if(!res.ok || !json?.ok){console.error('[admin/settings] save failed:', json);setSaving(false);return}
     setRetailer(json.retailer);setForm({...json.retailer});setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),3000)
+  }
+  async function runRescan(mode: 'catalog' | 'branding' | 'full') {
+    if (!retailer || !rescanUrl.trim()) return
+    setRescanning(true);setRescanResult(null);setRescanError('')
+    try {
+      const res = await fetch('/api/admin/rescan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retailerId: retailer.id, url: rescanUrl.trim(), mode }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Rescan failed')
+      setRescanResult({ mode, ...json })
+      setRetailer(json.retailer);setForm({...json.retailer})
+    } catch (err: any) {
+      setRescanError(err.message)
+    }
+    setRescanning(false)
   }
   if(loading)return <div style={{color:'#D67A31'}}>Loading…</div>
   return (
@@ -70,6 +99,40 @@ export default function SettingsPage() {
             ))}
           </div>
         </div>
+      </div>
+      <div style={{background:'linear-gradient(145deg,#1C1A2A,#161423)',border:'1px solid rgba(97,42,134,.15)',borderRadius:14,padding:'28px 24px',marginTop:24}}>
+        <div style={{color:'#F5F2E8',fontSize:15,fontWeight:700,marginBottom:6}}>Re-scan Website</div>
+        <div style={{color:'#3A3450',fontSize:13,marginBottom:20,lineHeight:1.6}}>
+          Refresh your catalog and branding by having the AI re-read your website. Useful after you&apos;ve updated your menu or site.
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={label}>Website URL</label>
+          <input type="url" value={rescanUrl} onChange={e=>setRescanUrl(e.target.value)} placeholder="https://yourwebsite.com" style={inp} autoCapitalize="none" autoCorrect="off"/>
+        </div>
+        <div style={{display:'flex',gap:10,marginBottom:20}}>
+          <button onClick={()=>runRescan('catalog')} disabled={!rescanUrl.trim()||rescanning} style={rescanBtn('rgba(97,42,134,.3)')}>{rescanning?'…':'Catalog Only'}</button>
+          <button onClick={()=>runRescan('branding')} disabled={!rescanUrl.trim()||rescanning} style={rescanBtn('rgba(97,42,134,.3)')}>{rescanning?'…':'Branding Only'}</button>
+          <button onClick={()=>runRescan('full')} disabled={!rescanUrl.trim()||rescanning} style={rescanBtn('linear-gradient(135deg,#D67A31,#612A86)')}>{rescanning?'Scanning…':'Full Rescan'}</button>
+        </div>
+        <div style={{color:'#3A3450',fontSize:11,lineHeight:1.7,marginBottom:rescanning||rescanResult||rescanError?16:0}}>
+          <strong style={{color:'#6A6080'}}>Catalog Only</strong> — adds new products, keeps your manual edits<br/>
+          <strong style={{color:'#6A6080'}}>Branding Only</strong> — updates colors, logo, story, tagline<br/>
+          <strong style={{color:'#6A6080'}}>Full Rescan</strong> — replaces all products, updates all branding (cannot be undone)
+        </div>
+        {rescanning && (
+          <div style={{textAlign:'center',padding:'16px',background:'rgba(97,42,134,.06)',borderRadius:8}}>
+            <div style={{color:'#D67A31',fontSize:13,marginBottom:4}}>Reading website…</div>
+            <div style={{color:'#3A3450',fontSize:12}}>20-40 seconds. AI is extracting colors, story, and products.</div>
+          </div>
+        )}
+        {rescanResult && !rescanning && (
+          <div style={{padding:'14px 16px',background:'rgba(94,207,138,.08)',border:'1px solid rgba(94,207,138,.25)',borderRadius:8}}>
+            <div style={{color:'#5ecf8a',fontSize:13,fontWeight:700,marginBottom:4}}>Rescan Complete</div>
+            <div style={{color:'#F5F2E8',fontSize:13}}>Mode: <span style={{color:'#D67A31'}}>{rescanResult.mode}</span></div>
+            {rescanResult.newProducts > 0 && <div style={{color:'#F5F2E8',fontSize:13}}>{rescanResult.newProducts} new products added</div>}
+          </div>
+        )}
+        {rescanError && <div style={{color:'#e07070',fontSize:13,padding:'12px',background:'rgba(255,100,100,.08)',borderRadius:8}}>{rescanError}</div>}
       </div>
     </div>
   )

@@ -30,17 +30,31 @@ export function deriveDefaultProfile(retailer: Partial<Retailer>): AssistantProf
   const featured = Array.isArray(retailer.featured_items_json) ? retailer.featured_items_json : []
   const best_sellers = featured.map((f) => f?.name).filter((n): n is string => typeof n === 'string' && n.length > 0)
 
+  // brand_personality / key_differentiators / preferred_vocab: sourced from
+  // the brand-extraction scan agent (lib/agents/brand.ts) via onboarding
+  // finalize + rescan, so the agent starts sounding like this specific vendor
+  // instead of a generic one. Empty when the vendor onboarded before this
+  // existed, or the scan found nothing distinctive — resolveAssistantProfile()
+  // still lets a vendor's own saved edits override any of this.
+  const brand_personality = retailer.brand_personality?.trim() || ''
+  const key_differentiators = Array.isArray(retailer.key_differentiators)
+    ? retailer.key_differentiators.filter((s): s is string => typeof s === 'string' && s.length > 0)
+    : []
+  const preferred_vocab = Array.isArray(retailer.preferred_vocab)
+    ? retailer.preferred_vocab.filter((s): s is string => typeof s === 'string' && s.length > 0)
+    : []
+
   // All category themes are eligible by default; the model picks the relevant ones.
   const question_themes = category.question_themes.map((t) => t.id)
 
   return {
     agent_name,
     brand_tone: category.default_tone,
-    brand_personality: '',                            // empty — story/culture fields cover this in the prompt
+    brand_personality,
     experience_style: category.default_experience_style,
-    preferred_vocab: [],
+    preferred_vocab,
     avoid_words: [],
-    key_differentiators: [],
+    key_differentiators,
     best_sellers,
     recommendation_rules: [],
     min_questions: undefined,                         // undefined → use category default

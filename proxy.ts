@@ -5,14 +5,18 @@ import { Redis } from '@upstash/redis'
 import * as Sentry from '@sentry/nextjs'
 
 const LIMITS: Record<string, { max: number; window: string }> = {
-  '/api/chat':      { max: 20,  window: '1 h' },
-  '/api/menu-scan': { max: 10,  window: '1 h' },
-  '/api/retailer':  { max: 120, window: '1 h' },
-  '/api/order':     { max: 30,  window: '1 h' },
+  '/api/chat':        { max: 20,  window: '1 h' },
+  '/api/menu-scan':   { max: 10,  window: '1 h' },
+  '/api/retailer':    { max: 120, window: '1 h' },
+  '/api/order':       { max: 30,  window: '1 h' },
+  // Vendor self-service rescan: runs the same AI scraping pipeline as
+  // menu-scan and isn't covered by the per-vendor chat AI budget, so it needs
+  // its own cap now that vendors (not just internal staff) can trigger it.
+  '/api/admin/rescan': { max: 5, window: '1 h' },
 }
 
 // Routes that must fail-closed if Redis is unavailable (expensive AI calls)
-const FAIL_CLOSED_PATHS = new Set(['/api/chat', '/api/menu-scan'])
+const FAIL_CLOSED_PATHS = new Set(['/api/chat', '/api/menu-scan', '/api/admin/rescan'])
 
 // Prefix-based limits applied to authenticated admin routes
 const PREFIX_LIMITS: Array<{ prefix: string; max: number; window: string }> = [

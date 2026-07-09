@@ -17,6 +17,7 @@ const emptyBrandData: BrandData = {
   brand_personality: [],
   brand_voice_tone: '',
   signature_items: [],
+  preferred_vocab: [],
   research_confidence: 0,
 }
 
@@ -38,6 +39,7 @@ function normalizeBrandData(data: any): BrandData {
     brand_personality: Array.isArray(data.brand_personality) ? data.brand_personality.filter((item: any) => typeof item === 'string') : [],
     brand_voice_tone: typeof data.brand_voice_tone === 'string' ? data.brand_voice_tone : '',
     signature_items: Array.isArray(data.signature_items) ? data.signature_items.filter((item: any) => typeof item === 'string') : [],
+    preferred_vocab: Array.isArray(data.preferred_vocab) ? data.preferred_vocab.filter((item: any) => typeof item === 'string') : [],
     research_confidence: typeof data.research_confidence === 'number' ? Math.max(0, Math.min(100, Math.round(data.research_confidence))) : 0,
   }
 }
@@ -62,6 +64,7 @@ Return ONLY valid JSON:
   "brand_personality": ["3-5 single descriptive words"],
   "brand_voice_tone": "single phrase, e.g. casual and irreverent",
   "signature_items": ["2-3 product names if identifiable"],
+  "preferred_vocab": ["2-6 vendor-specific or regional terms/phrasing this venue actually uses for their products or experience (e.g. house nicknames for categories, local dialect, a signature term from their own copy) — terms an AI guide should adopt to sound like a local expert, not a generic assistant. Omit if nothing distinctive is found."],
   "research_confidence": 0
 }
 
