@@ -45,6 +45,25 @@ describe('deriveDefaultProfile', () => {
     const template = getCategoryTemplate('winery')
     expect(profile.question_themes).toEqual(template.question_themes.map(t => t.id))
   })
+
+  it('derives brand_personality/key_differentiators/preferred_vocab from scan columns', () => {
+    const profile = deriveDefaultProfile({
+      vertical: 'brewery',
+      brand_personality: 'irreverent, craft-forward — playful and unpretentious',
+      key_differentiators: ['barrel-aged sours', 'onsite malting'],
+      preferred_vocab: ['flight', 'growler'],
+    } as R)
+    expect(profile.brand_personality).toBe('irreverent, craft-forward — playful and unpretentious')
+    expect(profile.key_differentiators).toEqual(['barrel-aged sours', 'onsite malting'])
+    expect(profile.preferred_vocab).toEqual(['flight', 'growler'])
+  })
+
+  it('falls back to empty brand_personality/key_differentiators/preferred_vocab when scan columns are absent', () => {
+    const profile = deriveDefaultProfile({ vertical: 'brewery', name: 'Steuben' } as R)
+    expect(profile.brand_personality).toBe('')
+    expect(profile.key_differentiators).toEqual([])
+    expect(profile.preferred_vocab).toEqual([])
+  })
 })
 
 describe('resolveAssistantProfile', () => {

@@ -46,5 +46,8 @@ export interface BrandData {
   brand_personality: string[]
   brand_voice_tone: string
   signature_items: string[]
+  /** Vendor-specific or regional terms the AI should adopt when talking to
+   *  guests (e.g. "flight", "growler", a house nickname for a category). */
+  preferred_vocab: string[]
   research_confidence: number
 }

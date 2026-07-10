@@ -763,6 +763,23 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
     // Extract vendor builder data from intelligence_json if available
     const vb = draft.intelligence_json?.vendorBuilder || {}
 
+    // Brand-extraction agent's output was spread onto intelligence_json's top
+    // level at draft creation (createDraftFromUrl) — pull it out here the same
+    // way vb is, so the Agent Profile editor starts pre-filled instead of
+    // generic (see lib/agent/profile.ts deriveDefaultProfile).
+    const brandData = draft.intelligence_json || {}
+    const brandPersonalityTraits: string[] = Array.isArray(brandData.brand_personality)
+      ? brandData.brand_personality.filter((s: any) => typeof s === 'string' && s.trim())
+      : []
+    const brandVoiceTone: string = typeof brandData.brand_voice_tone === 'string' ? brandData.brand_voice_tone.trim() : ''
+    const brandPersonalityText = [brandVoiceTone, brandPersonalityTraits.join(', ')].filter(Boolean).join(' — ') || null
+    const keyDifferentiators = Array.isArray(brandData.signature_items)
+      ? brandData.signature_items.filter((s: any) => typeof s === 'string' && s.trim())
+      : []
+    const preferredVocab = Array.isArray(brandData.preferred_vocab)
+      ? brandData.preferred_vocab.filter((s: any) => typeof s === 'string' && s.trim())
+      : []
+
     // 1. Create retailer row
     const retailerResult = await client.query<any>(
       `insert into retailers (
@@ -773,6 +790,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
         take_home_json, has_take_home, featured_items_json,
         scan_confidence, personality_preview, vendor_builder_ran_at,
         bg_color,
+        brand_personality, key_differentiators, preferred_vocab,
         subscription_status, trial_ends_at
       ) values (
         $1, $2, $3, $4, $5, $6, $7, $8,
@@ -782,6 +800,7 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
         $19, $20, $21,
         $22, $23, now(),
         $24,
+        $25, $26, $27,
         'trial', now() + interval '14 days'
       )
       returning *`,
@@ -810,6 +829,9 @@ export async function publishDraft(draftId: string, ownerEmail?: string) {
         vb.scan_confidence ?? 0,
         vb.personality_preview || null,
         draft.bg_color || null,
+        brandPersonalityText,
+        JSON.stringify(keyDifferentiators),
+        JSON.stringify(preferredVocab),
       ]
     )
     const retailer = retailerResult.rows[0]
@@ -920,6 +942,24 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
     if (normalized.storyData?.region) updates.region = normalized.storyData.region
     if (normalized.retailer.tagline) updates.tagline = normalized.retailer.tagline
     if (normalized.retailer.location) updates.location = normalized.retailer.location
+
+    // Assistant Profile scan defaults (see lib/agent/profile.ts) — only
+    // overwritten when this rescan actually found something, same convention
+    // as the fields above.
+    const traits = Array.isArray(normalized.brandData?.brand_personality)
+      ? normalized.brandData.brand_personality.filter((s: any) => typeof s === 'string' && s.trim())
+      : []
+    const voiceTone = typeof normalized.brandData?.brand_voice_tone === 'string' ? normalized.brandData.brand_voice_tone.trim() : ''
+    const personalityText = [voiceTone, traits.join(', ')].filter(Boolean).join(' — ')
+    if (personalityText) updates.brand_personality = personalityText
+    const differentiators = Array.isArray(normalized.brandData?.signature_items)
+      ? normalized.brandData.signature_items.filter((s: any) => typeof s === 'string' && s.trim())
+      : []
+    if (differentiators.length) updates.key_differentiators = differentiators
+    const vocab = Array.isArray(normalized.brandData?.preferred_vocab)
+      ? normalized.brandData.preferred_vocab.filter((s: any) => typeof s === 'string' && s.trim())
+      : []
+    if (vocab.length) updates.preferred_vocab = vocab
   }
 
   if (mode === 'catalog' || mode === 'full') {
@@ -1007,6 +1047,9 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
          scan_confidence       = coalesce($17, scan_confidence),
          personality_preview   = coalesce($18, personality_preview),
          bg_color              = coalesce($19, bg_color),
+         brand_personality     = coalesce($20, brand_personality),
+         key_differentiators   = coalesce($21, key_differentiators),
+         preferred_vocab       = coalesce($22, preferred_vocab),
          vendor_builder_ran_at = case when $10 is not null then now() else vendor_builder_ran_at end
      where id = $1`,
     [
@@ -1029,6 +1072,9 @@ export async function rescanRetailer(retailerId: string, url: string, mode: 'cat
       vb?.scan_confidence ?? null,
       vb?.personality_preview || null,
       updates.bg_color || null,
+      updates.brand_personality || null,
+      updates.key_differentiators ? JSON.stringify(updates.key_differentiators) : null,
+      updates.preferred_vocab ? JSON.stringify(updates.preferred_vocab) : null,
     ]
   )
 
