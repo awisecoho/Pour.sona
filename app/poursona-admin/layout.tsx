@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { useClerk } from '@clerk/nextjs'
 
 const NAV = [
   { href: '/poursona-admin', label: 'All Retailers', icon: '◈' },
@@ -9,9 +10,28 @@ const NAV = [
   { href: '/poursona-admin/team', label: 'Team', icon: '◎' },
 ]
 
+// process.env.NEXT_PUBLIC_* is the only Clerk env var inlined into the client
+// bundle — CLERK_SECRET_KEY is server-only and always undefined here.
+const hasClerkEnv = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+
+// useClerk() throws if there's no <ClerkProvider> ancestor, which happens
+// whenever Clerk isn't configured (app/layout.tsx skips the provider in that
+// case). Isolating the hook in its own component — only mounted when
+// hasClerkEnv is true — keeps InternalLayout safe to render either way.
+function ClerkSignOutBridge({ onReady }: { onReady: (fn: () => Promise<void>) => void }) {
+  const clerk = useClerk()
+  useEffect(() => {
+    onReady(() => clerk.signOut({ redirectUrl: '/poursona-admin/login' }))
+  }, [clerk, onReady])
+  return null
+}
+
 export default function InternalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const clerkSignOutRef = useRef<() => Promise<void>>(async () => {
+    window.location.href = '/poursona-admin/login'
+  })
   const [member, setMember] = useState<any>(null)
   const [memberRole, setMemberRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -50,8 +70,10 @@ export default function InternalLayout({ children }: { children: React.ReactNode
     check()
   }, [pathname, router])
 
-  function handleSignOut() {
-    window.location.href = '/poursona-admin/login'
+  async function handleSignOut() {
+    // Must actually end the Clerk session — a bare redirect leaves the
+    // session cookie valid, so the login page immediately bounces back in.
+    await clerkSignOutRef.current()
   }
 
   if (pathname.includes('/poursona-admin/login')) return <>{children}</>
@@ -59,6 +81,9 @@ export default function InternalLayout({ children }: { children: React.ReactNode
   if (message) return <div style={{ minHeight: '100vh', background: '#12111A', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}><div style={{ color: '#F5F2E8', fontFamily: 'var(--font-inter), system-ui, sans-serif', maxWidth: 420, textAlign: 'center' }}>{message}</div></div>
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#12111A', fontFamily: 'var(--font-inter), system-ui, sans-serif' }}>
+      {hasClerkEnv && (
+        <ClerkSignOutBridge onReady={(fn) => { clerkSignOutRef.current = fn }} />
+      )}
       <aside style={{ width: 240, flexShrink: 0, background: 'linear-gradient(180deg,#0a0704,#12111A)', borderRight: '1px solid rgba(97,42,134,.15)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0 }}>
         <div style={{ padding: '28px 24px', borderBottom: '1px solid rgba(97,42,134,.1)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>

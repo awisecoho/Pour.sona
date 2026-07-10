@@ -3,7 +3,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { useClerk } from '@clerk/nextjs'
 import { loadAdminAccess, resetAdminAccessCache } from '@/lib/admin-access'
+
+// process.env.NEXT_PUBLIC_* is the only Clerk env var inlined into the client
+// bundle — CLERK_SECRET_KEY is server-only and always undefined here.
+const hasClerkEnv = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+
+// useClerk() throws if there's no <ClerkProvider> ancestor, which happens
+// whenever Clerk isn't configured (app/layout.tsx skips the provider in that
+// case). Isolating the hook in its own component — only mounted when
+// hasClerkEnv is true — keeps AdminLayout safe to render either way.
+function ClerkSignOutBridge({ onReady }: { onReady: (fn: () => Promise<void>) => void }) {
+  const clerk = useClerk()
+  useEffect(() => {
+    onReady(() => clerk.signOut({ redirectUrl: '/admin/login' }))
+  }, [clerk, onReady])
+  return null
+}
 
 const NAV = [
   { href: '/admin', label: 'Dashboard', icon: 'D' },
@@ -60,6 +77,9 @@ function resolveRetailer(access: any, previousRetailer: any) {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const clerkSignOutRef = useRef<() => Promise<void>>(async () => {
+    window.location.href = '/admin/login'
+  })
   const [allRetailers, setAllRetailers] = useState<any[]>([])
   const [retailer, setRetailer] = useState<any>(null)
   const [shellState, setShellState] = useState<AdminShellState>('bootstrapping')
@@ -203,13 +223,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push('/admin')
   }
 
-  function handleSignOut() {
+  async function handleSignOut() {
     resetAdminAccessCache()
     if (typeof window !== 'undefined') {
       localStorage.removeItem('poursona_active_retailer')
       sessionStorage.removeItem('active_retailer')
     }
-    window.location.href = '/admin/login'
+    // Must actually end the Clerk session — a bare redirect to /admin/login
+    // leaves the session cookie valid, so <SignIn> immediately bounces back
+    // into /admin (the "logout does nothing" bug).
+    await clerkSignOutRef.current()
   }
 
   if (isAdminAuthPath(pathname)) return <>{children}</>
@@ -378,6 +401,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#12111A', fontFamily: 'var(--font-inter), system-ui, sans-serif' }}>
+      {hasClerkEnv && (
+        <ClerkSignOutBridge onReady={(fn) => { clerkSignOutRef.current = fn }} />
+      )}
       <style>{`
         /* Desktop: fixed sidebar, main has left margin */
         .admin-sidebar {
