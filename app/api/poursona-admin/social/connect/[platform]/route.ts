@@ -12,7 +12,7 @@ const base64url = (b: Buffer) =>
   b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
 // GET — begin the OAuth authorization-code flow for a platform.
-export async function GET(req: NextRequest, { params }: { params: { platform: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
   const origin = req.nextUrl.origin
 
   // Auth: must be a Poursona team member (Clerk cookies travel with this nav).
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: { platform: st
     return back(origin, 'error=forbidden')
   }
 
-  const platform = params.platform
+  const { platform } = await params
   if (!isPlatform(platform)) return back(origin, 'error=unknown_platform')
   if (!isConfigured(platform)) return back(origin, `error=not_configured&platform=${platform}`)
 

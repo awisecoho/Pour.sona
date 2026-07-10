@@ -5,9 +5,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { draftId: string } }
+  { params }: { params: Promise<{ draftId: string }> }
 ) {
-  const { draftId } = params
+  const { draftId } = await params
   if (!draftId) return NextResponse.json({ error: 'missing draftId' }, { status: 400 })
 
   const result = await dbQuery<any>(
