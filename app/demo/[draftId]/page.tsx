@@ -6,7 +6,7 @@
  * After engagement a "Claim Your Guide" banner/CTA lets them register.
  */
 
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo, use } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Retailer, BlendRecommendation, BeverageDNA } from '@/lib/types'
 import { DnaTasteLine, DnaDetails } from '@/app/_components/BeverageDnaReveal'
@@ -227,9 +227,9 @@ function DemoRecommendationCard({ rec,dna,retailer,ctas,onTryAnother,theme,font,
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function DemoPage({ params }: { params: { draftId: string } }) {
+export default function DemoPage({ params }: { params: Promise<{ draftId: string }> }) {
   const router = useRouter()
-  const { draftId } = params
+  const { draftId } = use(params)
 
   const [retailer, setRetailer] = useState<Retailer | null>(null)
   const [messages, setMessages] = useState<Message[]>([])

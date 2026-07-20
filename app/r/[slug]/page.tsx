@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo, use } from 'react'
 import type { Retailer, BlendRecommendation, BeverageDNA } from '@/lib/types'
 import { DnaTasteLine, DnaDetails } from '@/app/_components/BeverageDnaReveal'
 
@@ -885,7 +885,8 @@ function RecommendationCard({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function CustomerPage({ params }: { params: { slug: string } }) {
+export default function CustomerPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params)
   const [retailer, setRetailer] = useState<Retailer | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -916,7 +917,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
   useEffect(() => {
     async function init() {
       try {
-        const boot = await fetchRetailerBootstrap(params.slug)
+        const boot = await fetchRetailerBootstrap(slug)
         if (!boot) { setNotFound(true); setLoading(false); return }
         setRetailer(boot.retailer)
         setSessionId(boot.sessionId)
@@ -924,7 +925,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
       finally { setLoading(false) }
     }
     void init()
-  }, [params.slug])
+  }, [slug])
 
   // Rehydrate a prior 21+ confirmation so returning guests aren't re-prompted.
   useEffect(() => {
@@ -956,7 +957,7 @@ export default function CustomerPage({ params }: { params: { slug: string } }) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, retailerSlug: params.slug, messages: msgs, forceRec: opts?.forceRec === true }),
+        body: JSON.stringify({ sessionId, retailerSlug: slug, messages: msgs, forceRec: opts?.forceRec === true }),
       })
 
       if (!res.ok) {
